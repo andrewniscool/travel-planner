@@ -21,3 +21,8 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.local
+.env.*.local
+
+CURRENT_STATUS.md
+PROJECT_SPECS.md

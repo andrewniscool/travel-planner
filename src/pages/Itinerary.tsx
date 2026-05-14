@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Sun,
   Sunrise,
@@ -20,6 +21,12 @@ import {
 import { useTrip } from '../hooks/useTrip';
 import { getItineraryByTripId } from '../data/itinerary';
 import { getPlacesByTripId } from '../data/places';
+import { getPrimaryStop, getTripDisplayName, isMultiStopTrip } from '../data/trips';
+import { useServiceTrip } from '../hooks/useServiceTrips';
+import {
+  getAuthenticatedUserId,
+  itineraryService,
+} from '../services/travelDataService';
 import Modal from '../components/ui/Modal';
 import type {
   ItineraryDay,
@@ -27,7 +34,38 @@ import type {
   ItineraryItemType,
   TimeOfDay,
   Place,
+  TripStop,
 } from '../types';
+
+const LOCAL_REMOVED_ITINERARY_ITEMS_KEY = 'travel-builder:removed-itinerary-items';
+
+const loadRemovedItems = (tripId: string) => {
+  try {
+    const stored = JSON.parse(
+      window.localStorage.getItem(LOCAL_REMOVED_ITINERARY_ITEMS_KEY) ?? '{}',
+    ) as Record<string, string[]>;
+    return new Set(stored[tripId] ?? []);
+  } catch {
+    return new Set<string>();
+  }
+};
+
+const persistRemovedItems = (tripId: string, itemIds: Set<string>) => {
+  try {
+    const stored = JSON.parse(
+      window.localStorage.getItem(LOCAL_REMOVED_ITINERARY_ITEMS_KEY) ?? '{}',
+    ) as Record<string, string[]>;
+    window.localStorage.setItem(
+      LOCAL_REMOVED_ITINERARY_ITEMS_KEY,
+      JSON.stringify({ ...stored, [tripId]: [...itemIds] }),
+    );
+  } catch {
+    window.localStorage.setItem(
+      LOCAL_REMOVED_ITINERARY_ITEMS_KEY,
+      JSON.stringify({ [tripId]: [...itemIds] }),
+    );
+  }
+};
 
 const typeIconMap: Record<ItineraryItemType, React.ReactNode> = {
   flight: <Plane className="w-4 h-4" />,
@@ -138,9 +176,12 @@ const ItineraryItemRow: React.FC<{
 // Inline DaySection component
 const DaySection: React.FC<{
   day: ItineraryDay;
+  stop?: TripStop;
+  showStopLabel: boolean;
+  isTravelDay: boolean;
   itemsMap: Record<string, ItineraryItem[]>;
   onRemoveItem: (itemId: string) => void;
-}> = ({ day, itemsMap, onRemoveItem }) => {
+}> = ({ day, stop, showStopLabel, isTravelDay, itemsMap, onRemoveItem }) => {
   const timeSections: TimeOfDay[] = ['morning', 'afternoon', 'evening'];
 
   return (
@@ -151,8 +192,25 @@ const DaySection: React.FC<{
           {day.dayNumber}
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-neutral-900">Day {day.dayNumber}</h3>
-          <p className="text-sm text-neutral-500">{formatDate(day.date)}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-lg font-semibold text-neutral-900">Day {day.dayNumber}</h3>
+            {showStopLabel && stop && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-600">
+                <MapPin className="w-3 h-3" />
+                {stop.name}
+              </span>
+            )}
+            {isTravelDay && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-50 text-cyan-600">
+                <Car className="w-3 h-3" />
+                Travel day
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-neutral-500">
+            {formatDate(day.date)}
+            {showStopLabel && stop?.country ? ` · ${stop.country}` : ''}
+          </p>
         </div>
       </div>
 
@@ -207,30 +265,114 @@ const DaySection: React.FC<{
 };
 
 const Itinerary: React.FC = () => {
-  const trip = useTrip();
-  const itineraryData = trip ? getItineraryByTripId(trip.id) : [];
-  const savedPlaces = trip
-    ? getPlacesByTripId(trip.id).filter((p) => p.isSaved)
-    : [];
+  const { tripId } = useParams<{ tripId: string }>();
+  const fallbackTrip = useTrip();
+  const {
+    trip: serviceTrip,
+    error: serviceTripError,
+    source: tripSource,
+  } = useServiceTrip(tripId);
+  const trip = serviceTrip ?? fallbackTrip;
+  const fallbackItineraryData = useMemo(
+    () => (trip ? getItineraryByTripId(trip.id) : []),
+    [trip],
+  );
+  const [itineraryData, setItineraryData] = useState<ItineraryDay[]>(
+    fallbackItineraryData,
+  );
+  const [itinerarySource, setItinerarySource] = useState<'supabase' | 'fallback'>('fallback');
+  const [itineraryError, setItineraryError] = useState<string | null>(null);
+  const savedPlaces = useMemo(
+    () => (trip ? getPlacesByTripId(trip.id).filter((p) => p.isSaved) : []),
+    [trip]
+  );
+  const orderedStops = useMemo(
+    () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
+    [trip]
+  );
+  const primaryStop = trip ? getPrimaryStop(trip) : undefined;
+  const isMultiStop = trip ? isMultiStopTrip(trip) : false;
 
   const [removedItems, setRemovedItems] = useState<Set<string>>(new Set());
   const [showSavedPlacesModal, setShowSavedPlacesModal] = useState(false);
+
+  useEffect(() => {
+    if (!trip) return;
+    let cancelled = false;
+
+    setRemovedItems(loadRemovedItems(trip.id));
+    setItineraryData(fallbackItineraryData);
+    setItinerarySource('fallback');
+    setItineraryError(null);
+
+    async function loadSupabaseItinerary() {
+      if (!trip || tripSource !== 'supabase') return;
+
+      try {
+        const userId = await getAuthenticatedUserId();
+        if (!userId) return;
+
+        const days = await itineraryService.listItineraryDays(trip.id);
+        if (cancelled) return;
+
+        if (days.length > 0) {
+          setItineraryData(days);
+          setItinerarySource('supabase');
+        }
+      } catch {
+        if (cancelled) return;
+        setItineraryError('Supabase itinerary could not be loaded. Showing local itinerary instead.');
+      }
+    }
+
+    void loadSupabaseItinerary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fallbackItineraryData, trip, tripSource]);
+
+  const getStopForDay = useCallback(
+    (day: ItineraryDay) =>
+      orderedStops.find((stop) => stop.id === day.stopId) ?? primaryStop,
+    [orderedStops, primaryStop]
+  );
 
   // Build a map of items keyed by "dayNumber-timeOfDay"
   const itemsMap = useMemo(() => {
     const map: Record<string, ItineraryItem[]> = {};
     for (const day of itineraryData) {
+      const dayStop = getStopForDay(day);
       for (const timeOfDay of ['morning', 'afternoon', 'evening'] as TimeOfDay[]) {
         const key = `${day.dayNumber}-${timeOfDay}`;
-        const items = day[timeOfDay].filter((item) => !removedItems.has(item.id));
+        const items = day[timeOfDay]
+          .filter((item) => !removedItems.has(item.id))
+          .map((item) => ({
+            ...item,
+            stopId: item.stopId ?? day.stopId ?? dayStop?.id,
+          }));
         map[key] = items;
       }
     }
     return map;
-  }, [itineraryData, removedItems]);
+  }, [getStopForDay, itineraryData, removedItems]);
 
-  const handleRemoveItem = (itemId: string) => {
-    setRemovedItems((prev) => new Set([...prev, itemId]));
+  const handleRemoveItem = async (itemId: string) => {
+    if (!trip) return;
+
+    const nextRemovedItems = new Set([...removedItems, itemId]);
+    setRemovedItems(nextRemovedItems);
+    persistRemovedItems(trip.id, nextRemovedItems);
+
+    if (itinerarySource !== 'supabase') return;
+
+    try {
+      await itineraryService.deleteItineraryItem(itemId);
+      setItineraryError(null);
+    } catch {
+      setItinerarySource('fallback');
+      setItineraryError('Supabase itinerary delete failed. Removed the item locally instead.');
+    }
   };
 
   const handleAddSavedPlace = (place: Place) => {
@@ -246,6 +388,11 @@ const Itinerary: React.FC = () => {
           <p className="text-sm text-neutral-500 mt-1">
             Plan your day-by-day schedule
           </p>
+          {(serviceTripError || itineraryError) && (
+            <p className="text-sm text-warning-700 mt-2">
+              {itineraryError || 'Supabase trip data could not be loaded. Showing local itinerary instead.'}
+            </p>
+          )}
         </div>
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="flex items-center justify-center w-16 h-16 rounded-full bg-neutral-100 text-neutral-400 mb-4">
@@ -267,8 +414,13 @@ const Itinerary: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Itinerary</h1>
           <p className="text-sm text-neutral-500 mt-1">
-            {itineraryData.length} day{itineraryData.length !== 1 ? 's' : ''} in {trip?.destination || 'your destination'}
+            {itineraryData.length} day{itineraryData.length !== 1 ? 's' : ''} for {trip ? getTripDisplayName(trip) : 'your trip'}
           </p>
+          {(serviceTripError || itineraryError) && (
+            <p className="text-sm text-warning-700 mt-2">
+              {itineraryError || 'Supabase trip data could not be loaded. Showing local itinerary instead.'}
+            </p>
+          )}
         </div>
 
         {savedPlaces.length > 0 && (
@@ -284,14 +436,40 @@ const Itinerary: React.FC = () => {
 
       {/* Day-by-Day Layout */}
       <div className="space-y-10">
-        {itineraryData.map((day) => (
-          <DaySection
-            key={day.dayNumber}
-            day={day}
-            itemsMap={itemsMap}
-            onRemoveItem={handleRemoveItem}
-          />
-        ))}
+        {itineraryData.map((day, index) => {
+          const stop = getStopForDay(day);
+          const previousStop = index > 0 ? getStopForDay(itineraryData[index - 1]) : undefined;
+          const showTransition = isMultiStop && stop && stop.id !== previousStop?.id;
+          const dayItems = [
+            ...day.morning,
+            ...day.afternoon,
+            ...day.evening,
+          ];
+          const isTravelDay = dayItems.some((item) => item.type === 'transport' || item.type === 'flight');
+
+          return (
+            <div key={day.dayNumber} className="space-y-4">
+              {showTransition && (
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-neutral-200" />
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-neutral-200 text-sm font-medium text-neutral-700 shadow-sm">
+                    <MapPin className="w-4 h-4 text-primary-500" />
+                    {stop.name}
+                  </div>
+                  <div className="h-px flex-1 bg-neutral-200" />
+                </div>
+              )}
+              <DaySection
+                day={day}
+                stop={stop}
+                showStopLabel={isMultiStop}
+                isTravelDay={isTravelDay}
+                itemsMap={itemsMap}
+                onRemoveItem={handleRemoveItem}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* Saved Places Modal */}

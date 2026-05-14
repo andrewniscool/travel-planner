@@ -9,6 +9,8 @@ interface PlaceDetailModalProps {
   place: Place | null;
   isOpen: boolean;
   onClose: () => void;
+  onSave?: (placeId: string) => void;
+  onAddToItinerary?: (placeId: string) => void;
 }
 
 const mockReviews = [
@@ -33,21 +35,29 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
   place,
   isOpen,
   onClose,
+  onSave,
+  onAddToItinerary,
 }) => {
   if (!place) return null;
 
+  const displayName = place.locationRef?.displayName || place.name;
+  const displayImage = place.locationRef?.photoUrls?.[0] || place.image;
+  const displayRating = place.locationRef?.rating ?? place.rating;
+  const displayReviewCount = place.locationRef?.reviewCount ?? place.reviewCount;
+  const displayLocation = place.locationRef?.formattedAddress || place.location;
+  const displayPrice = place.locationRef?.priceRange || place.priceRange;
   const description =
     place.description ||
-    `${place.name} is a must-visit ${place.category.toLowerCase().replace(/s$/, '')} located in ${place.location}. Known for its exceptional quality and unique atmosphere, it has earned a ${place.rating}-star rating from ${place.reviewCount.toLocaleString()} reviews. Visitors consistently praise the experience and recommend adding it to your itinerary.`;
+    `${displayName} is a must-visit ${place.category.toLowerCase().replace(/s$/, '')} located in ${displayLocation}. Known for its exceptional quality and unique atmosphere, it has earned a ${displayRating}-star rating from ${displayReviewCount.toLocaleString()} reviews. Visitors consistently praise the experience and recommend adding it to your itinerary.`;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={place.name} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={displayName} size="lg">
       <div className="space-y-5">
         {/* Large Image */}
         <div className="relative rounded-xl overflow-hidden -mx-6 -mt-6">
           <img
-            src={place.image}
-            alt={place.name}
+            src={displayImage}
+            alt={displayName}
             className="w-full aspect-video object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -63,11 +73,13 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
         {/* Name, Category Badge, Rating */}
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <h3 className="text-xl font-bold text-neutral-900">{place.name}</h3>
-            <Badge variant="default">{place.category}</Badge>
+            <h3 className="text-xl font-bold text-neutral-900">{displayName}</h3>
+            <Badge variant="default">
+              {place.locationRef?.source === 'google' ? 'Google Places' : place.category}
+            </Badge>
           </div>
           <div className="flex items-center gap-2">
-            <RatingStars rating={place.rating} size="sm" showCount count={place.reviewCount} />
+            <RatingStars rating={displayRating} size="sm" showCount count={displayReviewCount} />
           </div>
         </div>
 
@@ -80,7 +92,7 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
             <MapPin className="w-4 h-4 text-primary-500 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-xs text-neutral-500 font-medium">Location</p>
-              <p className="text-sm text-neutral-800">{place.location}</p>
+              <p className="text-sm text-neutral-800">{displayLocation}</p>
             </div>
           </div>
 
@@ -96,7 +108,7 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
             <DollarSign className="w-4 h-4 text-primary-500 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-xs text-neutral-500 font-medium">Price Range</p>
-              <p className="text-sm text-neutral-800">{place.priceRange}</p>
+              <p className="text-sm text-neutral-800">{displayPrice}</p>
             </div>
           </div>
         </div>
@@ -141,6 +153,7 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
         {/* Action Buttons */}
         <div className="flex items-center gap-3 pt-3 border-t border-neutral-100">
           <button
+            onClick={() => onSave?.(place.id)}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
               place.isSaved
                 ? 'bg-primary-50 text-primary-600 hover:bg-primary-100'
@@ -151,14 +164,19 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
             {place.isSaved ? 'Saved' : 'Save'}
           </button>
 
-          <button className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors">
+          <button
+            onClick={() => onAddToItinerary?.(place.id)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+          >
             <CalendarPlus className="w-4 h-4" />
             Add to Itinerary
           </button>
 
           <a
-            href="#"
+            href={place.locationRef?.websiteUri || place.locationRef?.googleMapsUri || '#'}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-neutral-100 text-neutral-700 hover:bg-neutral-200 transition-colors ml-auto"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             <ExternalLink className="w-4 h-4" />
             Visit Site

@@ -1,4 +1,5 @@
 import { ItineraryDay } from '../types';
+import { enableMockData } from './mockDataConfig';
 
 interface ItineraryDayWithTripId extends ItineraryDay {
   tripId: string;
@@ -7,6 +8,7 @@ interface ItineraryDayWithTripId extends ItineraryDay {
 const tokyoItinerary: ItineraryDayWithTripId[] = [
   {
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     dayNumber: 1,
     date: '2026-07-15',
     morning: [
@@ -81,6 +83,7 @@ const tokyoItinerary: ItineraryDayWithTripId[] = [
   },
   {
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     dayNumber: 2,
     date: '2026-07-16',
     morning: [
@@ -155,6 +158,7 @@ const tokyoItinerary: ItineraryDayWithTripId[] = [
   },
   {
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     dayNumber: 3,
     date: '2026-07-17',
     morning: [
@@ -220,6 +224,7 @@ const tokyoItinerary: ItineraryDayWithTripId[] = [
   },
   {
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     dayNumber: 4,
     date: '2026-07-18',
     morning: [
@@ -294,6 +299,7 @@ const tokyoItinerary: ItineraryDayWithTripId[] = [
   },
   {
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     dayNumber: 5,
     date: '2026-07-19',
     morning: [
@@ -362,6 +368,7 @@ const tokyoItinerary: ItineraryDayWithTripId[] = [
 const parisItinerary: ItineraryDayWithTripId[] = [
   {
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     dayNumber: 1,
     date: '2026-06-20',
     morning: [
@@ -427,6 +434,7 @@ const parisItinerary: ItineraryDayWithTripId[] = [
   },
   {
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     dayNumber: 2,
     date: '2026-06-21',
     morning: [
@@ -492,6 +500,7 @@ const parisItinerary: ItineraryDayWithTripId[] = [
   },
   {
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     dayNumber: 3,
     date: '2026-06-22',
     morning: [
@@ -551,6 +560,7 @@ const parisItinerary: ItineraryDayWithTripId[] = [
 const baliItinerary: ItineraryDayWithTripId[] = [
   {
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     dayNumber: 1,
     date: '2026-08-05',
     morning: [
@@ -616,6 +626,7 @@ const baliItinerary: ItineraryDayWithTripId[] = [
   },
   {
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     dayNumber: 2,
     date: '2026-08-06',
     morning: [
@@ -681,6 +692,7 @@ const baliItinerary: ItineraryDayWithTripId[] = [
   },
   {
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     dayNumber: 3,
     date: '2026-08-07',
     morning: [
@@ -737,6 +749,7 @@ const baliItinerary: ItineraryDayWithTripId[] = [
   },
   {
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     dayNumber: 4,
     date: '2026-08-08',
     morning: [
@@ -793,11 +806,11 @@ const baliItinerary: ItineraryDayWithTripId[] = [
   },
 ];
 
-export const itineraryDays: ItineraryDayWithTripId[] = [
+export const itineraryDays: ItineraryDayWithTripId[] = enableMockData ? [
   ...tokyoItinerary,
   ...parisItinerary,
   ...baliItinerary,
-];
+] : [];
 
 export const getItineraryByTripId = (tripId: string): ItineraryDayWithTripId[] =>
   itineraryDays.filter(d => d.tripId === tripId);

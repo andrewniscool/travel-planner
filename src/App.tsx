@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './hooks/AuthProvider';
 import LandingLayout from './components/layout/LandingLayout';
 import AppLayout from './components/layout/AppLayout';
 import Landing from './pages/Landing';
@@ -19,29 +20,32 @@ import NotFound from './pages/NotFound';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<LandingLayout />}>
-          <Route path="/" element={<Landing />} />
-          <Route path="/sign-in" element={<SignIn />} />
-        </Route>
-        <Route element={<AppLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/create-trip" element={<CreateTrip />} />
-          <Route path="/trip/:tripId" element={<TripDetails />} />
-          <Route path="/trip/:tripId/flights" element={<Flights />} />
-          <Route path="/trip/:tripId/hotels" element={<Hotels />} />
-          <Route path="/trip/:tripId/explore" element={<Explore />} />
-          <Route path="/trip/:tripId/itinerary" element={<Itinerary />} />
-          <Route path="/trip/:tripId/map" element={<MapPage />} />
-          <Route path="/trip/:tripId/budget" element={<Budget />} />
-          <Route path="/trip/:tripId/notes" element={<Notes />} />
-          <Route path="/trip/:tripId/summary" element={<TripSummary />} />
-          <Route path="/profile" element={<Profile />} />
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<LandingLayout />}>
+            <Route path="/" element={<Landing />} />
+            <Route path="/sign-in" element={<SignIn />} />
+          </Route>
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/create-trip" element={<CreateTrip />} />
+            <Route path="/trip/:tripId" element={<TripDetails />} />
+            <Route path="/trip/:tripId/edit" element={<CreateTrip />} />
+            <Route path="/trip/:tripId/flights" element={<Flights />} />
+            <Route path="/trip/:tripId/hotels" element={<Hotels />} />
+            <Route path="/trip/:tripId/explore" element={<Explore />} />
+            <Route path="/trip/:tripId/itinerary" element={<Itinerary />} />
+            <Route path="/trip/:tripId/map" element={<MapPage />} />
+            <Route path="/trip/:tripId/budget" element={<Budget />} />
+            <Route path="/trip/:tripId/notes" element={<Notes />} />
+            <Route path="/trip/:tripId/summary" element={<TripSummary />} />
+            <Route path="/profile" element={<Profile />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

@@ -12,6 +12,7 @@ import {
   Calendar,
   Users,
   Clock,
+  MapPin,
 } from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
 import { getFlightsByTripId } from '../data/flights';
@@ -20,12 +21,18 @@ import { getPlacesByTripId } from '../data/places';
 import { getItineraryByTripId } from '../data/itinerary';
 import { getBudgetByTripId } from '../data/budget';
 import { getNotesByTripId, getChecklistByTripId } from '../data/notes';
+import {
+  getPrimaryStop,
+  getTripDisplayName,
+  getTripRouteLabel,
+  isMultiStopTrip,
+} from '../data/trips';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import RatingStars from '../components/ui/RatingStars';
 import ImagePlaceholder from '../components/ui/ImagePlaceholder';
-import type { ItineraryDay, ItineraryItem } from '../types';
+import type { ItineraryDay, ItineraryItem, TripStop } from '../types';
 
 const statusBadgeVariant: Record<string, 'upcoming' | 'planning' | 'booked' | 'past'> = {
   upcoming: 'upcoming',
@@ -36,14 +43,18 @@ const statusBadgeVariant: Record<string, 'upcoming' | 'planning' | 'booked' | 'p
 
 const TripSummary: React.FC = () => {
   const trip = useTrip();
-  const flights = trip ? getFlightsByTripId(trip.id) : [];
-  const hotels = trip ? getHotelsByTripId(trip.id) : [];
-  const places = trip ? getPlacesByTripId(trip.id) : [];
-  void places;
-  const itinerary = trip ? getItineraryByTripId(trip.id) : [];
+  const flights = useMemo(() => (trip ? getFlightsByTripId(trip.id) : []), [trip]);
+  const hotels = useMemo(() => (trip ? getHotelsByTripId(trip.id) : []), [trip]);
+  const places = useMemo(() => (trip ? getPlacesByTripId(trip.id) : []), [trip]);
+  const itinerary = useMemo(() => (trip ? getItineraryByTripId(trip.id) : []), [trip]);
   const budget = trip ? getBudgetByTripId(trip.id) : undefined;
   const notes = trip ? getNotesByTripId(trip.id) : [];
   const checklist = trip ? getChecklistByTripId(trip.id) : [];
+  const isMultiStop = trip ? isMultiStopTrip(trip) : false;
+  const orderedStops = useMemo(
+    () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
+    [trip]
+  );
 
   const selectedFlight = useMemo(
     () => flights.find((f) => f.isSelected),
@@ -91,6 +102,12 @@ const TripSummary: React.FC = () => {
     ...day.evening,
   ];
 
+  const getStopForDay = (day: ItineraryDay): TripStop | undefined =>
+    orderedStops.find((stop) => stop.id === day.stopId) ?? (trip ? getPrimaryStop(trip) : undefined);
+
+  const getStopName = (stopId?: string) =>
+    orderedStops.find((stop) => stop.id === stopId)?.name;
+
   if (!trip) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -106,9 +123,11 @@ const TripSummary: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900">
-              {trip.destination}
+              {getTripDisplayName(trip)}
             </h1>
-            <p className="text-neutral-500 mt-1">{trip.country}</p>
+            <p className="text-neutral-500 mt-1">
+              {isMultiStop ? getTripRouteLabel(trip) : trip.country}
+            </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant={statusBadgeVariant[trip.status] || 'default'}>
@@ -135,6 +154,40 @@ const TripSummary: React.FC = () => {
 
         <div className="mt-4 pt-4 border-t border-neutral-100" />
       </Card>
+
+      {isMultiStop && (
+        <Card hover={false} className="p-6">
+          <h2 className="text-base font-semibold text-neutral-800 flex items-center gap-2 mb-4">
+            <MapPin className="w-5 h-5 text-primary-500" />
+            Route
+          </h2>
+          <div className="space-y-4">
+            {orderedStops.map((stop) => (
+              <div key={stop.id} className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-600 text-white text-sm font-bold">
+                  {stop.order}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-neutral-800">{stop.name}</p>
+                  <p className="text-xs text-neutral-500">
+                    {formatDate(stop.startDate)} - {formatDate(stop.endDate)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {trip.transportSegments.length > 0 && (
+              <div className="pt-2 border-t border-neutral-100 space-y-2">
+                {trip.transportSegments.map((segment) => (
+                  <div key={segment.id} className="text-sm text-neutral-600">
+                    {getStopName(segment.fromStopId)} → {getStopName(segment.toStopId)}
+                    <span className="text-neutral-400"> · {segment.provider || segment.mode}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Selected Flight Summary */}
       <Card hover={false} className="p-6">
@@ -187,7 +240,7 @@ const TripSummary: React.FC = () => {
       </Card>
 
       {/* Selected Hotel Summary */}
-      <Card hover={false} className="p-6">
+      {!isMultiStop && <Card hover={false} className="p-6">
         <h2 className="text-base font-semibold text-neutral-800 flex items-center gap-2 mb-4">
           <Building2 className="w-5 h-5 text-accent-500" />
           Selected Hotel
@@ -229,7 +282,33 @@ const TripSummary: React.FC = () => {
             <p className="text-sm text-neutral-500">No hotel selected</p>
           </div>
         )}
-      </Card>
+      </Card>}
+
+      {isMultiStop && (
+        <Card hover={false} className="p-6">
+          <h2 className="text-base font-semibold text-neutral-800 flex items-center gap-2 mb-4">
+            <Building2 className="w-5 h-5 text-accent-500" />
+            Stop Highlights
+          </h2>
+          <div className="space-y-4">
+            {orderedStops.map((stop) => {
+              const stopHotels = hotels.filter((hotel) => hotel.stopId === stop.id);
+              const stopPlaces = places.filter((place) => place.stopId === stop.id && place.isSaved).slice(0, 3);
+              const stopDays = itinerary.filter((day) => getStopForDay(day)?.id === stop.id);
+              return (
+                <div key={stop.id} className="bg-neutral-50 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-neutral-800 mb-2">{stop.name}</h3>
+                  <div className="space-y-1 text-sm text-neutral-600">
+                    <p>{stopHotels.find((hotel) => hotel.isSelected)?.name || stopHotels[0]?.name || 'No hotel selected'}</p>
+                    <p>{stopPlaces.length > 0 ? stopPlaces.map((place) => place.name).join(', ') : 'No saved places'}</p>
+                    <p>{stopDays.length} itinerary day{stopDays.length === 1 ? '' : 's'}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Daily Itinerary Summary */}
       <Card hover={false} className="p-6">
@@ -297,7 +376,7 @@ const TripSummary: React.FC = () => {
                 <tbody>
                   {budget.categories.map((cat) => (
                     <tr
-                      key={cat.name}
+                      key={`${cat.stopId ?? 'trip'}-${cat.name}`}
                       className="border-b border-neutral-50 last:border-0"
                     >
                       <td className="px-4 py-2.5 text-neutral-700">

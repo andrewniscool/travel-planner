@@ -1,11 +1,12 @@
 import { BudgetCategory } from '../types';
+import { enableMockData } from './mockDataConfig';
 
 export interface TripBudget {
   tripId: string;
   categories: BudgetCategory[];
 }
 
-export const budgetCategories: TripBudget[] = [
+export const budgetCategories: TripBudget[] = enableMockData ? [
   {
     tripId: 'trip-1',
     categories: [
@@ -61,7 +62,26 @@ export const budgetCategories: TripBudget[] = [
       { name: 'Miscellaneous', allocated: 200, spent: 0, icon: '🛍️' },
     ],
   },
-];
+  {
+    tripId: 'trip-6',
+    categories: [
+      { name: 'Flights', allocated: 1600, spent: 0, icon: '✈️' },
+      { name: 'Transportation', allocated: 500, spent: 226, icon: '🚅' },
+      { name: 'Hotel', stopId: 'stop-trip-6-tokyo', allocated: 900, spent: 0, icon: '🏨' },
+      { name: 'Food', stopId: 'stop-trip-6-tokyo', allocated: 450, spent: 0, icon: '🍜' },
+      { name: 'Activities', stopId: 'stop-trip-6-tokyo', allocated: 350, spent: 0, icon: '🗼' },
+      { name: 'Hotel', stopId: 'stop-trip-6-kyoto', allocated: 700, spent: 0, icon: '🏨' },
+      { name: 'Food', stopId: 'stop-trip-6-kyoto', allocated: 350, spent: 0, icon: '🍵' },
+      { name: 'Activities', stopId: 'stop-trip-6-kyoto', allocated: 300, spent: 0, icon: '⛩️' },
+      { name: 'Hotel', stopId: 'stop-trip-6-osaka', allocated: 550, spent: 0, icon: '🏨' },
+      { name: 'Food', stopId: 'stop-trip-6-osaka', allocated: 400, spent: 0, icon: '🍣' },
+      { name: 'Activities', stopId: 'stop-trip-6-osaka', allocated: 250, spent: 0, icon: '🎡' },
+      { name: 'Hotel', stopId: 'stop-trip-6-saitama', allocated: 250, spent: 0, icon: '🏨' },
+      { name: 'Food', stopId: 'stop-trip-6-saitama', allocated: 150, spent: 0, icon: '🍱' },
+      { name: 'Miscellaneous', allocated: 100, spent: 0, icon: '🛍️' },
+    ],
+  },
+] : [];
 
 export const getBudgetByTripId = (tripId: string): TripBudget | undefined =>
   budgetCategories.find(b => b.tripId === tripId);

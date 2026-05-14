@@ -13,6 +13,7 @@ import {
   ClipboardCheck,
   User,
 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -45,7 +46,19 @@ const TRIP_NAV: NavItem[] = [
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const { tripId } = useParams<{ tripId: string }>();
+  const { user } = useAuth();
   const basePath = tripId ? `/trip/${tripId}` : '';
+  const displayName =
+    typeof user?.user_metadata.full_name === 'string' &&
+    user.user_metadata.full_name.trim()
+      ? user.user_metadata.full_name
+      : user?.email ?? 'Local User';
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'U';
 
   const linkClasses = ({ isActive }: { isActive: boolean }) =>
     [
@@ -111,11 +124,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       <Link to="/profile" className="border-t border-neutral-100 px-4 py-4 block hover:bg-neutral-50 transition-colors" onClick={onClose}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-semibold text-primary-700">AM</span>
+            <span className="text-sm font-semibold text-primary-700">
+              {initials}
+            </span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-neutral-900 truncate">Alex M.</p>
-            <p className="text-xs text-neutral-500">Free Plan</p>
+            <p className="text-sm font-medium text-neutral-900 truncate">
+              {displayName}
+            </p>
+            <p className="text-xs text-neutral-500">
+              {user ? 'Signed in' : 'Local fallback'}
+            </p>
           </div>
         </div>
       </Link>

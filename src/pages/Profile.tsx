@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   User,
   Mail,
@@ -16,28 +17,123 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Badge from '../components/ui/Badge';
+import { useAuth } from '../hooks/useAuth';
 
-const Profile: React.FC = () => {
-  const [name, setName] = useState('Alex Mitchell');
-  const [email, setEmail] = useState('alex.mitchell@email.com');
-  const [location, setLocation] = useState('San Francisco, CA');
-  const [bio, setBio] = useState('Travel enthusiast and adventure seeker. Always planning the next trip.');
-  const [saved, setSaved] = useState(false);
+const LOCAL_PROFILE_KEY = 'travel-builder:profile';
 
-  const [notifications, setNotifications] = useState({
+type ProfileNotifications = {
+  tripReminders: boolean;
+  priceAlerts: boolean;
+  newsletter: boolean;
+  bookingUpdates: boolean;
+};
+
+type ProfileState = {
+  name: string;
+  email: string;
+  location: string;
+  website: string;
+  bio: string;
+  notifications: ProfileNotifications;
+};
+
+const defaultProfile = {
+  name: 'Alex Mitchell',
+  email: 'alex.mitchell@email.com',
+  location: 'San Francisco, CA',
+  website: '',
+  bio: 'Travel enthusiast and adventure seeker. Always planning the next trip.',
+  notifications: {
     tripReminders: true,
     priceAlerts: true,
     newsletter: false,
     bookingUpdates: true,
-  });
+  },
+} satisfies ProfileState;
+
+const loadProfile = (): ProfileState => {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(LOCAL_PROFILE_KEY) ?? '{}') as Partial<ProfileState>;
+    return {
+      ...defaultProfile,
+      ...stored,
+      notifications: {
+        ...defaultProfile.notifications,
+        ...(stored.notifications ?? {}),
+      },
+    };
+  } catch {
+    return defaultProfile;
+  }
+};
+
+const Profile: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const storedProfile = loadProfile();
+  const authName =
+    typeof user?.user_metadata.full_name === 'string'
+      ? user.user_metadata.full_name
+      : '';
+  const [name, setName] = useState(authName || storedProfile.name);
+  const [email, setEmail] = useState(user?.email ?? storedProfile.email);
+  const [location, setLocation] = useState(storedProfile.location);
+  const [website, setWebsite] = useState(storedProfile.website);
+  const [bio, setBio] = useState(storedProfile.bio);
+  const [saved, setSaved] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
+
+  const [notifications, setNotifications] = useState(storedProfile.notifications);
+
+  useEffect(() => {
+    if (!user) return;
+    const nextName =
+      typeof user.user_metadata.full_name === 'string'
+        ? user.user_metadata.full_name
+        : '';
+    setName(nextName || storedProfile.name);
+    setEmail(user.email ?? storedProfile.email);
+  }, [storedProfile.email, storedProfile.name, user]);
 
   const handleSave = () => {
+    window.localStorage.setItem(
+      LOCAL_PROFILE_KEY,
+      JSON.stringify({ name, email, location, website, bio, notifications })
+    );
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   const toggleNotification = (key: keyof typeof notifications) => {
-    setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
+    setNotifications((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      window.localStorage.setItem(
+        LOCAL_PROFILE_KEY,
+        JSON.stringify({ name, email, location, website, bio, notifications: next })
+      );
+      return next;
+    });
+  };
+
+  const initials =
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || 'U';
+
+  const handleSignOut = async () => {
+    setAccountError(null);
+
+    try {
+      await signOut();
+      navigate('/sign-in');
+    } catch (error) {
+      setAccountError(
+        error instanceof Error ? error.message : 'Unable to sign out.',
+      );
+    }
   };
 
   return (
@@ -58,7 +154,9 @@ const Profile: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12 sm:-mt-10">
               <div className="relative">
                 <div className="w-24 h-24 rounded-2xl bg-white shadow-lg flex items-center justify-center border-4 border-white">
-                  <span className="text-2xl font-bold text-primary-600">AM</span>
+                  <span className="text-2xl font-bold text-primary-600">
+                    {initials}
+                  </span>
                 </div>
                 <button className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center shadow-md hover:bg-primary-700 transition-colors">
                   <Camera className="w-4 h-4" />
@@ -77,7 +175,7 @@ const Profile: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <Badge variant="default">Free Plan</Badge>
+              <Badge variant="default">{user ? 'Signed In' : 'Local Mode'}</Badge>
             </div>
           </div>
         </div>
@@ -100,6 +198,7 @@ const Profile: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={Boolean(user)}
               placeholder="your@email.com"
               icon={<Mail className="w-4 h-4 text-neutral-400" />}
             />
@@ -112,6 +211,8 @@ const Profile: React.FC = () => {
             />
             <Input
               label="Website"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
               placeholder="https://yoursite.com"
               icon={<Globe className="w-4 h-4 text-neutral-400" />}
             />
@@ -235,9 +336,17 @@ const Profile: React.FC = () => {
             ))}
           </div>
           <div className="mt-4 pt-4 border-t border-neutral-100">
-            <button className="flex items-center gap-2 text-sm text-error-500 hover:text-error-600 transition-colors px-3 py-2 rounded-lg hover:bg-error-50">
+            {accountError && (
+              <p className="mb-3 rounded-lg bg-error-50 px-3 py-2 text-sm text-error-600">
+                {accountError}
+              </p>
+            )}
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 text-sm text-error-500 hover:text-error-600 transition-colors px-3 py-2 rounded-lg hover:bg-error-50"
+            >
               <LogOut className="w-4 h-4" />
-              Sign Out
+              {user ? 'Sign Out' : 'Go to Sign In'}
             </button>
           </div>
         </div>

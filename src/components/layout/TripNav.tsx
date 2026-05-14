@@ -20,7 +20,7 @@ interface TripTab {
 
 const TRIP_TABS: TripTab[] = [
   { label: 'Overview', icon: LayoutDashboard, path: '' },
-  { label: 'Flights', icon: Plane, path: 'flights' },
+  { label: 'Travel', icon: Plane, path: 'flights' },
   { label: 'Hotels', icon: Building2, path: 'hotels' },
   { label: 'Explore', icon: Compass, path: 'explore' },
   { label: 'Itinerary', icon: CalendarDays, path: 'itinerary' },

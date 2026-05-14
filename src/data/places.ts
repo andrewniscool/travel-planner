@@ -1,10 +1,12 @@
 import { Place } from '../types';
+import { enableMockData } from './mockDataConfig';
 
-export const places: Place[] = [
+export const places: Place[] = enableMockData ? [
   // ==================== Tokyo Places (trip-1) ====================
   {
     id: 'place-1',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Sukiyabashi Jiro',
     image: 'https://images.pexels.com/photos/2098085/pexels-photo-2098085.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Restaurants',
@@ -21,6 +23,7 @@ export const places: Place[] = [
   {
     id: 'place-2',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Ichiran Ramen',
     image: 'https://images.pexels.com/photos/376464/pexels-photo-376464.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Restaurants',
@@ -36,6 +39,7 @@ export const places: Place[] = [
   {
     id: 'place-3',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'TeamLab Borderless',
     image: 'https://images.pexels.com/photos/338515/pexels-photo-338515.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Museums',
@@ -52,6 +56,7 @@ export const places: Place[] = [
   {
     id: 'place-4',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Senso-ji Temple',
     image: 'https://images.pexels.com/photos/4073604/pexels-photo-4073604.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -67,6 +72,7 @@ export const places: Place[] = [
   {
     id: 'place-5',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Shibuya Crossing',
     image: 'https://images.pexels.com/photos/3784278/pexels-photo-3784278.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -82,6 +88,7 @@ export const places: Place[] = [
   {
     id: 'place-6',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Golden Gai',
     image: 'https://images.pexels.com/photos/2769447/pexels-photo-2769447.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Nightlife',
@@ -97,6 +104,7 @@ export const places: Place[] = [
   {
     id: 'place-7',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Tsukiji Market',
     image: 'https://images.pexels.com/photos/2098085/pexels-photo-2098085.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Restaurants',
@@ -112,6 +120,7 @@ export const places: Place[] = [
   {
     id: 'place-8',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Meiji Shrine',
     image: 'https://images.pexels.com/photos/4073604/pexels-photo-4073604.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -127,6 +136,7 @@ export const places: Place[] = [
   {
     id: 'place-9',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Akihabara',
     image: 'https://images.pexels.com/photos/338515/pexels-photo-338515.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Shopping',
@@ -142,6 +152,7 @@ export const places: Place[] = [
   {
     id: 'place-10',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Shinjuku Gyoen',
     image: 'https://images.pexels.com/photos/3784278/pexels-photo-3784278.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -157,6 +168,7 @@ export const places: Place[] = [
   {
     id: 'place-11',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Robot Restaurant',
     image: 'https://images.pexels.com/photos/2769447/pexels-photo-2769447.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Nightlife',
@@ -172,6 +184,7 @@ export const places: Place[] = [
   {
     id: 'place-12',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Omoide Yokocho',
     image: 'https://images.pexels.com/photos/376464/pexels-photo-376464.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Restaurants',
@@ -190,6 +203,7 @@ export const places: Place[] = [
   {
     id: 'place-13',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Le Comptoir du Pantheon',
     image: 'https://images.pexels.com/photos/674400/pexels-photo-674400.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Restaurants',
@@ -206,6 +220,7 @@ export const places: Place[] = [
   {
     id: 'place-14',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Cafe de Flore',
     image: 'https://images.pexels.com/photos/1123478/pexels-photo-1123478.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Cafes',
@@ -221,6 +236,7 @@ export const places: Place[] = [
   {
     id: 'place-15',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Louvre Museum',
     image: 'https://images.pexels.com/photos/529605/pexels-photo-529605.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Museums',
@@ -237,6 +253,7 @@ export const places: Place[] = [
   {
     id: 'place-16',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Eiffel Tower',
     image: 'https://images.pexels.com/photos/529605/pexels-photo-529605.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -252,6 +269,7 @@ export const places: Place[] = [
   {
     id: 'place-17',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Montmartre',
     image: 'https://images.pexels.com/photos/1123478/pexels-photo-1123478.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -267,6 +285,7 @@ export const places: Place[] = [
   {
     id: 'place-18',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Le Marais',
     image: 'https://images.pexels.com/photos/674400/pexels-photo-674400.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Shopping',
@@ -282,6 +301,7 @@ export const places: Place[] = [
   {
     id: 'place-19',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Shakespeare & Company',
     image: 'https://images.pexels.com/photos/529605/pexels-photo-529605.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Shopping',
@@ -297,6 +317,7 @@ export const places: Place[] = [
   {
     id: 'place-20',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Sacre-Coeur',
     image: 'https://images.pexels.com/photos/1123478/pexels-photo-1123478.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -312,6 +333,7 @@ export const places: Place[] = [
   {
     id: 'place-21',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Musee d\'Orsay',
     image: 'https://images.pexels.com/photos/674400/pexels-photo-674400.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Museums',
@@ -327,6 +349,7 @@ export const places: Place[] = [
   {
     id: 'place-22',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Jardin du Luxembourg',
     image: 'https://images.pexels.com/photos/529605/pexels-photo-529605.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -342,6 +365,7 @@ export const places: Place[] = [
   {
     id: 'place-23',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Seine River Cruise',
     image: 'https://images.pexels.com/photos/1123478/pexels-photo-1123478.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Tours',
@@ -357,6 +381,7 @@ export const places: Place[] = [
   {
     id: 'place-24',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Laduree',
     image: 'https://images.pexels.com/photos/674400/pexels-photo-674400.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Cafes',
@@ -375,6 +400,7 @@ export const places: Place[] = [
   {
     id: 'place-25',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Warung Babi Guling',
     image: 'https://images.pexels.com/photos/2347311/pexels-photo-2347311.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Restaurants',
@@ -391,6 +417,7 @@ export const places: Place[] = [
   {
     id: 'place-26',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Potato Head Beach Club',
     image: 'https://images.pexels.com/photos/1579747/pexels-photo-1579747.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Nightlife',
@@ -406,6 +433,7 @@ export const places: Place[] = [
   {
     id: 'place-27',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Tegallalang Rice Terrace',
     image: 'https://images.pexels.com/photos/2166553/pexels-photo-2166553.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -422,6 +450,7 @@ export const places: Place[] = [
   {
     id: 'place-28',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Uluwatu Temple',
     image: 'https://images.pexels.com/photos/1579747/pexels-photo-1579747.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -437,6 +466,7 @@ export const places: Place[] = [
   {
     id: 'place-29',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Ubud Monkey Forest',
     image: 'https://images.pexels.com/photos/2166553/pexels-photo-2166553.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -452,6 +482,7 @@ export const places: Place[] = [
   {
     id: 'place-30',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Seminyak Beach',
     image: 'https://images.pexels.com/photos/1579747/pexels-photo-1579747.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -467,6 +498,7 @@ export const places: Place[] = [
   {
     id: 'place-31',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Tirta Empul',
     image: 'https://images.pexels.com/photos/2347311/pexels-photo-2347311.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -482,6 +514,7 @@ export const places: Place[] = [
   {
     id: 'place-32',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Mount Batur',
     image: 'https://images.pexels.com/photos/2166553/pexels-photo-2166553.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -497,6 +530,7 @@ export const places: Place[] = [
   {
     id: 'place-33',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Jimbaran Bay',
     image: 'https://images.pexels.com/photos/1579747/pexels-photo-1579747.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Restaurants',
@@ -512,6 +546,7 @@ export const places: Place[] = [
   {
     id: 'place-34',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Campuhan Ridge Walk',
     image: 'https://images.pexels.com/photos/2166553/pexels-photo-2166553.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -527,6 +562,7 @@ export const places: Place[] = [
   {
     id: 'place-35',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Tanah Lot',
     image: 'https://images.pexels.com/photos/1579747/pexels-photo-1579747.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -542,6 +578,7 @@ export const places: Place[] = [
   {
     id: 'place-36',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Nusa Penida',
     image: 'https://images.pexels.com/photos/2347311/pexels-photo-2347311.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Tours',
@@ -559,6 +596,7 @@ export const places: Place[] = [
   {
     id: 'place-37',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'Peter Luger',
     image: 'https://images.pexels.com/photos/1268101/pexels-photo-1268101.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Restaurants',
@@ -575,6 +613,7 @@ export const places: Place[] = [
   {
     id: 'place-38',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'Joe\'s Pizza',
     image: 'https://images.pexels.com/photos/1268101/pexels-photo-1268101.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Restaurants',
@@ -590,6 +629,7 @@ export const places: Place[] = [
   {
     id: 'place-39',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'The Met',
     image: 'https://images.pexels.com/photos/2115054/pexels-photo-2115054.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Museums',
@@ -606,6 +646,7 @@ export const places: Place[] = [
   {
     id: 'place-40',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'Central Park',
     image: 'https://images.pexels.com/photos/1319805/pexels-photo-1319805.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -621,6 +662,7 @@ export const places: Place[] = [
   {
     id: 'place-41',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'Times Square',
     image: 'https://images.pexels.com/photos/2115054/pexels-photo-2115054.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -636,6 +678,7 @@ export const places: Place[] = [
   {
     id: 'place-42',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'Brooklyn Bridge',
     image: 'https://images.pexels.com/photos/1319805/pexels-photo-1319805.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -651,6 +694,7 @@ export const places: Place[] = [
   {
     id: 'place-43',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'Chelsea Market',
     image: 'https://images.pexels.com/photos/1268101/pexels-photo-1268101.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Shopping',
@@ -666,6 +710,7 @@ export const places: Place[] = [
   {
     id: 'place-44',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'MoMA',
     image: 'https://images.pexels.com/photos/2115054/pexels-photo-2115054.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Museums',
@@ -681,6 +726,7 @@ export const places: Place[] = [
   {
     id: 'place-45',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'High Line',
     image: 'https://images.pexels.com/photos/1319805/pexels-photo-1319805.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -696,6 +742,7 @@ export const places: Place[] = [
   {
     id: 'place-46',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'Broadway',
     image: 'https://images.pexels.com/photos/2115054/pexels-photo-2115054.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Tours',
@@ -711,6 +758,7 @@ export const places: Place[] = [
   {
     id: 'place-47',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'Statue of Liberty',
     image: 'https://images.pexels.com/photos/1319805/pexels-photo-1319805.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -726,6 +774,7 @@ export const places: Place[] = [
   {
     id: 'place-48',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'Grand Central',
     image: 'https://images.pexels.com/photos/2115054/pexels-photo-2115054.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -743,6 +792,7 @@ export const places: Place[] = [
   {
     id: 'place-49',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Soda Tapia',
     image: 'https://images.pexels.com/photos/2347311/pexels-photo-2347311.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Restaurants',
@@ -759,6 +809,7 @@ export const places: Place[] = [
   {
     id: 'place-50',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Cafe Milagro',
     image: 'https://images.pexels.com/photos/1579747/pexels-photo-1579747.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Cafes',
@@ -774,6 +825,7 @@ export const places: Place[] = [
   {
     id: 'place-51',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Arenal Volcano',
     image: 'https://images.pexels.com/photos/2166553/pexels-photo-2166553.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -790,6 +842,7 @@ export const places: Place[] = [
   {
     id: 'place-52',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Monteverde Cloud Forest',
     image: 'https://images.pexels.com/photos/2166553/pexels-photo-2166553.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -805,6 +858,7 @@ export const places: Place[] = [
   {
     id: 'place-53',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Manuel Antonio National Park',
     image: 'https://images.pexels.com/photos/1579747/pexels-photo-1579747.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -820,6 +874,7 @@ export const places: Place[] = [
   {
     id: 'place-54',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Tamarindo Beach',
     image: 'https://images.pexels.com/photos/1579747/pexels-photo-1579747.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -835,6 +890,7 @@ export const places: Place[] = [
   {
     id: 'place-55',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'La Fortuna Waterfall',
     image: 'https://images.pexels.com/photos/2166553/pexels-photo-2166553.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -850,6 +906,7 @@ export const places: Place[] = [
   {
     id: 'place-56',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Corcovado National Park',
     image: 'https://images.pexels.com/photos/2166553/pexels-photo-2166553.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -865,6 +922,7 @@ export const places: Place[] = [
   {
     id: 'place-57',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Tortuguero',
     image: 'https://images.pexels.com/photos/2166553/pexels-photo-2166553.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Tours',
@@ -880,6 +938,7 @@ export const places: Place[] = [
   {
     id: 'place-58',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Poas Volcano',
     image: 'https://images.pexels.com/photos/2166553/pexels-photo-2166553.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Landmarks',
@@ -895,6 +954,7 @@ export const places: Place[] = [
   {
     id: 'place-59',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Jaco Beach',
     image: 'https://images.pexels.com/photos/1579747/pexels-photo-1579747.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Nightlife',
@@ -910,6 +970,7 @@ export const places: Place[] = [
   {
     id: 'place-60',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Rincon de la Vieja',
     image: 'https://images.pexels.com/photos/2166553/pexels-photo-2166553.jpeg?auto=compress&cs=tinysrgb&w=600',
     category: 'Outdoor',
@@ -922,6 +983,6 @@ export const places: Place[] = [
     description: 'Rugged volcanic park with boiling mud pots, fumeroles, hot springs, and trails through tropical dry forest - a lesser-known gem.',
     hours: '8:00 AM - 3:00 PM',
   },
-];
+] : [];
 
 export const getPlacesByTripId = (tripId: string) => places.filter(p => p.tripId === tripId);

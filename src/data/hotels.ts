@@ -1,10 +1,12 @@
 import { Hotel } from '../types';
+import { enableMockData } from './mockDataConfig';
 
-export const hotels: Hotel[] = [
+export const hotels: Hotel[] = enableMockData ? [
   // ==================== Tokyo Hotels (trip-1) ====================
   {
     id: 'hotel-1',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Park Hyatt Tokyo',
     image: 'https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -20,6 +22,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-2',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Aman Tokyo',
     image: 'https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -34,6 +37,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-3',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'The Ritz-Carlton Tokyo',
     image: 'https://images.pexels.com/photos/237272/pexels-photo-237272.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -48,6 +52,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-4',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Hotel Gracery Shinjuku',
     image: 'https://images.pexels.com/photos/258775/pexels-photo-258775.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 4,
@@ -62,6 +67,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-5',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Hoshinoya Tokyo',
     image: 'https://images.pexels.com/photos/339739/pexels-photo-339739.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -76,6 +82,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-6',
     tripId: 'trip-1',
+    stopId: 'stop-trip-1-tokyo',
     name: 'Shinjuku Granbell Hotel',
     image: 'https://images.pexels.com/photos/53575/pexels-photo-53575.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 3,
@@ -92,6 +99,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-7',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Le Marais Hotel & Spa',
     image: 'https://images.pexels.com/photos/32255/pexels-photo-32255.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -107,6 +115,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-8',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Hôtel Plaza Athénée',
     image: 'https://images.pexels.com/photos/145784/pexels-photo-145784.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -121,6 +130,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-9',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Hôtel Le Bristol Paris',
     image: 'https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -135,6 +145,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-10',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Hôtel Caron de Beaumarchais',
     image: 'https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 4,
@@ -149,6 +160,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-11',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Maison Souquet',
     image: 'https://images.pexels.com/photos/237272/pexels-photo-237272.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -163,6 +175,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-12',
     tripId: 'trip-2',
+    stopId: 'stop-trip-2-paris',
     name: 'Hôtel Monsieur Saintonge',
     image: 'https://images.pexels.com/photos/258775/pexels-photo-258775.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 3,
@@ -179,6 +192,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-13',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Four Seasons Resort Bali at Sayan',
     image: 'https://images.pexels.com/photos/339739/pexels-photo-339739.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -194,6 +208,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-14',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'The Mulia Bali',
     image: 'https://images.pexels.com/photos/53575/pexels-photo-53575.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -208,6 +223,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-15',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Alila Villas Uluwatu',
     image: 'https://images.pexels.com/photos/32255/pexels-photo-32255.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -222,6 +238,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-16',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Villa Seminyak & Spa',
     image: 'https://images.pexels.com/photos/145784/pexels-photo-145784.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 4,
@@ -236,6 +253,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-17',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Bambu Indah',
     image: 'https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 4,
@@ -250,6 +268,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-18',
     tripId: 'trip-3',
+    stopId: 'stop-trip-3-bali',
     name: 'Puri Garden Hotel',
     image: 'https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 3,
@@ -266,6 +285,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-19',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'The Plaza Hotel',
     image: 'https://images.pexels.com/photos/237272/pexels-photo-237272.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -281,6 +301,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-20',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'The Standard High Line',
     image: 'https://images.pexels.com/photos/258775/pexels-photo-258775.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 4,
@@ -295,6 +316,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-21',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: '1 Hotel Central Park',
     image: 'https://images.pexels.com/photos/339739/pexels-photo-339739.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -309,6 +331,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-22',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'Pod 51 Hotel',
     image: 'https://images.pexels.com/photos/53575/pexels-photo-53575.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 3,
@@ -323,6 +346,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-23',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'The Greenwich Hotel',
     image: 'https://images.pexels.com/photos/32255/pexels-photo-32255.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -337,6 +361,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-24',
     tripId: 'trip-4',
+    stopId: 'stop-trip-4-new-york',
     name: 'Arlo NoMad',
     image: 'https://images.pexels.com/photos/145784/pexels-photo-145784.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 4,
@@ -353,6 +378,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-25',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Arenal Kioro Suites & Spa',
     image: 'https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 4,
@@ -368,6 +394,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-26',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Four Seasons Resort Costa Rica',
     image: 'https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 5,
@@ -382,6 +409,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-27',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Hotel Arenas del Mar',
     image: 'https://images.pexels.com/photos/237272/pexels-photo-237272.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 4,
@@ -396,6 +424,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-28',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Tabacon Thermal Resort & Spa',
     image: 'https://images.pexels.com/photos/258775/pexels-photo-258775.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 4,
@@ -410,6 +439,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-29',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'Selina Manuel Antonio',
     image: 'https://images.pexels.com/photos/339739/pexels-photo-339739.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 3,
@@ -424,6 +454,7 @@ export const hotels: Hotel[] = [
   {
     id: 'hotel-30',
     tripId: 'trip-5',
+    stopId: 'stop-trip-5-costa-rica',
     name: 'El Remanso Lodge',
     image: 'https://images.pexels.com/photos/53575/pexels-photo-53575.jpeg?auto=compress&cs=tinysrgb&w=600',
     rating: 4,
@@ -435,6 +466,6 @@ export const hotels: Hotel[] = [
     distanceToCenter: '45 min drive',
     description: 'Eco-lodge nestled in the rainforest with stunning ocean views, wildlife on the doorstep, and a commitment to sustainability.',
   },
-];
+] : [];
 
 export const getHotelsByTripId = (tripId: string) => hotels.filter(h => h.tripId === tripId);

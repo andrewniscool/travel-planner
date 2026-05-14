@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Plus,
   Pencil,
@@ -12,11 +13,86 @@ import {
   CloudSun,
 } from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
+import { useServiceTrip } from '../hooks/useServiceTrips';
 import { getNotesByTripId, getChecklistByTripId } from '../data/notes';
 import { getWeatherByTripId } from '../data/weather';
+import {
+  getAuthenticatedUserId,
+  notesService,
+} from '../services/travelDataService';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import type { ChecklistItem, WeatherData } from '../types';
+import type { ChecklistItem, Note, WeatherData } from '../types';
+
+const LOCAL_NOTES_KEY = 'travel-builder:notes';
+const LOCAL_CHECKLIST_KEY = 'travel-builder:checklist';
+
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+
+const loadStoredNotes = (tripId: string, fallbackNotes: Note[]): Note[] => {
+  try {
+    const stored = window.localStorage.getItem(LOCAL_NOTES_KEY);
+    if (!stored) return fallbackNotes;
+    const parsed = JSON.parse(stored) as Record<string, Note[]>;
+    return parsed[tripId] ?? fallbackNotes;
+  } catch {
+    return fallbackNotes;
+  }
+};
+
+const persistStoredNotes = (tripId: string, nextNotes: Note[]) => {
+  try {
+    const stored = window.localStorage.getItem(LOCAL_NOTES_KEY);
+    const parsed = stored ? (JSON.parse(stored) as Record<string, Note[]>) : {};
+    window.localStorage.setItem(
+      LOCAL_NOTES_KEY,
+      JSON.stringify({ ...parsed, [tripId]: nextNotes }),
+    );
+  } catch {
+    window.localStorage.setItem(
+      LOCAL_NOTES_KEY,
+      JSON.stringify({ [tripId]: nextNotes }),
+    );
+  }
+};
+
+const loadStoredChecklist = (
+  tripId: string,
+  fallbackItems: ChecklistItem[],
+): ChecklistItem[] => {
+  try {
+    const stored = window.localStorage.getItem(LOCAL_CHECKLIST_KEY);
+    if (!stored) return fallbackItems;
+    const parsed = JSON.parse(stored) as Record<string, ChecklistItem[]>;
+    return parsed[tripId] ?? fallbackItems;
+  } catch {
+    return fallbackItems;
+  }
+};
+
+const persistStoredChecklist = (
+  tripId: string,
+  nextItems: ChecklistItem[],
+) => {
+  try {
+    const stored = window.localStorage.getItem(LOCAL_CHECKLIST_KEY);
+    const parsed = stored
+      ? (JSON.parse(stored) as Record<string, ChecklistItem[]>)
+      : {};
+    window.localStorage.setItem(
+      LOCAL_CHECKLIST_KEY,
+      JSON.stringify({ ...parsed, [tripId]: nextItems }),
+    );
+  } catch {
+    window.localStorage.setItem(
+      LOCAL_CHECKLIST_KEY,
+      JSON.stringify({ [tripId]: nextItems }),
+    );
+  }
+};
 
 const ChecklistItemRow: React.FC<{
   item: ChecklistItem;
@@ -68,49 +144,213 @@ const WeatherDay: React.FC<{ day: WeatherData }> = ({ day }) => (
 );
 
 const Notes: React.FC = () => {
-  const trip = useTrip();
-  const notes = trip ? getNotesByTripId(trip.id) : [];
-  const checklist = trip ? getChecklistByTripId(trip.id) : [];
+  const { tripId: routeTripId } = useParams<{ tripId: string }>();
+  const fallbackTrip = useTrip();
+  const {
+    trip: serviceTrip,
+    error: serviceTripError,
+    source: tripSource,
+  } = useServiceTrip(routeTripId);
+  const trip = serviceTrip ?? fallbackTrip;
+  const tripId = trip?.id;
+  const fallbackNotes = useMemo(
+    () => (trip ? getNotesByTripId(trip.id) : []),
+    [trip],
+  );
+  const fallbackChecklist = useMemo(
+    () => (trip ? getChecklistByTripId(trip.id) : []),
+    [trip],
+  );
   const weather = trip ? getWeatherByTripId(trip.id) : [];
 
   const [showAddNote, setShowAddNote] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
+  const [localNotes, setLocalNotes] = useState<Note[]>(fallbackNotes);
+  const [localChecklist, setLocalChecklist] =
+    useState<ChecklistItem[]>(fallbackChecklist);
+  const [notesSource, setNotesSource] = useState<'supabase' | 'fallback'>(
+    'fallback',
+  );
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [isSavingNote, setIsSavingNote] = useState(false);
 
-  // Local state for checklist toggle/delete (demo only)
-  const [localChecklist, setLocalChecklist] = useState<ChecklistItem[]>(checklist);
+  useEffect(() => {
+    if (!tripId) return;
+    let cancelled = false;
+    const storedNotes = loadStoredNotes(tripId, fallbackNotes);
+    const storedChecklist = loadStoredChecklist(tripId, fallbackChecklist);
+
+    setLocalNotes(storedNotes);
+    setLocalChecklist(storedChecklist);
+    setNotesSource('fallback');
+    setNotesError(null);
+
+    async function loadSupabaseNotes() {
+      if (!tripId || tripSource !== 'supabase') return;
+
+      try {
+        const userId = await getAuthenticatedUserId();
+        if (!userId) return;
+
+        const [supabaseNotes, supabaseChecklist] = await Promise.all([
+          notesService.listNotes(tripId),
+          notesService.listChecklistItems(tripId),
+        ]);
+        if (cancelled) return;
+
+        const nextNotes = supabaseNotes.length > 0 ? supabaseNotes : storedNotes;
+        const nextChecklist =
+          supabaseChecklist.length > 0 ? supabaseChecklist : storedChecklist;
+
+        setLocalNotes(nextNotes);
+        setLocalChecklist(nextChecklist);
+        persistStoredNotes(tripId, nextNotes);
+        persistStoredChecklist(tripId, nextChecklist);
+        setNotesSource('supabase');
+      } catch {
+        if (cancelled) return;
+        setNotesError(
+          'Supabase notes could not be loaded. Showing local notes instead.',
+        );
+      }
+    }
+
+    void loadSupabaseNotes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fallbackChecklist, fallbackNotes, tripId, tripSource]);
 
   const packingItems = useMemo(
     () => localChecklist.filter((c) => c.category === 'packing'),
-    [localChecklist]
+    [localChecklist],
   );
   const documentItems = useMemo(
     () => localChecklist.filter((c) => c.category === 'documents'),
-    [localChecklist]
+    [localChecklist],
   );
   const reminderItems = useMemo(
     () => localChecklist.filter((c) => c.category === 'reminders'),
-    [localChecklist]
+    [localChecklist],
   );
 
-  const handleToggleCheck = (id: string) => {
-    setLocalChecklist((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, checked: !item.checked } : item
-      )
+  const updateNotes = (nextNotes: Note[]) => {
+    if (!tripId) return;
+    setLocalNotes(nextNotes);
+    persistStoredNotes(tripId, nextNotes);
+  };
+
+  const updateChecklist = (nextChecklist: ChecklistItem[]) => {
+    if (!tripId) return;
+    setLocalChecklist(nextChecklist);
+    persistStoredChecklist(tripId, nextChecklist);
+  };
+
+  const handleToggleCheck = async (id: string) => {
+    const toggledItem = localChecklist.find((item) => item.id === id);
+    if (!toggledItem) return;
+
+    const nextItem = { ...toggledItem, checked: !toggledItem.checked };
+    const nextChecklist = localChecklist.map((item) =>
+      item.id === id ? nextItem : item,
     );
+    updateChecklist(nextChecklist);
+
+    if (notesSource !== 'supabase' || !isUuid(id)) return;
+
+    try {
+      await notesService.updateChecklistItem(nextItem);
+      setNotesError(null);
+    } catch {
+      setNotesSource('fallback');
+      setNotesError(
+        'Supabase checklist update failed. Saved the change locally instead.',
+      );
+    }
   };
 
-  const handleDeleteCheck = (id: string) => {
-    setLocalChecklist((prev) => prev.filter((item) => item.id !== id));
+  const handleDeleteCheck = async (id: string) => {
+    const nextChecklist = localChecklist.filter((item) => item.id !== id);
+    updateChecklist(nextChecklist);
+
+    if (notesSource !== 'supabase' || !isUuid(id)) return;
+
+    try {
+      await notesService.deleteChecklistItem(id);
+      setNotesError(null);
+    } catch {
+      setNotesSource('fallback');
+      setNotesError(
+        'Supabase checklist delete failed. Removed the item locally instead.',
+      );
+    }
   };
 
-  const handleSaveNote = () => {
-    if (newNoteTitle.trim() && newNoteContent.trim()) {
-      // In a real app, this would persist to data
+  const handleSaveNote = async () => {
+    if (!trip || !newNoteTitle.trim() || !newNoteContent.trim()) return;
+
+    const nextNote: Note = {
+      id: `note-${trip.id}-${Date.now()}`,
+      tripId: trip.id,
+      stopId: trip.stops[0]?.id,
+      title: newNoteTitle.trim(),
+      content: newNoteContent.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    const saveLocally = (note: Note) => {
+      updateNotes([note, ...localNotes]);
+    };
+
+    setIsSavingNote(true);
+
+    try {
+      const userId = await getAuthenticatedUserId();
+
+      if (userId && notesSource === 'supabase') {
+        const savedNote = await notesService.createNote(nextNote);
+        saveLocally(savedNote);
+        setNotesError(null);
+      } else {
+        saveLocally(nextNote);
+        if (!userId) {
+          setNotesError('Saved locally. Sign-in is not connected yet.');
+        }
+      }
+
       setNewNoteTitle('');
       setNewNoteContent('');
       setShowAddNote(false);
+    } catch {
+      saveLocally(nextNote);
+      setNotesSource('fallback');
+      setNotesError(
+        'Supabase note save failed. Saved the note locally instead.',
+      );
+      setNewNoteTitle('');
+      setNewNoteContent('');
+      setShowAddNote(false);
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (id: string) => {
+    const nextNotes = localNotes.filter((note) => note.id !== id);
+    updateNotes(nextNotes);
+
+    if (notesSource !== 'supabase' || !isUuid(id)) return;
+
+    try {
+      await notesService.deleteNote(id);
+      setNotesError(null);
+    } catch {
+      setNotesSource('fallback');
+      setNotesError(
+        'Supabase note delete failed. Removed the note locally instead.',
+      );
     }
   };
 
@@ -132,221 +372,242 @@ const Notes: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      {/* Left Column - Notes */}
-      <div className="lg:w-[60%] w-full space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-neutral-800 flex items-center gap-2">
-            <StickyNote className="w-5 h-5 text-primary-500" />
-            Notes
-          </h2>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setShowAddNote(!showAddNote)}
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add Note
-          </Button>
-        </div>
+    <div className="space-y-4">
+      {(serviceTripError || notesError) && (
+        <Card hover={false} className="p-4 border-warning-100 bg-warning-50">
+          <p className="text-sm text-warning-700">
+            {notesError ||
+              'Supabase trip data could not be loaded. Showing local notes instead.'}
+          </p>
+        </Card>
+      )}
 
-        {/* Add note form */}
-        {showAddNote && (
-          <Card hover={false} className="p-4 border-primary-200">
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Note title"
-                value={newNoteTitle}
-                onChange={(e) => setNewNoteTitle(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-              />
-              <textarea
-                placeholder="Write your note..."
-                value={newNoteContent}
-                onChange={(e) => setNewNoteContent(e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
-              />
-              <div className="flex items-center gap-2 justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowAddNote(false);
-                    setNewNoteTitle('');
-                    setNewNoteContent('');
-                  }}
-                >
-                  <X className="w-3.5 h-3.5 mr-1" />
-                  Cancel
-                </Button>
-                <Button variant="primary" size="sm" onClick={handleSaveNote}>
-                  <Check className="w-3.5 h-3.5 mr-1" />
-                  Save Note
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Left Column - Notes */}
+        <div className="lg:w-[60%] w-full space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-neutral-800 flex items-center gap-2">
+              <StickyNote className="w-5 h-5 text-primary-500" />
+              Notes
+            </h2>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowAddNote(!showAddNote)}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add Note
+            </Button>
+          </div>
 
-        {/* Notes list */}
-        <div className="space-y-3">
-          {notes.map((note) => (
-            <Card hover={false} key={note.id} className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="text-sm font-semibold text-neutral-800">
-                  {note.title}
-                </h3>
-                <div className="flex items-center gap-1 shrink-0 ml-2">
-                  <button className="p-1.5 text-neutral-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors duration-150">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button className="p-1.5 text-neutral-400 hover:text-error-500 rounded-lg hover:bg-error-50 transition-colors duration-150">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+          {/* Add note form */}
+          {showAddNote && (
+            <Card hover={false} className="p-4 border-primary-200">
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Note title"
+                  value={newNoteTitle}
+                  onChange={(e) => setNewNoteTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                />
+                <textarea
+                  placeholder="Write your note..."
+                  value={newNoteContent}
+                  onChange={(e) => setNewNoteContent(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                />
+                <div className="flex items-center gap-2 justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowAddNote(false);
+                      setNewNoteTitle('');
+                      setNewNoteContent('');
+                    }}
+                  >
+                    <X className="w-3.5 h-3.5 mr-1" />
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleSaveNote}
+                    disabled={isSavingNote}
+                  >
+                    <Check className="w-3.5 h-3.5 mr-1" />
+                    {isSavingNote ? 'Saving...' : 'Save Note'}
+                  </Button>
                 </div>
               </div>
-              <p className="text-sm text-neutral-600 line-clamp-3 leading-relaxed">
-                {note.content}
-              </p>
-              <p className="text-xs text-neutral-400 mt-2">
-                {formatDate(note.createdAt)}
-              </p>
             </Card>
-          ))}
+          )}
 
-          {notes.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-neutral-100 text-neutral-400 mb-3">
-                <StickyNote className="w-6 h-6" />
+          {/* Notes list */}
+          <div className="space-y-3">
+            {localNotes.map((note) => (
+              <Card hover={false} key={note.id} className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-neutral-800">
+                    {note.title}
+                  </h3>
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <button className="p-1.5 text-neutral-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors duration-150">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteNote(note.id)}
+                      className="p-1.5 text-neutral-400 hover:text-error-500 rounded-lg hover:bg-error-50 transition-colors duration-150"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm text-neutral-600 line-clamp-3 leading-relaxed">
+                  {note.content}
+                </p>
+                <p className="text-xs text-neutral-400 mt-2">
+                  {formatDate(note.createdAt)}
+                </p>
+              </Card>
+            ))}
+
+            {localNotes.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-neutral-100 text-neutral-400 mb-3">
+                  <StickyNote className="w-6 h-6" />
+                </div>
+                <p className="text-sm font-medium text-neutral-600">
+                  No notes yet
+                </p>
+                <p className="text-xs text-neutral-400 mt-1">
+                  Add notes to keep track of important details
+                </p>
               </div>
-              <p className="text-sm font-medium text-neutral-600">No notes yet</p>
-              <p className="text-xs text-neutral-400 mt-1">
-                Add notes to keep track of important details
-              </p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Right Column - Checklists + Weather */}
-      <div className="lg:w-[40%] w-full space-y-4">
-        {/* Packing List */}
-        <Card hover={false} className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
-              <Luggage className="w-4 h-4 text-primary-500" />
-              Packing List
-            </h3>
-            <Button variant="ghost" size="sm">
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Add Item
-            </Button>
-          </div>
-          <div className="divide-y divide-neutral-100">
-            {packingItems.map((item) => (
-              <ChecklistItemRow
-                key={item.id}
-                item={item}
-                onToggle={handleToggleCheck}
-                onDelete={handleDeleteCheck}
-              />
-            ))}
-          </div>
-          {packingItems.length === 0 && (
-            <p className="text-xs text-neutral-400 py-3 text-center">
-              No packing items
-            </p>
-          )}
-          <div className="mt-2 pt-2 border-t border-neutral-100">
-            <p className="text-xs text-neutral-400">
-              {packingItems.filter((i) => i.checked).length} of{' '}
-              {packingItems.length} packed
-            </p>
-          </div>
-        </Card>
-
-        {/* Travel Documents */}
-        <Card hover={false} className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-accent-500" />
-              Travel Documents
-            </h3>
-          </div>
-          <div className="divide-y divide-neutral-100">
-            {documentItems.map((item) => (
-              <ChecklistItemRow
-                key={item.id}
-                item={item}
-                onToggle={handleToggleCheck}
-                onDelete={handleDeleteCheck}
-              />
-            ))}
-          </div>
-          {documentItems.length === 0 && (
-            <p className="text-xs text-neutral-400 py-3 text-center">
-              No documents
-            </p>
-          )}
-          <div className="mt-2 pt-2 border-t border-neutral-100">
-            <p className="text-xs text-neutral-400">
-              {documentItems.filter((i) => i.checked).length} of{' '}
-              {documentItems.length} ready
-            </p>
-          </div>
-        </Card>
-
-        {/* Reminders */}
-        <Card hover={false} className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
-              <Bell className="w-4 h-4 text-warning-500" />
-              Reminders
-            </h3>
-            <Button variant="ghost" size="sm">
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Add Reminder
-            </Button>
-          </div>
-          <div className="divide-y divide-neutral-100">
-            {reminderItems.map((item) => (
-              <ChecklistItemRow
-                key={item.id}
-                item={item}
-                onToggle={handleToggleCheck}
-                onDelete={handleDeleteCheck}
-              />
-            ))}
-          </div>
-          {reminderItems.length === 0 && (
-            <p className="text-xs text-neutral-400 py-3 text-center">
-              No reminders
-            </p>
-          )}
-          <div className="mt-2 pt-2 border-t border-neutral-100">
-            <p className="text-xs text-neutral-400">
-              {reminderItems.filter((i) => i.checked).length} of{' '}
-              {reminderItems.length} done
-            </p>
-          </div>
-        </Card>
-
-        {/* Weather Preview */}
-        {weather.length > 0 && (
+        {/* Right Column - Checklists + Weather */}
+        <div className="lg:w-[40%] w-full space-y-4">
+          {/* Packing List */}
           <Card hover={false} className="p-4">
-            <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2 mb-3">
-              <CloudSun className="w-4 h-4 text-warning-500" />
-              Weather Forecast
-            </h3>
-            <div className="flex overflow-x-auto scrollbar-thin gap-1 pb-1 -mx-1 px-1">
-              {weather.map((day) => (
-                <WeatherDay key={day.date} day={day} />
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+                <Luggage className="w-4 h-4 text-primary-500" />
+                Packing List
+              </h3>
+              <Button variant="ghost" size="sm">
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Add Item
+              </Button>
+            </div>
+            <div className="divide-y divide-neutral-100">
+              {packingItems.map((item) => (
+                <ChecklistItemRow
+                  key={item.id}
+                  item={item}
+                  onToggle={handleToggleCheck}
+                  onDelete={handleDeleteCheck}
+                />
               ))}
             </div>
+            {packingItems.length === 0 && (
+              <p className="text-xs text-neutral-400 py-3 text-center">
+                No packing items
+              </p>
+            )}
+            <div className="mt-2 pt-2 border-t border-neutral-100">
+              <p className="text-xs text-neutral-400">
+                {packingItems.filter((i) => i.checked).length} of{' '}
+                {packingItems.length} packed
+              </p>
+            </div>
           </Card>
-        )}
+
+          {/* Travel Documents */}
+          <Card hover={false} className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-accent-500" />
+                Travel Documents
+              </h3>
+            </div>
+            <div className="divide-y divide-neutral-100">
+              {documentItems.map((item) => (
+                <ChecklistItemRow
+                  key={item.id}
+                  item={item}
+                  onToggle={handleToggleCheck}
+                  onDelete={handleDeleteCheck}
+                />
+              ))}
+            </div>
+            {documentItems.length === 0 && (
+              <p className="text-xs text-neutral-400 py-3 text-center">
+                No documents
+              </p>
+            )}
+            <div className="mt-2 pt-2 border-t border-neutral-100">
+              <p className="text-xs text-neutral-400">
+                {documentItems.filter((i) => i.checked).length} of{' '}
+                {documentItems.length} ready
+              </p>
+            </div>
+          </Card>
+
+          {/* Reminders */}
+          <Card hover={false} className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+                <Bell className="w-4 h-4 text-warning-500" />
+                Reminders
+              </h3>
+              <Button variant="ghost" size="sm">
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Add Reminder
+              </Button>
+            </div>
+            <div className="divide-y divide-neutral-100">
+              {reminderItems.map((item) => (
+                <ChecklistItemRow
+                  key={item.id}
+                  item={item}
+                  onToggle={handleToggleCheck}
+                  onDelete={handleDeleteCheck}
+                />
+              ))}
+            </div>
+            {reminderItems.length === 0 && (
+              <p className="text-xs text-neutral-400 py-3 text-center">
+                No reminders
+              </p>
+            )}
+            <div className="mt-2 pt-2 border-t border-neutral-100">
+              <p className="text-xs text-neutral-400">
+                {reminderItems.filter((i) => i.checked).length} of{' '}
+                {reminderItems.length} done
+              </p>
+            </div>
+          </Card>
+
+          {/* Weather Preview */}
+          {weather.length > 0 && (
+            <Card hover={false} className="p-4">
+              <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2 mb-3">
+                <CloudSun className="w-4 h-4 text-warning-500" />
+                Weather Forecast
+              </h3>
+              <div className="flex overflow-x-auto scrollbar-thin gap-1 pb-1 -mx-1 px-1">
+                {weather.map((day) => (
+                  <WeatherDay key={day.date} day={day} />
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );

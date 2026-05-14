@@ -1,8 +1,12 @@
-import { Trip } from '../types';
+import { Trip, TripStop } from '../types';
+import { enableMockData } from './mockDataConfig';
 
-export const trips: Trip[] = [
+export const LOCAL_TRIPS_STORAGE_KEY = 'travel-builder:trips';
+
+export const trips: Trip[] = enableMockData ? [
   {
     id: 'trip-1',
+    title: 'Tokyo Trip',
     destination: 'Tokyo',
     country: 'Japan',
     startDate: '2026-07-15',
@@ -14,9 +18,23 @@ export const trips: Trip[] = [
     notes: 'Want to visit Shibuya, Asakusa, Akihabara, and day trip to Hakone. Need to book flights soon before prices go up. Interested in a sushi-making class and teamLab exhibit.',
     image: 'https://images.pexels.com/photos/1540981/pexels-photo-1540981.jpeg?auto=compress&cs=tinysrgb&w=800',
     planningProgress: 35,
+    stops: [
+      {
+        id: 'stop-trip-1-tokyo',
+        tripId: 'trip-1',
+        name: 'Tokyo',
+        country: 'Japan',
+        startDate: '2026-07-15',
+        endDate: '2026-07-25',
+        order: 1,
+        image: 'https://images.pexels.com/photos/1540981/pexels-photo-1540981.jpeg?auto=compress&cs=tinysrgb&w=800',
+      },
+    ],
+    transportSegments: [],
   },
   {
     id: 'trip-2',
+    title: 'Paris Anniversary Trip',
     destination: 'Paris',
     country: 'France',
     startDate: '2026-06-20',
@@ -28,9 +46,23 @@ export const trips: Trip[] = [
     notes: 'Anniversary trip! Hotel booked near Le Marais. Dinner reservations at Le Cinq and Septime. Museum passes purchased. Eiffel Tower visit scheduled for evening.',
     image: 'https://images.pexels.com/photos/660535/pexels-photo-660535.jpeg?auto=compress&cs=tinysrgb&w=800',
     planningProgress: 90,
+    stops: [
+      {
+        id: 'stop-trip-2-paris',
+        tripId: 'trip-2',
+        name: 'Paris',
+        country: 'France',
+        startDate: '2026-06-20',
+        endDate: '2026-06-28',
+        order: 1,
+        image: 'https://images.pexels.com/photos/660535/pexels-photo-660535.jpeg?auto=compress&cs=tinysrgb&w=800',
+      },
+    ],
+    transportSegments: [],
   },
   {
     id: 'trip-3',
+    title: 'Bali Group Trip',
     destination: 'Bali',
     country: 'Indonesia',
     startDate: '2026-08-05',
@@ -42,9 +74,23 @@ export const trips: Trip[] = [
     notes: 'Group trip with friends. Staying in Ubud and Seminyak. Want to visit rice terraces, do a snorkeling day, and get a couples massage at a spa. Looking into villa vs hotel options.',
     image: 'https://images.pexels.com/photos/247502/pexels-photo-247502.jpeg?auto=compress&cs=tinysrgb&w=800',
     planningProgress: 60,
+    stops: [
+      {
+        id: 'stop-trip-3-bali',
+        tripId: 'trip-3',
+        name: 'Bali',
+        country: 'Indonesia',
+        startDate: '2026-08-05',
+        endDate: '2026-08-16',
+        order: 1,
+        image: 'https://images.pexels.com/photos/247502/pexels-photo-247502.jpeg?auto=compress&cs=tinysrgb&w=800',
+      },
+    ],
+    transportSegments: [],
   },
   {
     id: 'trip-4',
+    title: 'New York Family Trip',
     destination: 'New York',
     country: 'United States',
     startDate: '2026-03-10',
@@ -56,9 +102,23 @@ export const trips: Trip[] = [
     notes: 'Great trip! Hit up Peter Luger, Joe\'s Pizza, and Russ & Daughters. Saw a Broadway show and walked Central Park. The kids loved the Natural History Museum.',
     image: 'https://images.pexels.com/photos/378570/pexels-photo-378570.jpeg?auto=compress&cs=tinysrgb&w=800',
     planningProgress: 100,
+    stops: [
+      {
+        id: 'stop-trip-4-new-york',
+        tripId: 'trip-4',
+        name: 'New York',
+        country: 'United States',
+        startDate: '2026-03-10',
+        endDate: '2026-03-15',
+        order: 1,
+        image: 'https://images.pexels.com/photos/378570/pexels-photo-378570.jpeg?auto=compress&cs=tinysrgb&w=800',
+      },
+    ],
+    transportSegments: [],
   },
   {
     id: 'trip-5',
+    title: 'Costa Rica Adventure',
     destination: 'Costa Rica',
     country: 'Costa Rica',
     startDate: '2026-08-22',
@@ -70,7 +130,141 @@ export const trips: Trip[] = [
     notes: 'Want to do zip-lining, white water rafting, and a volcano hike. Considering staying in La Fortuna and Manuel Antonio. Need to research best surf spots for beginners.',
     image: 'https://images.pexels.com/photos/676506/pexels-photo-676506.jpeg?auto=compress&cs=tinysrgb&w=800',
     planningProgress: 20,
+    stops: [
+      {
+        id: 'stop-trip-5-costa-rica',
+        tripId: 'trip-5',
+        name: 'Costa Rica',
+        country: 'Costa Rica',
+        startDate: '2026-08-22',
+        endDate: '2026-08-31',
+        order: 1,
+        image: 'https://images.pexels.com/photos/676506/pexels-photo-676506.jpeg?auto=compress&cs=tinysrgb&w=800',
+      },
+    ],
+    transportSegments: [],
   },
-];
+  {
+    id: 'trip-6',
+    title: 'Japan Spring Trip',
+    destination: 'Japan',
+    country: 'Japan',
+    startDate: '2026-05-10',
+    endDate: '2026-05-21',
+    travelers: 2,
+    budget: 6800,
+    vibe: 'Cultural',
+    status: 'planning',
+    notes: 'Multi-stop spring route through Tokyo, Kyoto, Osaka, and Saitama.',
+    image: 'https://images.pexels.com/photos/2070033/pexels-photo-2070033.jpeg?auto=compress&cs=tinysrgb&w=800',
+    planningProgress: 25,
+    stops: [
+      {
+        id: 'stop-trip-6-tokyo',
+        tripId: 'trip-6',
+        name: 'Tokyo',
+        country: 'Japan',
+        startDate: '2026-05-10',
+        endDate: '2026-05-14',
+        order: 1,
+      },
+      {
+        id: 'stop-trip-6-kyoto',
+        tripId: 'trip-6',
+        name: 'Kyoto',
+        country: 'Japan',
+        startDate: '2026-05-14',
+        endDate: '2026-05-17',
+        order: 2,
+      },
+      {
+        id: 'stop-trip-6-osaka',
+        tripId: 'trip-6',
+        name: 'Osaka',
+        country: 'Japan',
+        startDate: '2026-05-17',
+        endDate: '2026-05-20',
+        order: 3,
+      },
+      {
+        id: 'stop-trip-6-saitama',
+        tripId: 'trip-6',
+        name: 'Saitama',
+        country: 'Japan',
+        startDate: '2026-05-20',
+        endDate: '2026-05-21',
+        order: 4,
+      },
+    ],
+    transportSegments: [
+      {
+        id: 'transport-trip-6-1',
+        tripId: 'trip-6',
+        fromStopId: 'stop-trip-6-tokyo',
+        toStopId: 'stop-trip-6-kyoto',
+        mode: 'train',
+        role: 'between-stops',
+        isPrimary: true,
+        provider: 'Tokaido Shinkansen',
+        departureLocation: 'Tokyo Station',
+        arrivalLocation: 'Kyoto Station',
+        departureDateTime: '2026-05-14T09:00:00',
+        arrivalDateTime: '2026-05-14T11:15:00',
+        duration: '2h 15m',
+        price: 95,
+        notes: 'Reserve seats after finalizing hotel check-in time.',
+      },
+      {
+        id: 'transport-trip-6-2',
+        tripId: 'trip-6',
+        fromStopId: 'stop-trip-6-kyoto',
+        toStopId: 'stop-trip-6-osaka',
+        mode: 'train',
+        role: 'between-stops',
+        isPrimary: true,
+        provider: 'JR Kyoto Line',
+        departureLocation: 'Kyoto Station',
+        arrivalLocation: 'Osaka Station',
+        departureDateTime: '2026-05-17T10:00:00',
+        arrivalDateTime: '2026-05-17T10:30:00',
+        duration: '30m',
+        price: 6,
+      },
+      {
+        id: 'transport-trip-6-3',
+        tripId: 'trip-6',
+        fromStopId: 'stop-trip-6-osaka',
+        toStopId: 'stop-trip-6-saitama',
+        mode: 'train',
+        role: 'between-stops',
+        isPrimary: true,
+        provider: 'Shinkansen + local rail',
+        departureLocation: 'Shin-Osaka Station',
+        arrivalLocation: 'Omiya Station',
+        departureDateTime: '2026-05-20T08:30:00',
+        arrivalDateTime: '2026-05-20T12:00:00',
+        duration: '3h 30m',
+        price: 125,
+      },
+    ],
+  },
+] : [];
 
 export const getTripById = (id: string) => trips.find(t => t.id === id);
+
+export const getPrimaryStop = (trip: Trip): TripStop | undefined =>
+  [...trip.stops].sort((a, b) => a.order - b.order)[0];
+
+export const isMultiStopTrip = (trip: Trip): boolean => trip.stops.length > 1;
+
+export const getTripDisplayName = (trip: Trip): string =>
+  trip.title || getPrimaryStop(trip)?.name || trip.destination;
+
+export const getTripRouteLabel = (trip: Trip): string => {
+  if (trip.stops.length === 0) return trip.destination;
+  const orderedStops = [...trip.stops].sort((a, b) => a.order - b.order);
+  return orderedStops.map((stop) => stop.name).join(' → ');
+};
+
+export const getStopsByTripId = (tripId: string): TripStop[] =>
+  getTripById(tripId)?.stops ?? [];

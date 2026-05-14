@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Menu, Search, Bell, User } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
 interface TopNavProps {
   onMenuClick: () => void;
@@ -31,6 +32,11 @@ const buildBreadcrumbs = (pathname: string): { label: string; path: string }[] =
     currentPath += `/${segments[i]}`;
     const segment = segments[i];
 
+    if (segment === 'trip') {
+      crumbs.push({ label: 'Trip', path: '/dashboard' });
+      continue;
+    }
+
     // Skip trip ID segments (like trip-1, trip-2, or UUIDs)
     const isTripId = segment.startsWith('trip-') || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment);
     if (isTripId) {
@@ -48,6 +54,7 @@ const buildBreadcrumbs = (pathname: string): { label: string; path: string }[] =
 const TopNav: React.FC<TopNavProps> = ({ onMenuClick }) => {
   const location = useLocation();
   const breadcrumbs = buildBreadcrumbs(location.pathname);
+  const { user } = useAuth();
 
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-neutral-200">
@@ -127,13 +134,13 @@ const TopNav: React.FC<TopNavProps> = ({ onMenuClick }) => {
           </button>
 
           {/* User Avatar */}
-          <button
-            type="button"
+          <Link
+            to={user ? '/profile' : '/sign-in'}
             className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center hover:ring-2 hover:ring-primary-300 transition-all"
             aria-label="User menu"
           >
             <User className="w-4 h-4 text-primary-700" />
-          </button>
+          </Link>
         </div>
       </div>
     </header>

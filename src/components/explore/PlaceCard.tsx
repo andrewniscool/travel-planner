@@ -18,20 +18,27 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
   onAddToItinerary,
   onViewDetails,
 }) => {
+  const displayName = place.locationRef?.displayName || place.name;
+  const displayImage = place.locationRef?.photoUrls?.[0] || place.image;
+  const displayRating = place.locationRef?.rating ?? place.rating;
+  const displayReviewCount = place.locationRef?.reviewCount ?? place.reviewCount;
+  const displayLocation = place.locationRef?.formattedAddress || place.location;
+  const displayPrice = place.locationRef?.priceRange || place.priceRange;
+
   return (
     <Card hover={false} className="flex flex-col h-full">
       {/* Image Section */}
       <div className="relative">
         <img
-          src={place.image}
-          alt={place.name}
+          src={displayImage}
+          alt={displayName}
           className="w-full aspect-video object-cover rounded-t-xl"
         />
 
         {/* Category Badge - top left */}
         <div className="absolute top-3 left-3">
           <Badge variant="default" className="bg-white/90 backdrop-blur-sm text-neutral-700 shadow-sm">
-            {place.category}
+            {place.locationRef?.source === 'google' ? 'Google Places' : place.category}
           </Badge>
         </div>
 
@@ -54,22 +61,22 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
       <div className="flex flex-col flex-1 p-4 gap-2.5">
         {/* Place Name */}
         <h3 className="font-semibold text-neutral-900 text-base leading-snug">
-          {place.name}
+          {displayName}
         </h3>
 
         {/* Rating */}
         <div className="flex items-center gap-1.5">
-          <RatingStars rating={place.rating} size="sm" />
-          <span className="text-sm text-neutral-500">({place.reviewCount.toLocaleString()})</span>
+          <RatingStars rating={displayRating} size="sm" />
+          <span className="text-sm text-neutral-500">({displayReviewCount.toLocaleString()})</span>
         </div>
 
         {/* Price Range */}
-        <span className="text-sm font-medium text-neutral-700">{place.priceRange}</span>
+        <span className="text-sm font-medium text-neutral-700">{displayPrice}</span>
 
         {/* Location */}
         <div className="flex items-center gap-1.5 text-sm text-neutral-500">
           <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>{place.location}</span>
+          <span>{displayLocation}</span>
         </div>
 
         {/* Review Snippet */}
@@ -111,8 +118,10 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
           </button>
 
           <a
-            href="#"
+            href={place.locationRef?.websiteUri || place.locationRef?.googleMapsUri || '#'}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors ml-auto"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             <ExternalLink className="w-3.5 h-3.5" />
             Visit

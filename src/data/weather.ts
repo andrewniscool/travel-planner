@@ -1,11 +1,12 @@
 import { WeatherData } from '../types';
+import { enableMockData } from './mockDataConfig';
 
 export interface TripWeather {
   tripId: string;
   forecast: WeatherData[];
 }
 
-export const weatherData: TripWeather[] = [
+export const weatherData: TripWeather[] = enableMockData ? [
   // Tokyo in July - hot, humid, rainy season
   {
     tripId: 'trip-1',
@@ -71,7 +72,7 @@ export const weatherData: TripWeather[] = [
       { date: '2026-08-28', day: 'Fri', high: 31, low: 23, condition: 'Sunny', icon: '☀️' },
     ],
   },
-];
+] : [];
 
 export const getWeatherByTripId = (tripId: string): WeatherData[] =>
   weatherData.find(w => w.tripId === tripId)?.forecast ?? [];

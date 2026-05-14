@@ -1,6 +1,7 @@
 import { Flight } from '../types';
+import { enableMockData } from './mockDataConfig';
 
-export const flights: Flight[] = [
+export const flights: Flight[] = enableMockData ? [
   // === Tokyo trip (trip-1) ===
   {
     id: 'flight-t1-1',
@@ -662,6 +663,6 @@ export const flights: Flight[] = [
     baggage: '0 x 23kg',
     bookingSource: 'Spirit Airlines',
   },
-];
+] : [];
 
 export const getFlightsByTripId = (tripId: string) => flights.filter(f => f.tripId === tripId);

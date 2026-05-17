@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Wallet,
   Receipt,
@@ -14,9 +14,11 @@ import {
   Plus,
   Pencil,
   Trash2,
+  Eye,
 } from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
 import { getBudgetByTripId } from '../data/budget';
+import type { TripBudget } from '../data/budget';
 import { isMultiStopTrip } from '../data/trips';
 import { useServiceTrip } from '../hooks/useServiceTrips';
 import {
@@ -28,9 +30,30 @@ import Button from '../components/ui/Button';
 import ProgressBar from '../components/ui/ProgressBar';
 import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
-import type { BudgetCategory, BudgetExpense } from '../types';
+import type { BudgetCategory, BudgetExpense, TransportSegment } from '../types';
 
 const LOCAL_BUDGET_EXPENSES_KEY = 'travel-builder:budget-expenses';
+const LOCAL_BUDGET_ALLOCATIONS_KEY = 'travel-builder:budget-allocations';
+const LOCAL_BUDGET_CURRENCIES_KEY = 'travel-builder:budget-currencies';
+const LOCAL_TRAVEL_SEGMENTS_KEY = 'travel-builder:travel-segments';
+const DEFAULT_BUDGET_CATEGORIES = [
+  { name: 'Flights', icon: '✈️', share: 0.35 },
+  { name: 'Hotel', icon: '🏨', share: 0.3 },
+  { name: 'Food', icon: '🍽️', share: 0.15 },
+  { name: 'Activities', icon: '🎟️', share: 0.1 },
+  { name: 'Transportation', icon: '🚕', share: 0.07 },
+  { name: 'Miscellaneous', icon: '🛍️', share: 0.03 },
+] as const;
+const BUDGET_CURRENCIES = [
+  { code: 'USD', label: 'USD - US Dollar' },
+  { code: 'EUR', label: 'EUR - Euro' },
+  { code: 'GBP', label: 'GBP - British Pound' },
+  { code: 'JPY', label: 'JPY - Japanese Yen' },
+  { code: 'CAD', label: 'CAD - Canadian Dollar' },
+  { code: 'AUD', label: 'AUD - Australian Dollar' },
+] as const;
+type BudgetCurrency = (typeof BUDGET_CURRENCIES)[number]['code'];
+const DEFAULT_BUDGET_CURRENCY: BudgetCurrency = 'USD';
 
 interface ExpenseFormState {
   title: string;
@@ -105,6 +128,66 @@ const sumAllocated = (categories: BudgetCategory[]) =>
 const sumSpent = (categories: BudgetCategory[]) =>
   categories.reduce((sum, category) => sum + category.spent, 0);
 
+const getCategoryAllocationKey = (category: Pick<BudgetCategory, 'name' | 'stopId'>) =>
+  `${category.stopId ?? 'trip'}:${category.name}`;
+
+const loadStoredAllocations = (tripId: string): Record<string, number> => {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_ALLOCATIONS_KEY) ?? '{}') as Record<string, Record<string, number>>;
+    return stored[tripId] ?? {};
+  } catch {
+    return {};
+  }
+};
+
+const persistStoredAllocations = (
+  tripId: string,
+  allocations: Record<string, number>,
+) => {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_ALLOCATIONS_KEY) ?? '{}') as Record<string, Record<string, number>>;
+    window.localStorage.setItem(
+      LOCAL_BUDGET_ALLOCATIONS_KEY,
+      JSON.stringify({ ...stored, [tripId]: allocations })
+    );
+  } catch {
+    window.localStorage.setItem(
+      LOCAL_BUDGET_ALLOCATIONS_KEY,
+      JSON.stringify({ [tripId]: allocations })
+    );
+  }
+};
+
+const isBudgetCurrency = (currency: string): currency is BudgetCurrency =>
+  BUDGET_CURRENCIES.some((option) => option.code === currency);
+
+const loadStoredCurrency = (tripId: string): BudgetCurrency => {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_CURRENCIES_KEY) ?? '{}') as Record<string, string>;
+    const currency = stored[tripId];
+    return currency && isBudgetCurrency(currency)
+      ? currency
+      : DEFAULT_BUDGET_CURRENCY;
+  } catch {
+    return DEFAULT_BUDGET_CURRENCY;
+  }
+};
+
+const persistStoredCurrency = (tripId: string, currency: BudgetCurrency) => {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_CURRENCIES_KEY) ?? '{}') as Record<string, string>;
+    window.localStorage.setItem(
+      LOCAL_BUDGET_CURRENCIES_KEY,
+      JSON.stringify({ ...stored, [tripId]: currency })
+    );
+  } catch {
+    window.localStorage.setItem(
+      LOCAL_BUDGET_CURRENCIES_KEY,
+      JSON.stringify({ [tripId]: currency })
+    );
+  }
+};
+
 const loadStoredExpenses = (tripId: string): BudgetExpense[] => {
   try {
     const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_EXPENSES_KEY) ?? '{}') as Record<string, BudgetExpense[]>;
@@ -129,8 +212,66 @@ const persistStoredExpenses = (tripId: string, expenses: BudgetExpense[]) => {
   }
 };
 
+const buildFallbackBudget = (tripId: string, totalBudget: number): TripBudget => ({
+  tripId,
+  categories: DEFAULT_BUDGET_CATEGORIES.map((category) => ({
+    name: category.name,
+    icon: category.icon,
+    allocated: totalBudget > 0 ? Math.round(totalBudget * category.share) : 0,
+    spent: 0,
+  })),
+});
+
+const loadStoredTravelSegments = (
+  tripId: string,
+  fallbackSegments: TransportSegment[],
+): TransportSegment[] => {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(LOCAL_TRAVEL_SEGMENTS_KEY) ?? '{}') as Record<string, TransportSegment[]>;
+    return stored[tripId] ?? fallbackSegments;
+  } catch {
+    return fallbackSegments;
+  }
+};
+
+const getTravelSegmentCategoryName = (segment: TransportSegment) =>
+  segment.mode === 'flight' ? 'Flights' : 'Transportation';
+
+const getTravelSegmentStopId = (segment: TransportSegment) =>
+  segment.role === 'local' ? segment.fromStopId || segment.toStopId : undefined;
+
+const getMatchingTravelSegments = (
+  category: Pick<BudgetCategory, 'name' | 'stopId'>,
+  segments: TransportSegment[],
+  excludedSegmentIds: Set<string>,
+) =>
+  segments.filter(
+    (segment) =>
+      !excludedSegmentIds.has(segment.id) &&
+      getTravelSegmentCategoryName(segment) === category.name &&
+      (getTravelSegmentStopId(segment) ?? '') === (category.stopId ?? '') &&
+      typeof segment.price === 'number',
+  );
+
+const getTravelSegmentTitle = (segment: TransportSegment) => {
+  const label = segment.mode === 'flight'
+    ? 'Flight'
+    : segment.mode.charAt(0).toUpperCase() + segment.mode.slice(1);
+  return `${label}: ${segment.departureLocation} → ${segment.arrivalLocation}`;
+};
+
+const getCategoryDetailsPath = (tripId: string, categoryName: string) => {
+  if (categoryName === 'Flights') return `/trip/${tripId}/flights`;
+  if (categoryName === 'Hotel') return `/trip/${tripId}/hotels`;
+  if (categoryName === 'Activities' || categoryName === 'Transportation') {
+    return `/trip/${tripId}/itinerary`;
+  }
+  return null;
+};
+
 const Budget: React.FC = () => {
   const { tripId: routeTripId } = useParams<{ tripId: string }>();
+  const navigate = useNavigate();
   const fallbackTrip = useTrip();
   const {
     trip: serviceTrip,
@@ -139,7 +280,14 @@ const Budget: React.FC = () => {
   } = useServiceTrip(routeTripId);
   const trip = serviceTrip ?? fallbackTrip;
   const tripId = trip?.id;
-  const budget = trip ? getBudgetByTripId(trip.id) : undefined;
+  const mockBudget = trip ? getBudgetByTripId(trip.id) : undefined;
+  const budget = trip
+    ? mockBudget ?? buildFallbackBudget(trip.id, trip.budget || 0)
+    : undefined;
+  const travelSegments = useMemo(
+    () => (trip ? loadStoredTravelSegments(trip.id, trip.transportSegments) : []),
+    [trip]
+  );
   const isMultiStop = trip ? isMultiStopTrip(trip) : false;
   const orderedStops = useMemo(
     () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
@@ -148,14 +296,23 @@ const Budget: React.FC = () => {
   const [expenses, setExpenses] = useState<BudgetExpense[]>(() =>
     trip ? loadStoredExpenses(trip.id) : []
   );
+  const [allocationOverrides, setAllocationOverrides] = useState<Record<string, number>>(
+    () => (trip ? loadStoredAllocations(trip.id) : {})
+  );
+  const [budgetCurrency, setBudgetCurrency] = useState<BudgetCurrency>(
+    () => (trip ? loadStoredCurrency(trip.id) : DEFAULT_BUDGET_CURRENCY)
+  );
   const [expenseSource, setExpenseSource] = useState<'supabase' | 'fallback'>('fallback');
   const [expenseError, setExpenseError] = useState<string | null>(null);
   const [isSavingExpense, setIsSavingExpense] = useState(false);
-  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [expenseListModalOpen, setExpenseListModalOpen] = useState(false);
+  const [expenseManagerMode, setExpenseManagerMode] = useState<'list' | 'form'>('list');
+  const [budgetModalOpen, setBudgetModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<BudgetCategory | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [expenseForm, setExpenseForm] = useState<ExpenseFormState>(emptyExpenseForm());
+  const [allocationForm, setAllocationForm] = useState('');
+  const [currencyForm, setCurrencyForm] = useState<BudgetCurrency>(DEFAULT_BUDGET_CURRENCY);
 
   useEffect(() => {
     if (!tripId) return;
@@ -192,9 +349,49 @@ const Budget: React.FC = () => {
     };
   }, [tripId, tripSource]);
 
+  useEffect(() => {
+    if (!tripId) return;
+    setAllocationOverrides(loadStoredAllocations(tripId));
+    setBudgetCurrency(loadStoredCurrency(tripId));
+  }, [tripId]);
+
+  const formatMoney = useMemo(
+    () =>
+      new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: budgetCurrency,
+        maximumFractionDigits: budgetCurrency === 'JPY' ? 0 : 0,
+      }).format,
+    [budgetCurrency],
+  );
+
+  const budgetWithAllocationOverrides = useMemo(() => {
+    if (!budget) return undefined;
+
+    return {
+      ...budget,
+      categories: budget.categories.map((category) => {
+        const allocationOverride = allocationOverrides[getCategoryAllocationKey(category)];
+        return {
+          ...category,
+          allocated:
+            typeof allocationOverride === 'number'
+              ? allocationOverride
+              : category.allocated,
+        };
+      }),
+    };
+  }, [allocationOverrides, budget]);
+
+  const baseTravelSegmentIds = useMemo(
+    () => new Set(mockBudget ? (trip?.transportSegments ?? []).map((segment) => segment.id) : []),
+    [mockBudget, trip?.transportSegments],
+  );
+
   const categoriesWithExpenses = useMemo(() => {
-    if (!budget) return [];
-    return budget.categories.map((category) => {
+    if (!budgetWithAllocationOverrides) return [];
+
+    return budgetWithAllocationOverrides.categories.map((category) => {
       const expenseTotal = expenses
         .filter(
           (expense) =>
@@ -202,13 +399,19 @@ const Budget: React.FC = () => {
             (expense.stopId ?? '') === (category.stopId ?? '')
         )
         .reduce((sum, expense) => sum + expense.amount, 0);
+      const travelTotal = getMatchingTravelSegments(
+        category,
+        travelSegments,
+        baseTravelSegmentIds,
+      )
+        .reduce((sum, segment) => sum + (segment.price ?? 0), 0);
 
       return {
         ...category,
-        spent: category.spent + expenseTotal,
+        spent: category.spent + expenseTotal + travelTotal,
       };
     });
-  }, [budget, expenses]);
+  }, [baseTravelSegmentIds, budgetWithAllocationOverrides, expenses, travelSegments]);
 
   const totalSpent = useMemo(() => {
     return sumSpent(categoriesWithExpenses);
@@ -237,10 +440,10 @@ const Budget: React.FC = () => {
     [categoriesWithExpenses, orderedStops]
   );
 
-  const remaining = (trip?.budget ?? 0) - totalSpent;
+  const remaining = totalAllocated - totalSpent;
   const costPerTraveler = trip ? totalSpent / trip.travelers : 0;
   const overallProgress =
-    trip && trip.budget > 0 ? (totalSpent / trip.budget) * 100 : 0;
+    totalAllocated > 0 ? (totalSpent / totalAllocated) * 100 : 0;
 
   const selectedCategoryExpenses = useMemo(() => {
     if (!selectedCategory) return [];
@@ -251,22 +454,54 @@ const Budget: React.FC = () => {
     );
   }, [expenses, selectedCategory]);
 
+  const selectedCategoryTravelSegments = useMemo(() => {
+    if (!selectedCategory) return [];
+    return getMatchingTravelSegments(
+      selectedCategory,
+      travelSegments,
+      new Set<string>(),
+    );
+  }, [selectedCategory, travelSegments]);
+
   const updateExpenses = (nextExpenses: BudgetExpense[]) => {
     if (!trip) return;
     setExpenses(nextExpenses);
     persistStoredExpenses(trip.id, nextExpenses);
   };
 
-  const openAddExpenseModal = (category: BudgetCategory) => {
+  const updateAllocationOverrides = (nextOverrides: Record<string, number>) => {
+    if (!trip) return;
+    setAllocationOverrides(nextOverrides);
+    persistStoredAllocations(trip.id, nextOverrides);
+  };
+
+  const updateBudgetCurrency = (currency: BudgetCurrency) => {
+    if (!trip) return;
+    setBudgetCurrency(currency);
+    persistStoredCurrency(trip.id, currency);
+  };
+
+  const openAddExpenseForm = (category: BudgetCategory) => {
     setSelectedCategory(category);
     setEditingExpenseId(null);
     setExpenseForm(emptyExpenseForm(category.name, category.stopId ?? ''));
-    setExpenseModalOpen(true);
+    setExpenseManagerMode('form');
+    setExpenseListModalOpen(true);
   };
 
   const openExpenseListModal = (category: BudgetCategory) => {
     setSelectedCategory(category);
+    setEditingExpenseId(null);
+    setExpenseForm(emptyExpenseForm(category.name, category.stopId ?? ''));
+    setExpenseManagerMode('list');
     setExpenseListModalOpen(true);
+  };
+
+  const openEditBudgetModal = (category: BudgetCategory) => {
+    setSelectedCategory(category);
+    setAllocationForm(String(category.allocated));
+    setCurrencyForm(budgetCurrency);
+    setBudgetModalOpen(true);
   };
 
   const openEditExpenseModal = (expense: BudgetExpense) => {
@@ -279,13 +514,39 @@ const Budget: React.FC = () => {
       date: expense.date ?? '',
       notes: expense.notes ?? '',
     });
-    setExpenseModalOpen(true);
+    setExpenseManagerMode('form');
   };
 
-  const closeExpenseModal = () => {
-    setExpenseModalOpen(false);
+  const returnToExpenseList = () => {
+    setExpenseManagerMode('list');
     setEditingExpenseId(null);
     setExpenseForm(emptyExpenseForm(selectedCategory?.name, selectedCategory?.stopId ?? ''));
+  };
+
+  const closeExpenseListModal = () => {
+    setExpenseListModalOpen(false);
+    setExpenseManagerMode('list');
+    setEditingExpenseId(null);
+    setExpenseForm(emptyExpenseForm(selectedCategory?.name, selectedCategory?.stopId ?? ''));
+  };
+
+  const closeBudgetModal = () => {
+    setBudgetModalOpen(false);
+    setAllocationForm('');
+    setCurrencyForm(budgetCurrency);
+  };
+
+  const handleSaveBudgetAllocation = () => {
+    if (!trip || !selectedCategory) return;
+    const allocated = Number(allocationForm);
+    if (!Number.isFinite(allocated) || allocated < 0) return;
+
+    updateAllocationOverrides({
+      ...allocationOverrides,
+      [getCategoryAllocationKey(selectedCategory)]: allocated,
+    });
+    updateBudgetCurrency(currencyForm);
+    closeBudgetModal();
   };
 
   const handleSaveExpense = async () => {
@@ -332,12 +593,12 @@ const Budget: React.FC = () => {
         }
       }
 
-      closeExpenseModal();
+      returnToExpenseList();
     } catch {
       saveLocally(nextExpense);
       setExpenseSource('fallback');
       setExpenseError('Supabase budget save failed. Saved the expense locally instead.');
-      closeExpenseModal();
+      returnToExpenseList();
     } finally {
       setIsSavingExpense(false);
     }
@@ -387,12 +648,12 @@ const Budget: React.FC = () => {
             Overall Budget
           </h2>
           <span className="text-sm text-neutral-500">
-            ${totalSpent.toLocaleString()} of ${trip.budget.toLocaleString()}
+            {formatMoney(totalSpent)} of {formatMoney(totalAllocated)}
           </span>
         </div>
         <ProgressBar
           value={overallProgress}
-          color={getBudgetProgressBarColor(totalSpent, trip.budget)}
+          color={getBudgetProgressBarColor(totalSpent, totalAllocated)}
           showLabel
           size="md"
         />
@@ -407,7 +668,7 @@ const Budget: React.FC = () => {
             </div>
             <div>
               <p className="text-xl font-bold text-neutral-900">
-                ${trip.budget.toLocaleString()}
+                {formatMoney(totalAllocated)}
               </p>
               <p className="text-xs text-neutral-500 mt-0.5">Total Budget</p>
             </div>
@@ -421,7 +682,7 @@ const Budget: React.FC = () => {
             </div>
             <div>
               <p className="text-xl font-bold text-neutral-900">
-                ${totalSpent.toLocaleString()}
+                {formatMoney(totalSpent)}
               </p>
               <p className="text-xs text-neutral-500 mt-0.5">Estimated Cost</p>
             </div>
@@ -437,7 +698,7 @@ const Budget: React.FC = () => {
               <p
                 className={`text-xl font-bold ${remaining >= 0 ? 'text-success-600' : 'text-error-500'}`}
               >
-                ${Math.abs(remaining).toLocaleString()}
+                {formatMoney(Math.abs(remaining))}
               </p>
               <p className="text-xs text-neutral-500 mt-0.5">
                 {remaining >= 0 ? 'Remaining' : 'Over Budget'}
@@ -453,7 +714,7 @@ const Budget: React.FC = () => {
             </div>
             <div>
               <p className="text-xl font-bold text-neutral-900">
-                ${Math.round(costPerTraveler).toLocaleString()}
+                {formatMoney(Math.round(costPerTraveler))}
               </p>
               <p className="text-xs text-neutral-500 mt-0.5">
                 Per Traveler
@@ -480,6 +741,7 @@ const Budget: React.FC = () => {
             const icon = categoryIconMap[category.name] || (
               <MoreHorizontal className="w-5 h-5" />
             );
+            const detailsPath = getCategoryDetailsPath(trip.id, category.name);
 
             const statusColors = {
               green: 'text-success-600',
@@ -506,14 +768,14 @@ const Budget: React.FC = () => {
                         </p>
                       )}
                       <p className="text-xs text-neutral-400 mt-0.5">
-                        Allocated: ${category.allocated.toLocaleString()}
+                        Allocated: {formatMoney(category.allocated)}
                       </p>
                     </div>
                   </div>
                   <span
                     className={`text-sm font-semibold ${statusColors[status]}`}
                   >
-                    ${category.spent.toLocaleString()}
+                    {formatMoney(category.spent)}
                   </span>
                 </div>
 
@@ -537,15 +799,21 @@ const Budget: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-neutral-100">
-                  <Button variant="ghost" size="sm" onClick={() => openAddExpenseModal(category)}>
-                    <Plus className="w-3.5 h-3.5 mr-1" />
-                    Add Expense
-                  </Button>
+                <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-neutral-100">
                   <Button variant="ghost" size="sm" onClick={() => openExpenseListModal(category)}>
                     <Pencil className="w-3.5 h-3.5 mr-1" />
-                    Edit
+                    Manage Expenses
                   </Button>
+                  <Button variant="ghost" size="sm" onClick={() => openEditBudgetModal(category)}>
+                    <Wallet className="w-3.5 h-3.5 mr-1" />
+                    Edit Budget
+                  </Button>
+                  {detailsPath && (
+                    <Button variant="ghost" size="sm" onClick={() => navigate(detailsPath)}>
+                      <Eye className="w-3.5 h-3.5 mr-1" />
+                      View Details
+                    </Button>
+                  )}
                 </div>
               </Card>
             );
@@ -567,7 +835,7 @@ const Budget: React.FC = () => {
                     Trip-wide
                   </h3>
                   <span className="text-sm text-neutral-500">
-                    ${sumSpent(tripLevelCategories).toLocaleString()} / ${sumAllocated(tripLevelCategories).toLocaleString()}
+                    {formatMoney(sumSpent(tripLevelCategories))} / {formatMoney(sumAllocated(tripLevelCategories))}
                   </span>
                 </div>
                 <ProgressBar
@@ -591,7 +859,7 @@ const Budget: React.FC = () => {
                       </p>
                     </div>
                     <span className="text-sm text-neutral-500">
-                      ${spent.toLocaleString()} / ${allocated.toLocaleString()}
+                      {formatMoney(spent)} / {formatMoney(allocated)}
                     </span>
                   </div>
                   <ProgressBar
@@ -607,7 +875,7 @@ const Budget: React.FC = () => {
                             <span className="mr-1">{category.icon}</span>
                             {category.name}
                           </span>
-                          <span>${category.spent.toLocaleString()} / ${category.allocated.toLocaleString()}</span>
+                          <span>{formatMoney(category.spent)} / {formatMoney(category.allocated)}</span>
                         </div>
                       ))}
                     </div>
@@ -651,8 +919,7 @@ const Budget: React.FC = () => {
                       </span>
                     </div>
                     <span className="text-sm text-neutral-500">
-                      ${category.spent.toLocaleString()} / $
-                      {category.allocated.toLocaleString()}
+                      {formatMoney(category.spent)} / {formatMoney(category.allocated)}
                     </span>
                   </div>
                   <div className="relative h-3 bg-neutral-100 rounded-full overflow-hidden">
@@ -675,8 +942,7 @@ const Budget: React.FC = () => {
                 Total
               </span>
               <span className="text-sm font-semibold text-neutral-800">
-                ${totalSpent.toLocaleString()} / $
-                {totalAllocated.toLocaleString()}
+                {formatMoney(totalSpent)} / {formatMoney(totalAllocated)}
               </span>
             </div>
           </div>
@@ -684,139 +950,213 @@ const Budget: React.FC = () => {
       )}
 
       <Modal
-        isOpen={expenseModalOpen}
-        onClose={closeExpenseModal}
-        title={editingExpenseId ? 'Edit Expense' : 'Add Expense'}
-        size="md"
+        isOpen={expenseListModalOpen}
+        onClose={closeExpenseListModal}
+        title={`Manage ${selectedCategory?.name ?? 'Category'} Expenses`}
+        size="lg"
+      >
+        {expenseManagerMode === 'form' ? (
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleSaveExpense();
+            }}
+          >
+            <Input
+              label="Expense name"
+              value={expenseForm.title}
+              onChange={(event) => setExpenseForm({ ...expenseForm, title: event.target.value })}
+              placeholder="Train tickets, hotel deposit, dinner"
+              required
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Amount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={expenseForm.amount}
+                onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })}
+                required
+              />
+              <label>
+                <span className="block text-sm font-medium text-neutral-700 mb-1.5">Category</span>
+                <select
+                  value={expenseForm.category}
+                  onChange={(event) => setExpenseForm({ ...expenseForm, category: event.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  {[...new Set(categoriesWithExpenses.map((category) => category.name))].map((categoryName) => (
+                    <option key={categoryName} value={categoryName}>{categoryName}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {isMultiStop && (
+                <label>
+                  <span className="block text-sm font-medium text-neutral-700 mb-1.5">Stop</span>
+                  <select
+                    value={expenseForm.stopId}
+                    onChange={(event) => setExpenseForm({ ...expenseForm, stopId: event.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="">Trip-wide</option>
+                    {orderedStops.map((stop) => (
+                      <option key={stop.id} value={stop.id}>{stop.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <Input
+                label="Date"
+                type="date"
+                value={expenseForm.date}
+                onChange={(event) => setExpenseForm({ ...expenseForm, date: event.target.value })}
+              />
+            </div>
+            <label>
+              <span className="block text-sm font-medium text-neutral-700 mb-1.5">Notes</span>
+              <textarea
+                value={expenseForm.notes}
+                onChange={(event) => setExpenseForm({ ...expenseForm, notes: event.target.value })}
+                rows={3}
+                className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                placeholder="Optional"
+              />
+            </label>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={returnToExpenseList} disabled={isSavingExpense}>Cancel</Button>
+              <Button type="submit" disabled={isSavingExpense}>
+                {isSavingExpense
+                  ? 'Saving...'
+                  : editingExpenseId
+                    ? 'Save changes'
+                    : 'Add expense'}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="space-y-4">
+            {selectedCategory && (
+              <div className="flex justify-end">
+                <Button onClick={() => openAddExpenseForm(selectedCategory)}>
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Add Expense
+                </Button>
+              </div>
+            )}
+            {selectedCategoryExpenses.length > 0 || selectedCategoryTravelSegments.length > 0 ? (
+              <div className="space-y-3">
+                {selectedCategoryTravelSegments.map((segment) => (
+                  <div
+                    key={`segment-${segment.id}`}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-primary-100 bg-primary-50 p-4"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-neutral-900">{getTravelSegmentTitle(segment)}</p>
+                      <p className="text-sm text-neutral-500">
+                        {formatMoney(segment.price ?? 0)}
+                        {segment.departureDateTime ? ` · ${segment.departureDateTime.slice(0, 10)}` : ''}
+                      </p>
+                      <p className="text-xs text-primary-700 mt-1">Imported from travel data · read-only</p>
+                    </div>
+                  </div>
+                ))}
+                {selectedCategoryExpenses.map((expense) => (
+                  <div
+                    key={expense.id}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-neutral-100 bg-neutral-50 p-4"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-neutral-900">{expense.title}</p>
+                      <p className="text-sm text-neutral-500">
+                        {formatMoney(expense.amount)}
+                        {expense.date ? ` · ${expense.date}` : ''}
+                      </p>
+                      {expense.notes && <p className="text-xs text-neutral-500 mt-1">{expense.notes}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => openEditExpenseModal(expense)}>
+                        <Pencil className="w-3.5 h-3.5 mr-1" />
+                        Edit
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => void handleDeleteExpense(expense.id)}>
+                        <Trash2 className="w-3.5 h-3.5 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm font-medium text-neutral-700">No expenses in this category yet.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={budgetModalOpen}
+        onClose={closeBudgetModal}
+        title={`Edit ${selectedCategory?.name ?? 'Category'} Budget`}
+        size="sm"
       >
         <form
           className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault();
-            void handleSaveExpense();
+            handleSaveBudgetAllocation();
           }}
         >
-          <Input
-            label="Expense name"
-            value={expenseForm.title}
-            onChange={(event) => setExpenseForm({ ...expenseForm, title: event.target.value })}
-            placeholder="Train tickets, hotel deposit, dinner"
-            required
-          />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="Amount"
+              label="Allocated amount"
               type="number"
               min="0"
-              step="0.01"
-              value={expenseForm.amount}
-              onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })}
+              step="1"
+              value={allocationForm}
+              onChange={(event) => setAllocationForm(event.target.value)}
               required
             />
             <label>
-              <span className="block text-sm font-medium text-neutral-700 mb-1.5">Category</span>
+              <span className="block text-sm font-medium text-neutral-700 mb-1.5">Currency</span>
               <select
-                value={expenseForm.category}
-                onChange={(event) => setExpenseForm({ ...expenseForm, category: event.target.value })}
+                value={currencyForm}
+                onChange={(event) => {
+                  const nextCurrency = event.target.value;
+                  if (isBudgetCurrency(nextCurrency)) {
+                    setCurrencyForm(nextCurrency);
+                  }
+                }}
                 className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
-                {[...new Set(categoriesWithExpenses.map((category) => category.name))].map((categoryName) => (
-                  <option key={categoryName} value={categoryName}>{categoryName}</option>
+                {BUDGET_CURRENCIES.map((currency) => (
+                  <option key={currency.code} value={currency.code}>
+                    {currency.label}
+                  </option>
                 ))}
               </select>
             </label>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {isMultiStop && (
-              <label>
-                <span className="block text-sm font-medium text-neutral-700 mb-1.5">Stop</span>
-                <select
-                  value={expenseForm.stopId}
-                  onChange={(event) => setExpenseForm({ ...expenseForm, stopId: event.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="">Trip-wide</option>
-                  {orderedStops.map((stop) => (
-                    <option key={stop.id} value={stop.id}>{stop.name}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <Input
-              label="Date"
-              type="date"
-              value={expenseForm.date}
-              onChange={(event) => setExpenseForm({ ...expenseForm, date: event.target.value })}
-            />
-          </div>
-          <label>
-            <span className="block text-sm font-medium text-neutral-700 mb-1.5">Notes</span>
-            <textarea
-              value={expenseForm.notes}
-              onChange={(event) => setExpenseForm({ ...expenseForm, notes: event.target.value })}
-              rows={3}
-              className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
-              placeholder="Optional"
-            />
-          </label>
+          {selectedCategory && (
+            <p className="text-sm text-neutral-500">
+              Updates the local allocation for {selectedCategory.name}
+              {selectedCategory.stopId
+                ? ` at ${orderedStops.find((stop) => stop.id === selectedCategory.stopId)?.name ?? 'this stop'}`
+                : ''}
+              .
+              {' '}Currency changes apply to this trip's Budget page.
+            </p>
+          )}
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={closeExpenseModal} disabled={isSavingExpense}>Cancel</Button>
-            <Button type="submit" disabled={isSavingExpense}>
-              {isSavingExpense
-                ? 'Saving...'
-                : editingExpenseId
-                  ? 'Save changes'
-                  : 'Add expense'}
-            </Button>
+            <Button variant="outline" onClick={closeBudgetModal}>Cancel</Button>
+            <Button type="submit">Save budget</Button>
           </div>
         </form>
-      </Modal>
-
-      <Modal
-        isOpen={expenseListModalOpen}
-        onClose={() => setExpenseListModalOpen(false)}
-        title={`Edit ${selectedCategory?.name ?? 'Category'} Expenses`}
-        size="lg"
-      >
-        {selectedCategoryExpenses.length > 0 ? (
-          <div className="space-y-3">
-            {selectedCategoryExpenses.map((expense) => (
-              <div
-                key={expense.id}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-neutral-100 bg-neutral-50 p-4"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-neutral-900">{expense.title}</p>
-                  <p className="text-sm text-neutral-500">
-                    ${expense.amount.toLocaleString()}
-                    {expense.date ? ` · ${expense.date}` : ''}
-                  </p>
-                  {expense.notes && <p className="text-xs text-neutral-500 mt-1">{expense.notes}</p>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => openEditExpenseModal(expense)}>
-                    <Pencil className="w-3.5 h-3.5 mr-1" />
-                    Edit
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => void handleDeleteExpense(expense.id)}>
-                    <Trash2 className="w-3.5 h-3.5 mr-1" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-sm font-medium text-neutral-700 mb-3">No local expenses in this category yet.</p>
-            {selectedCategory && (
-              <Button onClick={() => openAddExpenseModal(selectedCategory)}>
-                <Plus className="w-4 h-4 mr-1.5" />
-                Add Expense
-              </Button>
-            )}
-          </div>
-        )}
       </Modal>
     </div>
   );

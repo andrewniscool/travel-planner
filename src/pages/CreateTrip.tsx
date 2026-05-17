@@ -99,6 +99,7 @@ const CreateTrip: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [hydratedTripId, setHydratedTripId] = useState(existingTrip?.id ?? null);
 
   useEffect(() => {
@@ -142,6 +143,80 @@ const CreateTrip: React.FC = () => {
     : startDate ? formatDate(startDate) : '';
   const notesPreview = notes.length > 100 ? `${notes.slice(0, 100)}...` : notes;
 
+  const validationMessages = useMemo(() => {
+    const messages: string[] = [];
+
+    if (!tripTitle.trim()) {
+      messages.push('Trip title is required.');
+    }
+
+    if (validStops.length === 0) {
+      messages.push('Stop 1 city / destination is required.');
+    }
+
+    stops.forEach((stop, index) => {
+      const hasAnyStopDetails = Boolean(
+        stop.name.trim() ||
+          stop.country.trim() ||
+          stop.startDate ||
+          stop.endDate ||
+          stop.notes.trim(),
+      );
+
+      if (!hasAnyStopDetails && stops.length > 1) return;
+
+      if (!stop.name.trim()) {
+        messages.push(`Stop ${index + 1} city / destination is required.`);
+      }
+
+      if (stop.name.trim() && !stop.startDate) {
+        messages.push(`Stop ${index + 1} start date is required.`);
+      }
+
+      if (stop.name.trim() && !stop.endDate) {
+        messages.push(`Stop ${index + 1} end date is required.`);
+      }
+    });
+
+    return [...new Set(messages)];
+  }, [stops, tripTitle, validStops.length]);
+
+  const shouldShowValidation = submitAttempted && validationMessages.length > 0;
+
+  const getStopFieldError = (
+    index: number,
+    field: 'name' | 'startDate' | 'endDate',
+  ) => {
+    if (!submitAttempted) return undefined;
+
+    const stop = stops[index];
+    if (!stop) return undefined;
+
+    const hasAnyStopDetails = Boolean(
+      stop.name.trim() ||
+        stop.country.trim() ||
+        stop.startDate ||
+        stop.endDate ||
+        stop.notes.trim(),
+    );
+
+    if (!hasAnyStopDetails && stops.length > 1) return undefined;
+
+    if (field === 'name' && !stop.name.trim()) {
+      return 'City / destination is required.';
+    }
+
+    if (field === 'startDate' && stop.name.trim() && !stop.startDate) {
+      return 'Start date is required.';
+    }
+
+    if (field === 'endDate' && stop.name.trim() && !stop.endDate) {
+      return 'End date is required.';
+    }
+
+    return undefined;
+  };
+
   const updateStop = (index: number, patch: Partial<StopForm>) => {
     setStops((current) =>
       current.map((stop, stopIndex) => stopIndex === index ? { ...stop, ...patch } : stop)
@@ -155,9 +230,10 @@ const CreateTrip: React.FC = () => {
   };
 
   const buildTrip = (): Trip | undefined => {
-    if (!tripTitle || validStops.length === 0 || !startDate || !endDate || !vibe) {
+    if (validationMessages.length > 0 || !tripTitle) {
       return undefined;
     }
+    const selectedVibe = vibe || 'Relaxing';
     const nextTripId = existingTrip?.id ?? `local-trip-${Date.now()}`;
     const previousStops = existingTrip
       ? [...existingTrip.stops].sort((a, b) => a.order - b.order)
@@ -182,7 +258,7 @@ const CreateTrip: React.FC = () => {
       endDate,
       travelers,
       budget: budget || 0,
-      vibe,
+      vibe: selectedVibe,
       status: existingTrip?.status ?? 'planning',
       notes,
       image: existingTrip?.image ?? PREVIEW_IMAGE,
@@ -216,9 +292,14 @@ const CreateTrip: React.FC = () => {
   };
 
   const saveTrip = async () => {
+    setSubmitAttempted(true);
     const trip = buildTrip();
     if (!trip) {
-      setSaveError('Add at least one stop with dates and choose a trip vibe.');
+      setSaveError(
+        validationMessages.length > 0
+          ? null
+          : 'Please complete the required trip details.',
+      );
       setSaveMessage(null);
       return undefined;
     }
@@ -309,7 +390,9 @@ const CreateTrip: React.FC = () => {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
-
+            {submitAttempted && !tripTitle && (
+                <p className="mt-2 text-sm text-error-500">Trip title is required.</p>
+              )}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <label className="block text-sm font-medium text-neutral-700">Stops</label>
@@ -329,10 +412,43 @@ const CreateTrip: React.FC = () => {
                     )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Input label="City / Destination" value={stop.name} onChange={(e) => updateStop(index, { name: e.target.value })} />
+                    <Input
+                      label="City / Destination"
+                      value={stop.name}
+                      onChange={(e) => updateStop(index, { name: e.target.value })}
+                      error={getStopFieldError(index, 'name')}
+                    />
                     <Input label="Country" value={stop.country} onChange={(e) => updateStop(index, { country: e.target.value })} />
-                    <input type="date" value={stop.startDate} onChange={(e) => updateStop(index, { startDate: e.target.value })} className="px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900" />
-                    <input type="date" value={stop.endDate} onChange={(e) => updateStop(index, { endDate: e.target.value })} className="px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900" />
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Start Date</label>
+                      <input
+                        type="date"
+                        value={stop.startDate}
+                        onChange={(e) => updateStop(index, { startDate: e.target.value })}
+                        aria-invalid={Boolean(getStopFieldError(index, 'startDate'))}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${getStopFieldError(index, 'startDate') ? 'border-error-400 text-error-500' : 'border-neutral-200'}`}
+                      />
+                      {getStopFieldError(index, 'startDate') && (
+                        <p className="mt-1.5 text-sm text-error-500">
+                          {getStopFieldError(index, 'startDate')}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">End Date</label>
+                      <input
+                        type="date"
+                        value={stop.endDate}
+                        onChange={(e) => updateStop(index, { endDate: e.target.value })}
+                        aria-invalid={Boolean(getStopFieldError(index, 'endDate'))}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${getStopFieldError(index, 'endDate') ? 'border-error-400 text-error-500' : 'border-neutral-200'}`}
+                      />
+                      {getStopFieldError(index, 'endDate') && (
+                        <p className="mt-1.5 text-sm text-error-500">
+                          {getStopFieldError(index, 'endDate')}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <textarea rows={2} placeholder="Stop notes" value={stop.notes} onChange={(e) => updateStop(index, { notes: e.target.value })} className="mt-3 w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 resize-none" />
                 </Card>
@@ -359,6 +475,17 @@ const CreateTrip: React.FC = () => {
               <label className="block text-sm font-medium text-neutral-700 mb-1.5">Notes</label>
               <textarea rows={4} placeholder="Any special plans or ideas?" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 resize-none" />
             </div>
+
+            {shouldShowValidation && (
+              <div className="rounded-lg border border-error-100 bg-error-50 px-4 py-3 text-sm text-error-600">
+                <p className="font-medium">Please complete the required fields:</p>
+                <ul className="mt-1 list-disc pl-5">
+                  {validationMessages.map((message) => (
+                    <li key={message}>{message}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4 border-t border-neutral-200">
               <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>

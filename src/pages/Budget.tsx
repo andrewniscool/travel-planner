@@ -954,6 +954,7 @@ const Budget: React.FC = () => {
         onClose={closeExpenseListModal}
         title={`Manage ${selectedCategory?.name ?? 'Category'} Expenses`}
         size="lg"
+        overlayClassName="bg-white/25 backdrop-blur-[2px]"
       >
         {expenseManagerMode === 'form' ? (
           <form
@@ -1104,6 +1105,7 @@ const Budget: React.FC = () => {
         onClose={closeBudgetModal}
         title={`Edit ${selectedCategory?.name ?? 'Category'} Budget`}
         size="sm"
+        overlayClassName="bg-white/25 backdrop-blur-[2px]"
       >
         <form
           className="space-y-4"

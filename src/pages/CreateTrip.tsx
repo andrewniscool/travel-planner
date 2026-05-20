@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { MapPin, Calendar, Users, DollarSign, FileText, ArrowRight, Plus, Trash2 } from 'lucide-react';
+import { MapPin, Calendar, Users, DollarSign, FileText, ArrowRight, Plus, Trash2, ChevronDown } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -30,6 +30,17 @@ const VIBE_OPTIONS: TripVibe[] = [
 
 const PREVIEW_IMAGE =
   'https://images.pexels.com/photos/317855/pexels-photo-317855.jpeg?auto=compress&cs=tinysrgb&w=800';
+const LOCAL_BUDGET_CURRENCIES_KEY = 'travel-builder:budget-currencies';
+const BUDGET_CURRENCIES = [
+  { code: 'USD', symbol: '$' },
+  { code: 'EUR', symbol: '€' },
+  { code: 'GBP', symbol: '£' },
+  { code: 'JPY', symbol: '¥' },
+  { code: 'CAD', symbol: 'C$' },
+  { code: 'AUD', symbol: 'A$' },
+] as const;
+type BudgetCurrency = (typeof BUDGET_CURRENCIES)[number]['code'];
+const DEFAULT_BUDGET_CURRENCY: BudgetCurrency = 'USD';
 
 interface StopForm {
   name: string;
@@ -56,6 +67,38 @@ function formatDate(dateStr: string): string {
     year: 'numeric',
   });
 }
+
+const isBudgetCurrency = (currency: string): currency is BudgetCurrency =>
+  BUDGET_CURRENCIES.some((option) => option.code === currency);
+
+const loadStoredCurrency = (tripId?: string): BudgetCurrency => {
+  if (!tripId) return DEFAULT_BUDGET_CURRENCY;
+
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_CURRENCIES_KEY) ?? '{}') as Record<string, string>;
+    const currency = stored[tripId];
+    return currency && isBudgetCurrency(currency)
+      ? currency
+      : DEFAULT_BUDGET_CURRENCY;
+  } catch {
+    return DEFAULT_BUDGET_CURRENCY;
+  }
+};
+
+const persistStoredCurrency = (tripId: string, currency: BudgetCurrency) => {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_CURRENCIES_KEY) ?? '{}') as Record<string, string>;
+    window.localStorage.setItem(
+      LOCAL_BUDGET_CURRENCIES_KEY,
+      JSON.stringify({ ...stored, [tripId]: currency })
+    );
+  } catch {
+    window.localStorage.setItem(
+      LOCAL_BUDGET_CURRENCIES_KEY,
+      JSON.stringify({ [tripId]: currency })
+    );
+  }
+};
 
 const CreateTrip: React.FC = () => {
   const navigate = useNavigate();
@@ -93,9 +136,11 @@ const CreateTrip: React.FC = () => {
   );
   const [travelers, setTravelers] = useState(existingTrip?.travelers ?? 1);
   const [budget, setBudget] = useState<number | ''>(existingTrip?.budget ?? '');
+  const [budgetCurrency, setBudgetCurrency] = useState<BudgetCurrency>(
+    () => loadStoredCurrency(existingTrip?.id)
+  );
   const [vibe, setVibe] = useState<TripVibe | ''>(existingTrip?.vibe ?? '');
   const [notes, setNotes] = useState(existingTrip?.notes ?? '');
-  const [saved, setSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -123,6 +168,7 @@ const CreateTrip: React.FC = () => {
     );
     setTravelers(existingTrip.travelers);
     setBudget(existingTrip.budget || '');
+    setBudgetCurrency(loadStoredCurrency(existingTrip.id));
     setVibe(existingTrip.vibe);
     setNotes(existingTrip.notes);
     setHydratedTripId(existingTrip.id);
@@ -142,6 +188,13 @@ const CreateTrip: React.FC = () => {
     ? `${formatDate(startDate)} - ${formatDate(endDate)}`
     : startDate ? formatDate(startDate) : '';
   const notesPreview = notes.length > 100 ? `${notes.slice(0, 100)}...` : notes;
+  const formattedBudget = budget
+    ? new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: budgetCurrency,
+        maximumFractionDigits: budgetCurrency === 'JPY' ? 0 : 0,
+      }).format(budget)
+    : '';
 
   const validationMessages = useMemo(() => {
     const messages: string[] = [];
@@ -321,7 +374,7 @@ const CreateTrip: React.FC = () => {
         const savedTrip = mapTripWithRelationsToTrip(savedRow, trip);
 
         saveTripLocally(savedTrip);
-        setSaved(true);
+        persistStoredCurrency(savedTrip.id, budgetCurrency);
         setSaveMessage('Saved to Supabase.');
         setSaveError(null);
         return savedTrip;
@@ -329,7 +382,7 @@ const CreateTrip: React.FC = () => {
 
       // Temporary until auth is wired: unauthenticated or local/mock edits stay in localStorage.
       saveTripLocally(trip);
-      setSaved(true);
+      persistStoredCurrency(trip.id, budgetCurrency);
       setSaveMessage(
         userId
           ? 'Saved locally because this trip is not in Supabase yet.'
@@ -339,7 +392,7 @@ const CreateTrip: React.FC = () => {
       return trip;
     } catch (error) {
       saveTripLocally(trip);
-      setSaved(true);
+      persistStoredCurrency(trip.id, budgetCurrency);
       const message =
         error instanceof Error ? error.message : 'Unknown Supabase save error.';
       setSaveMessage(null);
@@ -348,11 +401,6 @@ const CreateTrip: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleSave = async () => {
-    await saveTrip();
-    setTimeout(() => setSaved(false), 2000);
   };
 
   const handleContinue = async () => {
@@ -457,7 +505,38 @@ const CreateTrip: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Number of Travelers" type="number" min={1} icon={<Users className="w-4 h-4" />} value={travelers} onChange={(e) => setTravelers(Math.max(1, parseInt(e.target.value) || 1))} />
-              <Input label="Budget" type="number" min={0} icon={<DollarSign className="w-4 h-4" />} value={budget} onChange={(e) => setBudget(e.target.value ? Number(e.target.value) : '')} />
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">Budget</label>
+                <div className="flex h-[46px] rounded-xl border border-neutral-200 bg-white shadow-sm transition-colors focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
+                  <div className="relative shrink-0">
+                    <select
+                      value={budgetCurrency}
+                      onChange={(event) => {
+                        const nextCurrency = event.target.value;
+                        if (isBudgetCurrency(nextCurrency)) {
+                          setBudgetCurrency(nextCurrency);
+                        }
+                      }}
+                      aria-label="Budget currency"
+                      className="h-full w-24 appearance-none rounded-l-xl border-0 border-r border-neutral-200 bg-neutral-100/80 pl-3 pr-7 text-sm font-medium text-neutral-900 outline-none transition-colors hover:bg-neutral-50"
+                    >
+                      {BUDGET_CURRENCIES.map((currency) => (
+                        <option key={currency.code} value={currency.code}>
+                          {currency.symbol} {currency.code}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-500" />
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    value={budget}
+                    onChange={(event) => setBudget(event.target.value ? Number(event.target.value) : '')}
+                    className="min-w-0 flex-1 rounded-r-xl border-0 bg-white px-4 text-neutral-900 placeholder:text-neutral-400 outline-none"
+                  />
+                </div>
+              </div>
             </div>
 
             <div>
@@ -496,9 +575,6 @@ const CreateTrip: React.FC = () => {
               {saveError && (
                 <span className="text-sm text-error-500">{saveError}</span>
               )}
-              <Button variant="primary" onClick={handleSave} disabled={isSaving}>
-                {isSaving ? 'Saving...' : saved ? 'Saved!' : isEditing ? 'Save Changes' : 'Save Trip'}
-              </Button>
               <Button
                 variant="primary"
                 onClick={handleContinue}
@@ -508,8 +584,8 @@ const CreateTrip: React.FC = () => {
                 {isSaving
                   ? 'Saving...'
                   : isEditing
-                    ? 'Return to Trip'
-                    : 'Continue to Planning'}
+                    ? 'Save Changes'
+                    : 'Save Trip'}
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
@@ -528,7 +604,7 @@ const CreateTrip: React.FC = () => {
                   <p className="text-sm text-neutral-500">{routeLabel || 'Add at least one stop'}</p>
                   <div className="flex items-center gap-2 text-sm text-neutral-600"><Calendar className="w-4 h-4 text-neutral-400" /><span>{dateDisplay || 'Select stop dates'}</span></div>
                   <div className="flex items-center gap-2 text-sm text-neutral-600"><Users className="w-4 h-4 text-neutral-400" /><span>{travelers} traveler{travelers !== 1 ? 's' : ''}</span></div>
-                  <div className="flex items-center gap-2 text-sm text-neutral-600"><DollarSign className="w-4 h-4 text-neutral-400" /><span>{budget ? `$${budget.toLocaleString()}` : 'Set a budget'}</span></div>
+                  <div className="flex items-center gap-2 text-sm text-neutral-600"><DollarSign className="w-4 h-4 text-neutral-400" /><span>{formattedBudget || 'Set a budget'}</span></div>
                   {vibe && <Badge variant="default">{vibe}</Badge>}
                   {notesPreview && <div className="pt-2 border-t border-neutral-100"><p className="text-sm text-neutral-500 leading-relaxed"><FileText className="inline w-3.5 h-3.5 mr-1" />{notesPreview}</p></div>}
                 </div>

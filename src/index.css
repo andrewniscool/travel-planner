@@ -28,6 +28,17 @@
   .text-gradient {
     @apply bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent;
   }
+  .auth-feature-scroll {
+    animation: authFeatureScroll 35s linear infinite;
+    will-change: transform;
+  }
+  .auth-glass-card {
+    background: rgb(255 255 255 / 0.12);
+    backdrop-filter: blur(12px) saturate(110%);
+    -webkit-backdrop-filter: blur(12px) saturate(110%);
+    border: 1px solid rgb(255 255 255 / 0.16);
+    box-shadow: 0 20px 40px rgb(0 0 0 / 0.18);
+  }
 }
 
 @layer utilities {
@@ -44,5 +55,20 @@
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: #d6d3d1;
     border-radius: 3px;
+  }
+}
+
+@keyframes authFeatureScroll {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-33.333333%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-feature-scroll {
+    animation: none;
   }
 }

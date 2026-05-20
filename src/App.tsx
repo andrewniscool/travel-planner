@@ -25,8 +25,8 @@ function App() {
         <Routes>
           <Route element={<LandingLayout />}>
             <Route path="/" element={<Landing />} />
-            <Route path="/sign-in" element={<SignIn />} />
           </Route>
+          <Route path="/sign-in" element={<SignIn />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/create-trip" element={<CreateTrip />} />

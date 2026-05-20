@@ -9,6 +9,7 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   className?: string;
+  overlayClassName?: string;
   size?: ModalSize;
 }
 
@@ -24,6 +25,7 @@ const Modal: React.FC<ModalProps> = ({
   title,
   children,
   className = '',
+  overlayClassName = 'bg-black/50 backdrop-blur-sm',
   size = 'md',
 }) => {
   useEffect(() => {
@@ -41,7 +43,9 @@ const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm animate-fade-in"
+      className={['fixed inset-0 z-50 animate-fade-in', overlayClassName]
+        .filter(Boolean)
+        .join(' ')}
       onClick={onClose}
     >
       <div className="flex items-center justify-center min-h-screen p-4">

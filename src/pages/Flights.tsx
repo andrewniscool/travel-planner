@@ -11,6 +11,7 @@ import {
   Pencil,
   Trash2,
   ExternalLink,
+  ChevronDown,
 } from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
 import { getTripDisplayName } from '../data/trips';
@@ -132,6 +133,16 @@ const calculateDuration = (departure?: string, arrival?: string) => {
   return [hours ? `${hours}h` : '', mins ? `${mins}m` : ''].filter(Boolean).join(' ');
 };
 
+const getSegmentSortValue = (segment: TransportSegment) => {
+  const dateTime = segment.departureDateTime || segment.arrivalDateTime;
+  if (!dateTime) return Number.MAX_SAFE_INTEGER;
+  const timestamp = new Date(dateTime).getTime();
+  return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
+};
+
+const sortSegmentsByTime = (segments: TransportSegment[]) =>
+  [...segments].sort((a, b) => getSegmentSortValue(a) - getSegmentSortValue(b));
+
 const getLocationName = (location?: LocationRef | null, fallback = '') =>
   location?.name || fallback;
 
@@ -245,6 +256,78 @@ const TransportCard: React.FC<{
         )}
       </div>
     </div>
+  </Card>
+);
+
+const CollapsibleSection: React.FC<{
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  count: number;
+  isCollapsed: boolean;
+  actionLabel?: string;
+  onToggle: () => void;
+  onAction?: () => void;
+  children: React.ReactNode;
+}> = ({
+  title,
+  description,
+  icon,
+  count,
+  isCollapsed,
+  actionLabel,
+  onToggle,
+  onAction,
+  children,
+}) => (
+  <Card hover={false} className="overflow-hidden">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex items-center gap-3 text-left min-w-0"
+        aria-expanded={!isCollapsed}
+      >
+        <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
+            <Badge variant="default">{count}</Badge>
+          </div>
+          <p className="text-sm text-neutral-500 mt-0.5">{description}</p>
+        </div>
+      </button>
+
+      <div className="flex items-center gap-2 self-start sm:self-center">
+        {actionLabel && onAction && (
+          <Button variant="outline" size="sm" onClick={onAction}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            {actionLabel}
+          </Button>
+        )}
+        <button
+          type="button"
+          onClick={onToggle}
+          className="p-2 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+          aria-label={isCollapsed ? `Expand ${title}` : `Collapse ${title}`}
+          aria-expanded={!isCollapsed}
+        >
+          <ChevronDown
+            className={`w-5 h-5 transition-transform duration-200 ${
+              isCollapsed ? '-rotate-90' : 'rotate-0'
+            }`}
+          />
+        </button>
+      </div>
+    </div>
+
+    {!isCollapsed && (
+      <div className="border-t border-neutral-100 p-5 pt-4">
+        {children}
+      </div>
+    )}
   </Card>
 );
 
@@ -470,6 +553,14 @@ const Flights: React.FC = () => {
   const [segmentModalOpen, setSegmentModalOpen] = useState(false);
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
   const [segmentForm, setSegmentForm] = useState<SegmentFormState>(emptyForm);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    timeline: false,
+    flights: true,
+    'between-stops': true,
+    'arrival-departure': true,
+    local: true,
+    other: true,
+  });
   const loadedTripIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -519,9 +610,16 @@ const Flights: React.FC = () => {
     persistStoredSegments(trip.id, segments);
   };
 
-  const openCreateModal = () => {
+  const toggleSection = (sectionKey: string) => {
+    setCollapsedSections((current) => ({
+      ...current,
+      [sectionKey]: !current[sectionKey],
+    }));
+  };
+
+  const openCreateModal = (defaults: Partial<SegmentFormState> = {}) => {
     setEditingSegmentId(null);
-    setSegmentForm(emptyForm);
+    setSegmentForm({ ...emptyForm, ...defaults });
     setSegmentModalOpen(true);
   };
 
@@ -651,19 +749,122 @@ const Flights: React.FC = () => {
     }
   };
 
-  const manualFlightSegments = useMemo(
-    () => travelSegments.filter((segment) => segment.mode === 'flight'),
+  const flightSegments = useMemo(
+    () => sortSegmentsByTime(travelSegments.filter((segment) => segment.mode === 'flight')),
     [travelSegments]
   );
 
   const betweenStopSegments = useMemo(
-    () => travelSegments.filter((segment) => segment.role === 'between-stops' || (segment.fromStopId && segment.toStopId)),
+    () => sortSegmentsByTime(
+      travelSegments.filter(
+        (segment) =>
+          segment.mode !== 'flight' &&
+          (segment.role === 'between-stops' || (segment.fromStopId && segment.toStopId)),
+      ),
+    ),
+    [travelSegments]
+  );
+
+  const arrivalDepartureSegments = useMemo(
+    () => sortSegmentsByTime(
+      travelSegments.filter(
+        (segment) =>
+          segment.mode !== 'flight' &&
+          (segment.role === 'arrival' || segment.role === 'departure') &&
+          !(segment.fromStopId && segment.toStopId),
+      ),
+    ),
     [travelSegments]
   );
 
   const localSegments = useMemo(
-    () => travelSegments.filter((segment) => segment.role === 'local'),
+    () => sortSegmentsByTime(
+      travelSegments.filter(
+        (segment) => segment.mode !== 'flight' && segment.role === 'local',
+      ),
+    ),
     [travelSegments]
+  );
+
+  const otherSegments = useMemo(
+    () => sortSegmentsByTime(
+      travelSegments.filter(
+        (segment) =>
+          segment.mode !== 'flight' &&
+          segment.role !== 'local' &&
+          segment.role !== 'between-stops' &&
+          segment.role !== 'arrival' &&
+          segment.role !== 'departure' &&
+          !(segment.fromStopId && segment.toStopId),
+      ),
+    ),
+    [travelSegments]
+  );
+
+  const timelineSegments = useMemo(
+    () => sortSegmentsByTime(travelSegments),
+    [travelSegments]
+  );
+
+  const travelSections = useMemo(
+    () => [
+      {
+        key: 'flights',
+        title: 'Flights',
+        description: 'Long-haul and regional air travel.',
+        icon: <Plane className="w-5 h-5" />,
+        segments: flightSegments,
+        actionLabel: 'Add Flight',
+        emptyTitle: 'No flights added yet',
+        emptyDescription: 'Track airline, airports, schedule, confirmation, cost, and booking link.',
+        defaults: { mode: 'flight' as TransportMode, role: 'arrival' as SegmentFormState['role'], isPrimary: true },
+      },
+      {
+        key: 'between-stops',
+        title: 'Between Stops',
+        description: 'Trains, buses, ferries, drives, and transfers from one trip stop to another.',
+        icon: <Train className="w-5 h-5" />,
+        segments: betweenStopSegments,
+        actionLabel: 'Add Between-Stop Travel',
+        emptyTitle: 'No between-stop travel yet',
+        emptyDescription: 'Add trains, buses, rental cars, ferries, or private transfers between cities.',
+        defaults: { mode: 'train' as TransportMode, role: 'between-stops' as SegmentFormState['role'], isPrimary: true },
+      },
+      {
+        key: 'arrival-departure',
+        title: 'Arrival & Departure Transfers',
+        description: 'Airport, station, hotel, and lodging transfers at the edges of the trip.',
+        icon: <Car className="w-5 h-5" />,
+        segments: arrivalDepartureSegments,
+        actionLabel: 'Add Transfer',
+        emptyTitle: 'No arrival or departure transfers yet',
+        emptyDescription: 'Add airport pickups, station transfers, rental car pickup, or hotel drop-off details.',
+        defaults: { mode: 'car' as TransportMode, role: 'arrival' as SegmentFormState['role'], isPrimary: false },
+      },
+      {
+        key: 'local',
+        title: 'Local Transportation',
+        description: 'Rideshares, taxis, metros, local buses, day rentals, and short hops.',
+        icon: <Bus className="w-5 h-5" />,
+        segments: localSegments,
+        actionLabel: 'Add Local Transport',
+        emptyTitle: 'No local transportation yet',
+        emptyDescription: 'Add Uber, taxi, metro pass, shuttle, scooter, or local bus details when they matter.',
+        defaults: { mode: 'car' as TransportMode, role: 'local' as SegmentFormState['role'], isPrimary: false },
+      },
+      {
+        key: 'other',
+        title: 'Other Travel',
+        description: 'Anything that does not fit the main buckets.',
+        icon: <MapPin className="w-5 h-5" />,
+        segments: otherSegments,
+        actionLabel: 'Add Other Travel',
+        emptyTitle: 'No other travel segments',
+        emptyDescription: 'Use this for unusual travel logistics, notes, or backup routes.',
+        defaults: { mode: 'other' as TransportMode, role: 'local' as SegmentFormState['role'], isPrimary: false },
+      },
+    ],
+    [arrivalDepartureSegments, betweenStopSegments, flightSegments, localSegments, otherSegments],
   );
 
   const getStopName = (stopId?: string) =>
@@ -688,7 +889,7 @@ const Flights: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Flights & Transportation</h1>
           <p className="text-sm text-neutral-500 mt-0.5">
-            Plan major travel for {getTripDisplayName(trip)}
+            Organize every travel leg for {getTripDisplayName(trip)}
           </p>
           {(serviceTripError || travelError) && (
             <p className="text-sm text-warning-700 mt-2">
@@ -698,18 +899,26 @@ const Flights: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button size="sm" onClick={openCreateModal}>
+          <Button size="sm" onClick={() => openCreateModal()}>
             <Plus className="w-4 h-4 mr-1.5" />
             Add Travel Segment
           </Button>
         </div>
       </div>
 
-      <Card hover={false} className="p-6">
-        <h2 className="text-lg font-semibold text-neutral-900 mb-4">All Travel Segments</h2>
-        {travelSegments.length > 0 ? (
+      <CollapsibleSection
+        title="Full Travel Timeline"
+        description="Every segment sorted by departure time."
+        icon={<Plane className="w-5 h-5" />}
+        count={timelineSegments.length}
+        isCollapsed={!!collapsedSections.timeline}
+        actionLabel="Add Segment"
+        onToggle={() => toggleSection('timeline')}
+        onAction={() => openCreateModal()}
+      >
+        {timelineSegments.length > 0 ? (
           <div className="space-y-3">
-            {travelSegments.map((segment) => (
+            {timelineSegments.map((segment) => (
               <TransportCard
                 key={segment.id}
                 segment={segment}
@@ -723,91 +932,65 @@ const Flights: React.FC = () => {
           <EmptyState
             icon={<Plane className="w-8 h-8" />}
             title="No travel segments yet"
-            description="Manually add flight, train, car, bus, ferry, or other travel details."
+            description="Add flights, trains, buses, transfers, rideshares, and other travel details."
             actionLabel="Add travel segment"
-            onAction={openCreateModal}
+            onAction={() => openCreateModal()}
           />
         )}
-      </Card>
+      </CollapsibleSection>
 
-      {betweenStopSegments.length > 0 && (
-        <Card hover={false} className="p-6">
-          <h2 className="text-lg font-semibold text-neutral-900 mb-4">Between Stops</h2>
-          <div className="space-y-3">
-            {betweenStopSegments.map((segment) => (
-              <TransportCard
-                key={segment.id}
-                segment={segment}
-                getStopName={getStopName}
-                onEdit={openEditModal}
-                onDelete={handleDeleteSegment}
+      {travelSections
+        .filter((section) => section.key !== 'other' || section.segments.length > 0)
+        .map((section) => (
+          <CollapsibleSection
+            key={section.key}
+            title={section.title}
+            description={section.description}
+            icon={section.icon}
+            count={section.segments.length}
+            isCollapsed={!!collapsedSections[section.key]}
+            actionLabel={section.actionLabel}
+            onToggle={() => toggleSection(section.key)}
+            onAction={() => openCreateModal(section.defaults)}
+          >
+            {section.segments.length > 0 ? (
+              <div className="space-y-3">
+                {section.segments.map((segment) => (
+                  <TransportCard
+                    key={segment.id}
+                    segment={segment}
+                    getStopName={getStopName}
+                    onEdit={openEditModal}
+                    onDelete={handleDeleteSegment}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={section.icon}
+                title={section.emptyTitle}
+                description={section.emptyDescription}
+                actionLabel={section.actionLabel}
+                onAction={() => openCreateModal(section.defaults)}
               />
-            ))}
-          </div>
-        </Card>
-      )}
+            )}
+          </CollapsibleSection>
+        ))}
 
-      <Card hover={false} className="p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-neutral-900">Flights</h2>
-            <p className="text-sm text-neutral-500 mt-0.5">
-              Manually track flight details when flights are part of the trip.
-            </p>
-          </div>
-          <Button variant="outline" size="sm" onClick={openCreateModal}>
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Flight
-          </Button>
-        </div>
-
-        {manualFlightSegments.length > 0 ? (
-          <div className="space-y-3">
-            {manualFlightSegments.map((segment) => (
-              <TransportCard
-                key={segment.id}
-                segment={segment}
-                getStopName={getStopName}
-                onEdit={openEditModal}
-                onDelete={handleDeleteSegment}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            icon={<Plane className="w-8 h-8" />}
-            title="No flights added yet"
-            description="Add airline, route, schedule, cost, confirmation, and notes manually."
-            actionLabel="Add flight"
-            onAction={openCreateModal}
-          />
-        )}
-      </Card>
-
-      <Card hover={false} className="p-6">
-        <h2 className="text-lg font-semibold text-neutral-900 mb-4">Local Transportation</h2>
-        {localSegments.length > 0 ? (
-          <div className="space-y-3">
-            {localSegments.map((segment) => (
-              <TransportCard
-                key={segment.id}
-                segment={segment}
-                getStopName={getStopName}
-                onEdit={openEditModal}
-                onDelete={handleDeleteSegment}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            icon={<Car className="w-8 h-8" />}
-            title="No local transportation yet"
-            description="Add metro passes, taxis, rental cars, rideshare, and local transfer details when they matter."
-            actionLabel="Add local transport"
-            onAction={openCreateModal}
-          />
-        )}
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Button variant="outline" onClick={() => openCreateModal({ mode: 'flight', role: 'arrival', isPrimary: true })}>
+          <Plane className="w-4 h-4 mr-1.5" />
+          Add Flight
+        </Button>
+        <Button variant="outline" onClick={() => openCreateModal({ mode: 'train', role: 'between-stops', isPrimary: true })}>
+          <Train className="w-4 h-4 mr-1.5" />
+          Add Train or Bus
+        </Button>
+        <Button variant="outline" onClick={() => openCreateModal({ mode: 'car', role: 'local', isPrimary: false })}>
+          <Car className="w-4 h-4 mr-1.5" />
+          Add Uber or Local
+        </Button>
+      </div>
 
       <Modal
         isOpen={segmentModalOpen}

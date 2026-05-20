@@ -3,8 +3,11 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopNav from './TopNav';
 
+const SIDEBAR_WIDTH_ANIMATION_DURATION = 'lg:duration-500';
+
 const AppLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleMenuClick = () => {
     setSidebarOpen(true);
@@ -27,11 +30,17 @@ const AppLayout: React.FC = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:z-auto flex-shrink-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:z-auto lg:overflow-hidden lg:transition-[width] ${SIDEBAR_WIDTH_ANIMATION_DURATION} lg:ease-in-out flex-shrink-0 ${
+          sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'
+        } ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <Sidebar isOpen={sidebarOpen} onClose={handleSidebarClose} />
+        <Sidebar
+          isCollapsed={sidebarCollapsed}
+          onClose={handleSidebarClose}
+          onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)}
+        />
       </aside>
 
       {/* Main Content Area */}

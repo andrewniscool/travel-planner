@@ -302,15 +302,19 @@ const CollapsibleSection: React.FC<{
 
       <div className="flex items-center gap-2 self-start sm:self-center">
         {actionLabel && onAction && (
-          <Button variant="outline" size="sm" onClick={onAction}>
-            <Plus className="w-4 h-4 mr-1.5" />
-            {actionLabel}
-          </Button>
+          <button
+            type="button"
+            onClick={onAction}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-800 transition-colors duration-700 hover:bg-neutral-100 hover:text-neutral-700"
+            aria-label={actionLabel}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         )}
         <button
           type="button"
           onClick={onToggle}
-          className="p-2 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 transition-colors duration-700 hover:bg-neutral-100 hover:text-neutral-700"
           aria-label={isCollapsed ? `Expand ${title}` : `Collapse ${title}`}
           aria-expanded={!isCollapsed}
         >

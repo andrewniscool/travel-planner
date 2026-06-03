@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { MapPin, Search } from 'lucide-react';
 import { mockLocationSuggestions } from '../../data/locationSuggestions';
 import type { LocationRef } from '../../types';
@@ -26,6 +26,7 @@ const LocationInput: React.FC<LocationInputProps> = ({
   required = false,
   className = '',
 }) => {
+  const inputId = useId();
   const [query, setQuery] = useState(value?.name ?? '');
   const [isOpen, setIsOpen] = useState(false);
 
@@ -62,13 +63,17 @@ const LocationInput: React.FC<LocationInputProps> = ({
   return (
     <div className={['relative', className].filter(Boolean).join(' ')}>
       {label && (
-        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+        <label
+          htmlFor={inputId}
+          className="block text-sm font-medium text-neutral-700 mb-1.5"
+        >
           {label}
         </label>
       )}
       <div className="relative">
         <Search className="absolute inset-y-0 left-3 my-auto w-4 h-4 text-neutral-400 pointer-events-none" />
         <input
+          id={inputId}
           type="text"
           value={query}
           required={required}

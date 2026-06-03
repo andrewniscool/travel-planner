@@ -2,6 +2,8 @@ import type {
   TransportMode,
   TransportRole,
   TransportSegment,
+  BudgetCurrency,
+  BudgetCategory,
   ChecklistItem,
   Hotel,
   BudgetExpense,
@@ -20,6 +22,9 @@ import type {
   BudgetExpenseInsert,
   BudgetExpenseRow,
   BudgetExpenseUpdate,
+  BudgetCategoryInsert,
+  BudgetCategoryRow,
+  BudgetCategoryUpdate,
   ChecklistItemInsert,
   ChecklistItemRow,
   ChecklistItemUpdate,
@@ -46,6 +51,7 @@ import type { TripWithRelations } from './travelDataService';
 
 const DEFAULT_TRIP_VIBE: TripVibe = 'Cultural';
 const DEFAULT_TRIP_STATUS: TripStatus = 'planning';
+const DEFAULT_BUDGET_CURRENCY: BudgetCurrency = 'USD';
 
 function getStatusFromDates(startDate?: string, endDate?: string): TripStatus {
   const today = new Date();
@@ -65,6 +71,27 @@ function isTransportMode(mode: string): mode is TransportMode {
 
 function isTransportRole(role: string): role is TransportRole {
   return ['arrival', 'departure', 'between-stops', 'local'].includes(role);
+}
+
+function isTripVibe(vibe: string): vibe is TripVibe {
+  return [
+    'Relaxing',
+    'Adventure',
+    'Food-focused',
+    'Romantic',
+    'Family',
+    'Budget-friendly',
+    'Luxury',
+    'Cultural',
+  ].includes(vibe);
+}
+
+function isTripStatus(status: string): status is TripStatus {
+  return ['upcoming', 'planning', 'booked', 'past'].includes(status);
+}
+
+function isBudgetCurrency(currency: string): currency is BudgetCurrency {
+  return ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'].includes(currency);
 }
 
 function isItineraryItemType(type: string): type is ItineraryItemType {
@@ -193,13 +220,20 @@ export function mapTripRowToTrip(
     country,
     startDate,
     endDate,
-    travelers: previousTrip?.travelers ?? 1,
-    budget: previousTrip?.budget ?? 0,
-    vibe: previousTrip?.vibe ?? DEFAULT_TRIP_VIBE,
-    status: previousTrip?.status ?? getStatusFromDates(startDate, endDate),
+    travelers: row.travelers,
+    budget: row.budget,
+    budgetCurrency: isBudgetCurrency(row.budget_currency)
+      ? row.budget_currency
+      : previousTrip?.budgetCurrency ?? DEFAULT_BUDGET_CURRENCY,
+    vibe: isTripVibe(row.vibe)
+      ? row.vibe
+      : previousTrip?.vibe ?? DEFAULT_TRIP_VIBE,
+    status: isTripStatus(row.status)
+      ? row.status
+      : previousTrip?.status ?? getStatusFromDates(startDate, endDate),
     notes: row.description ?? '',
     image: row.cover_image ?? previousTrip?.image ?? '',
-    planningProgress: previousTrip?.planningProgress ?? 0,
+    planningProgress: row.planning_progress,
     stops,
     transportSegments: transportSegments.map((segment) =>
       mapTransportSegment(segment, orderedStops, previousTrip?.transportSegments),
@@ -229,6 +263,12 @@ export function mapTripToTripInsert(userId: string, trip: Trip): TripInsert {
     end_date: trip.endDate || null,
     description: trip.notes || null,
     cover_image: trip.image || null,
+    travelers: trip.travelers,
+    budget: trip.budget,
+    budget_currency: trip.budgetCurrency ?? DEFAULT_BUDGET_CURRENCY,
+    vibe: trip.vibe,
+    status: trip.status,
+    planning_progress: trip.planningProgress,
   };
 }
 
@@ -241,6 +281,12 @@ export function mapTripToTripUpdate(trip: Trip): TripUpdate {
     end_date: trip.endDate || null,
     description: trip.notes || null,
     cover_image: trip.image || null,
+    travelers: trip.travelers,
+    budget: trip.budget,
+    budget_currency: trip.budgetCurrency ?? DEFAULT_BUDGET_CURRENCY,
+    vibe: trip.vibe,
+    status: trip.status,
+    planning_progress: trip.planningProgress,
   };
 }
 
@@ -492,6 +538,46 @@ export function mapBudgetExpenseToUpdate(
     amount: expense.amount,
     expense_date: expense.date ?? null,
     notes: expense.notes ?? null,
+  };
+}
+
+export function mapBudgetCategoryRowToBudgetCategory(
+  row: BudgetCategoryRow,
+): BudgetCategory {
+  return {
+    stopId: row.stop_id ?? undefined,
+    name: row.name,
+    allocated: row.allocated,
+    spent: 0,
+    icon: row.icon ?? '',
+  };
+}
+
+export function mapBudgetCategoryToInsert(
+  tripId: string,
+  category: BudgetCategory,
+  orderIndex = 0,
+): BudgetCategoryInsert {
+  return {
+    trip_id: tripId,
+    stop_id: category.stopId ?? null,
+    name: category.name,
+    allocated: category.allocated,
+    icon: category.icon || null,
+    order_index: orderIndex,
+  };
+}
+
+export function mapBudgetCategoryToUpdate(
+  category: BudgetCategory,
+  orderIndex?: number,
+): BudgetCategoryUpdate {
+  return {
+    stop_id: category.stopId ?? null,
+    name: category.name,
+    allocated: category.allocated,
+    icon: category.icon || null,
+    ...(typeof orderIndex === 'number' ? { order_index: orderIndex } : {}),
   };
 }
 

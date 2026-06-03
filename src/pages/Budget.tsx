@@ -30,7 +30,12 @@ import Button from '../components/ui/Button';
 import ProgressBar from '../components/ui/ProgressBar';
 import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
-import type { BudgetCategory, BudgetExpense, TransportSegment } from '../types';
+import type {
+  BudgetCategory,
+  BudgetCurrency,
+  BudgetExpense,
+  TransportSegment,
+} from '../types';
 
 const LOCAL_BUDGET_EXPENSES_KEY = 'travel-builder:budget-expenses';
 const LOCAL_BUDGET_ALLOCATIONS_KEY = 'travel-builder:budget-allocations';
@@ -52,7 +57,6 @@ const BUDGET_CURRENCIES = [
   { code: 'CAD', label: 'CAD - Canadian Dollar' },
   { code: 'AUD', label: 'AUD - Australian Dollar' },
 ] as const;
-type BudgetCurrency = (typeof BUDGET_CURRENCIES)[number]['code'];
 const DEFAULT_BUDGET_CURRENCY: BudgetCurrency = 'USD';
 
 interface ExpenseFormState {
@@ -300,7 +304,7 @@ const Budget: React.FC = () => {
     () => (trip ? loadStoredAllocations(trip.id) : {})
   );
   const [budgetCurrency, setBudgetCurrency] = useState<BudgetCurrency>(
-    () => (trip ? loadStoredCurrency(trip.id) : DEFAULT_BUDGET_CURRENCY)
+    () => (trip ? trip.budgetCurrency ?? loadStoredCurrency(trip.id) : DEFAULT_BUDGET_CURRENCY)
   );
   const [expenseSource, setExpenseSource] = useState<'supabase' | 'fallback'>('fallback');
   const [expenseError, setExpenseError] = useState<string | null>(null);
@@ -352,8 +356,8 @@ const Budget: React.FC = () => {
   useEffect(() => {
     if (!tripId) return;
     setAllocationOverrides(loadStoredAllocations(tripId));
-    setBudgetCurrency(loadStoredCurrency(tripId));
-  }, [tripId]);
+    setBudgetCurrency(trip?.budgetCurrency ?? loadStoredCurrency(tripId));
+  }, [trip?.budgetCurrency, tripId]);
 
   const formatMoney = useMemo(
     () =>

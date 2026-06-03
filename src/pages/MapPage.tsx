@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Building2,
   CalendarDays,
@@ -14,14 +15,31 @@ import { useTrip } from '../hooks/useTrip';
 import { getHotelsByTripId } from '../data/hotels';
 import { getItineraryByTripId } from '../data/itinerary';
 import { getPlacesByTripId } from '../data/places';
+import { useServiceTrip } from '../hooks/useServiceTrips';
+import {
+  getAuthenticatedUserId,
+  itineraryService,
+  lodgingService,
+  savedPlaceService,
+} from '../services/travelDataService';
+import {
+  getHotelIdFromLodgingOption,
+  getPlaceIdFromSavedPlace,
+} from '../services/tripMappers';
 import RatingStars from '../components/ui/RatingStars';
 import type {
+  Hotel,
+  ItineraryDay,
   ItineraryItem,
   Place,
   PlaceCategory,
   TransportSegment,
   TripStop,
 } from '../types';
+import type {
+  LodgingOptionRow,
+  SavedPlaceRow,
+} from '../services/supabaseTypes';
 
 type CategoryFilter = 'Hotels' | 'Food' | 'Activities' | 'Itinerary' | 'Transport';
 type StopSelection = 'all' | string;
@@ -54,6 +72,81 @@ const placeCategoryMap: Record<PlaceCategory, CategoryFilter> = {
   Tours: 'Activities',
   Landmarks: 'Activities',
   'Hidden Gems': 'Activities',
+};
+
+const isPlaceCategory = (category?: string | null): category is PlaceCategory =>
+  Boolean(category && category in placeCategoryMap);
+
+const getSavedPlaceCategory = (row: SavedPlaceRow): PlaceCategory =>
+  isPlaceCategory(row.category) ? row.category : 'Hidden Gems';
+
+const mapLodgingOptionToHotel = (
+  row: LodgingOptionRow,
+  tripId: string,
+): Hotel => ({
+  id: getHotelIdFromLodgingOption(row),
+  tripId,
+  stopId: row.stop_id ?? undefined,
+  name: row.name,
+  image: '',
+  rating: 0,
+  reviewCount: 0,
+  pricePerNight: row.price_per_night ?? 0,
+  totalCost: row.total_cost ?? 0,
+  amenities: [],
+  neighborhood: row.neighborhood ?? row.address ?? 'Saved lodging',
+  distanceToCenter: '',
+  description: row.notes ?? '',
+  isSelected: row.is_selected || row.is_saved,
+});
+
+const mapSavedPlaceToPlace = (row: SavedPlaceRow, tripId: string): Place => ({
+  id: getPlaceIdFromSavedPlace(row),
+  tripId,
+  stopId: row.stop_id ?? undefined,
+  name: row.name,
+  image: '',
+  category: getSavedPlaceCategory(row),
+  rating: 0,
+  reviewCount: 0,
+  priceRange: '',
+  location: row.address ?? 'Saved place',
+  reviewSnippet: row.notes ?? '',
+  tags: [getSavedPlaceCategory(row)],
+  description: row.notes ?? undefined,
+  isSaved: row.is_saved,
+});
+
+const mergeHotels = (baseHotels: Hotel[], savedHotels: Hotel[]) => {
+  const hotelsById = new Map(baseHotels.map((hotel) => [hotel.id, hotel]));
+
+  for (const savedHotel of savedHotels) {
+    const existing = hotelsById.get(savedHotel.id);
+    hotelsById.set(
+      savedHotel.id,
+      existing
+        ? { ...existing, isSelected: existing.isSelected || savedHotel.isSelected }
+        : savedHotel,
+    );
+  }
+
+  return [...hotelsById.values()];
+};
+
+const mergePlaces = (basePlaces: Place[], savedPlaces: Place[]) => {
+  const placesById = new Map(basePlaces.map((place) => [place.id, place]));
+
+  for (const savedPlace of savedPlaces) {
+    const existing = placesById.get(savedPlace.id);
+    placesById.set(
+      savedPlace.id,
+      existing
+        ? { ...existing, isSaved: existing.isSaved || savedPlace.isSaved }
+        : savedPlace,
+    );
+  }
+
+  return [...placesById.values()];
 };
 
 const stopPositions = [
@@ -210,11 +303,25 @@ const PanelItem: React.FC<{
 );
 
 const MapPage: React.FC = () => {
-  const trip = useTrip();
+  const { tripId } = useParams<{ tripId: string }>();
+  const fallbackTrip = useTrip();
+  const {
+    trip: serviceTrip,
+    error: serviceTripError,
+    source: tripSource,
+  } = useServiceTrip(tripId);
+  const trip = serviceTrip ?? fallbackTrip;
   const [activeFilters, setActiveFilters] = useState<Set<CategoryFilter>>(
     new Set(['Hotels', 'Food', 'Activities', 'Itinerary', 'Transport'])
   );
   const [selectedStopId, setSelectedStopId] = useState<StopSelection>('all');
+  const [serviceHotels, setServiceHotels] = useState<Hotel[]>([]);
+  const [servicePlaces, setServicePlaces] = useState<Place[]>([]);
+  const [serviceItineraryDays, setServiceItineraryDays] = useState<
+    ItineraryDay[]
+  >([]);
+  const [mapDataSource, setMapDataSource] = useState<'supabase' | 'fallback'>('fallback');
+  const [mapDataError, setMapDataError] = useState<string | null>(null);
 
   const orderedStops = useMemo(
     () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
@@ -224,13 +331,76 @@ const MapPage: React.FC = () => {
   const isMultiStop = orderedStops.length > 1;
   const effectiveSelection = isMultiStop ? selectedStopId : primaryStop?.id;
 
-  const hotels = useMemo(() => (trip ? getHotelsByTripId(trip.id) : []), [trip]);
-  const places = useMemo(() => (trip ? getPlacesByTripId(trip.id) : []), [trip]);
-  const itineraryDays = useMemo(() => (trip ? getItineraryByTripId(trip.id) : []), [trip]);
+  const fallbackHotels = useMemo(() => (trip ? getHotelsByTripId(trip.id) : []), [trip]);
+  const fallbackPlaces = useMemo(() => (trip ? getPlacesByTripId(trip.id) : []), [trip]);
+  const fallbackItineraryDays = useMemo(() => (trip ? getItineraryByTripId(trip.id) : []), [trip]);
+  const hotels = useMemo(
+    () => mergeHotels(fallbackHotels, serviceHotels),
+    [fallbackHotels, serviceHotels],
+  );
+  const places = useMemo(
+    () => mergePlaces(fallbackPlaces, servicePlaces),
+    [fallbackPlaces, servicePlaces],
+  );
+  const itineraryDays =
+    mapDataSource === 'supabase' && serviceItineraryDays.length > 0
+      ? serviceItineraryDays
+      : fallbackItineraryDays;
   const itineraryItems = useMemo(
     () => itineraryDays.flatMap((day) => [...day.morning, ...day.afternoon, ...day.evening].map((item) => ({ ...item, stopId: item.stopId || day.stopId }))),
     [itineraryDays]
   );
+
+  useEffect(() => {
+    if (!trip) return;
+    let cancelled = false;
+
+    setServiceHotels([]);
+    setServicePlaces([]);
+    setServiceItineraryDays([]);
+    setMapDataSource('fallback');
+    setMapDataError(null);
+
+    async function loadSupabaseMapData() {
+      if (!trip || tripSource !== 'supabase') return;
+
+      try {
+        const userId = await getAuthenticatedUserId();
+        if (!userId) return;
+
+        const [lodgingRows, savedPlaceRows, supabaseItineraryDays] =
+          await Promise.all([
+            lodgingService.listLodgingOptions(trip.id),
+            savedPlaceService.listSavedPlaces(trip.id),
+            itineraryService.listItineraryDays(trip.id),
+          ]);
+
+        if (cancelled) return;
+
+        setServiceHotels(
+          lodgingRows
+            .filter((row) => row.is_selected || row.is_saved)
+            .map((row) => mapLodgingOptionToHotel(row, trip.id)),
+        );
+        setServicePlaces(
+          savedPlaceRows
+            .filter((row) => row.is_saved)
+            .map((row) => mapSavedPlaceToPlace(row, trip.id)),
+        );
+        setServiceItineraryDays(supabaseItineraryDays);
+        setMapDataSource('supabase');
+      } catch {
+        if (cancelled) return;
+        setMapDataError('Supabase map data could not be loaded. Showing local map data instead.');
+      }
+    }
+
+    void loadSupabaseMapData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trip, tripSource]);
 
   const selectedStop = orderedStops.find((stop) => stop.id === effectiveSelection) || primaryStop;
   const routeLinePoints = orderedStops
@@ -338,6 +508,12 @@ const MapPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {(serviceTripError || mapDataError) && (
+        <p className="text-sm text-warning-700">
+          {mapDataError || 'Supabase trip data could not be loaded. Showing local map data instead.'}
+        </p>
+      )}
+
       {isMultiStop && (
         <div className="bg-white rounded-2xl shadow-card border border-neutral-100 p-4">
           <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Trip Route</p>

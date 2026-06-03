@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User,
@@ -18,6 +18,8 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Badge from '../components/ui/Badge';
 import { useAuth } from '../hooks/useAuth';
+import { profileService } from '../services/travelDataService';
+import type { ProfileRow } from '../services/supabaseTypes';
 
 const LOCAL_PROFILE_KEY = 'travel-builder:profile';
 
@@ -67,14 +69,67 @@ const loadProfile = (): ProfileState => {
   }
 };
 
+const persistLocalProfile = (profile: ProfileState) => {
+  window.localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(profile));
+};
+
+const normalizeNotifications = (
+  value: unknown,
+  fallback: ProfileNotifications = defaultProfile.notifications,
+): ProfileNotifications => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return fallback;
+  }
+
+  const preferences = value as Partial<Record<keyof ProfileNotifications, unknown>>;
+
+  return {
+    tripReminders:
+      typeof preferences.tripReminders === 'boolean'
+        ? preferences.tripReminders
+        : fallback.tripReminders,
+    priceAlerts:
+      typeof preferences.priceAlerts === 'boolean'
+        ? preferences.priceAlerts
+        : fallback.priceAlerts,
+    newsletter:
+      typeof preferences.newsletter === 'boolean'
+        ? preferences.newsletter
+        : fallback.newsletter,
+    bookingUpdates:
+      typeof preferences.bookingUpdates === 'boolean'
+        ? preferences.bookingUpdates
+        : fallback.bookingUpdates,
+  };
+};
+
+const getAuthFullName = (user: ReturnType<typeof useAuth>['user']) =>
+  typeof user?.user_metadata.full_name === 'string'
+    ? user.user_metadata.full_name
+    : '';
+
+const mapProfileRowToState = (
+  row: ProfileRow | null,
+  fallback: ProfileState,
+  authEmail?: string,
+  authName?: string,
+): ProfileState => ({
+  name: row?.full_name ?? authName ?? fallback.name,
+  email: row?.email ?? authEmail ?? fallback.email,
+  location: row?.location ?? fallback.location,
+  website: row?.website ?? fallback.website,
+  bio: row?.bio ?? fallback.bio,
+  notifications: normalizeNotifications(
+    row?.notification_preferences,
+    fallback.notifications,
+  ),
+});
+
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const storedProfile = loadProfile();
-  const authName =
-    typeof user?.user_metadata.full_name === 'string'
-      ? user.user_metadata.full_name
-      : '';
+  const storedProfile = useMemo(() => loadProfile(), []);
+  const authName = getAuthFullName(user);
   const [name, setName] = useState(authName || storedProfile.name);
   const [email, setEmail] = useState(user?.email ?? storedProfile.email);
   const [location, setLocation] = useState(storedProfile.location);
@@ -82,35 +137,132 @@ const Profile: React.FC = () => {
   const [bio, setBio] = useState(storedProfile.bio);
   const [saved, setSaved] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(Boolean(user));
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const [notifications, setNotifications] = useState(storedProfile.notifications);
 
   useEffect(() => {
-    if (!user) return;
-    const nextName =
-      typeof user.user_metadata.full_name === 'string'
-        ? user.user_metadata.full_name
-        : '';
-    setName(nextName || storedProfile.name);
-    setEmail(user.email ?? storedProfile.email);
-  }, [storedProfile.email, storedProfile.name, user]);
+    let isMounted = true;
 
-  const handleSave = () => {
-    window.localStorage.setItem(
-      LOCAL_PROFILE_KEY,
-      JSON.stringify({ name, email, location, website, bio, notifications })
-    );
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    async function loadSupabaseProfile() {
+      if (!user) {
+        setIsProfileLoading(false);
+        return;
+      }
+
+      setIsProfileLoading(true);
+      setProfileError(null);
+
+      try {
+        const row = await profileService.getProfile(user.id);
+        if (!isMounted) return;
+
+        const nextProfile = mapProfileRowToState(
+          row,
+          storedProfile,
+          user.email ?? undefined,
+          getAuthFullName(user) || undefined,
+        );
+
+        setName(nextProfile.name);
+        setEmail(nextProfile.email);
+        setLocation(nextProfile.location);
+        setWebsite(nextProfile.website);
+        setBio(nextProfile.bio);
+        setNotifications(nextProfile.notifications);
+        persistLocalProfile(nextProfile);
+      } catch {
+        if (!isMounted) return;
+        setProfileError('Supabase profile could not be loaded. Showing local profile instead.');
+        setName(getAuthFullName(user) || storedProfile.name);
+        setEmail(user.email ?? storedProfile.email);
+      } finally {
+        if (isMounted) setIsProfileLoading(false);
+      }
+    }
+
+    void loadSupabaseProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [storedProfile, user]);
+
+  const handleSave = async () => {
+    const nextProfile = { name, email, location, website, bio, notifications };
+
+    persistLocalProfile(nextProfile);
+    setProfileError(null);
+    setIsSavingProfile(true);
+
+    try {
+      if (user) {
+        await profileService.upsertProfile({
+          id: user.id,
+          email: user.email ?? email,
+          full_name: name.trim() || null,
+          avatar_url:
+            typeof user.user_metadata.avatar_url === 'string'
+              ? user.user_metadata.avatar_url
+              : null,
+          location: location.trim() || null,
+          website: website.trim() || null,
+          bio: bio.trim() || null,
+          notification_preferences: notifications,
+        });
+      }
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setProfileError('Supabase profile save failed. Changes were saved locally instead.');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const saveNotificationPreference = async (
+    nextNotifications: ProfileNotifications,
+  ) => {
+    const nextProfile = {
+      name,
+      email,
+      location,
+      website,
+      bio,
+      notifications: nextNotifications,
+    };
+
+    persistLocalProfile(nextProfile);
+
+    if (!user) return;
+
+    try {
+      await profileService.upsertProfile({
+        id: user.id,
+        email: user.email ?? email,
+        full_name: name.trim() || null,
+        avatar_url:
+          typeof user.user_metadata.avatar_url === 'string'
+            ? user.user_metadata.avatar_url
+            : null,
+        location: location.trim() || null,
+        website: website.trim() || null,
+        bio: bio.trim() || null,
+        notification_preferences: nextNotifications,
+      });
+      setProfileError(null);
+    } catch {
+      setProfileError('Supabase notification update failed. Changes were saved locally instead.');
+    }
   };
 
   const toggleNotification = (key: keyof typeof notifications) => {
     setNotifications((prev) => {
       const next = { ...prev, [key]: !prev[key] };
-      window.localStorage.setItem(
-        LOCAL_PROFILE_KEY,
-        JSON.stringify({ name, email, location, website, bio, notifications: next })
-      );
+      void saveNotificationPreference(next);
       return next;
     });
   };
@@ -142,6 +294,16 @@ const Profile: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold text-neutral-900">Profile</h1>
         <p className="text-neutral-500 mt-1">Manage your account settings and preferences</p>
+        {(profileError || isProfileLoading) && (
+          <p
+            className={[
+              'mt-2 text-sm',
+              profileError ? 'text-warning-700' : 'text-neutral-500',
+            ].join(' ')}
+          >
+            {profileError || 'Loading your Supabase profile...'}
+          </p>
+        )}
       </div>
 
       {/* Profile Header Card */}
@@ -234,8 +396,12 @@ const Profile: React.FC = () => {
                 Changes saved
               </span>
             )}
-            <Button variant="primary" onClick={handleSave}>
-              Save Changes
+            <Button
+              variant="primary"
+              onClick={handleSave}
+              disabled={isProfileLoading || isSavingProfile}
+            >
+              {isSavingProfile ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </div>

@@ -23,6 +23,7 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+supabase/.temp/
 
 CURRENT_STATUS.md
 PROJECT_SPECS.md

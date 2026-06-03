@@ -15,7 +15,7 @@ import {
   tripService,
 } from '../services/travelDataService';
 import { mapTripWithRelationsToTrip } from '../services/tripMappers';
-import type { Trip, TripStop, TripVibe } from '../types';
+import type { BudgetCurrency, Trip, TripStop, TripVibe } from '../types';
 
 const VIBE_OPTIONS: TripVibe[] = [
   'Relaxing',
@@ -39,7 +39,6 @@ const BUDGET_CURRENCIES = [
   { code: 'CAD', symbol: 'C$' },
   { code: 'AUD', symbol: 'A$' },
 ] as const;
-type BudgetCurrency = (typeof BUDGET_CURRENCIES)[number]['code'];
 const DEFAULT_BUDGET_CURRENCY: BudgetCurrency = 'USD';
 
 interface StopForm {
@@ -168,7 +167,7 @@ const CreateTrip: React.FC = () => {
     );
     setTravelers(existingTrip.travelers);
     setBudget(existingTrip.budget || '');
-    setBudgetCurrency(loadStoredCurrency(existingTrip.id));
+    setBudgetCurrency(existingTrip.budgetCurrency ?? loadStoredCurrency(existingTrip.id));
     setVibe(existingTrip.vibe);
     setNotes(existingTrip.notes);
     setHydratedTripId(existingTrip.id);
@@ -311,6 +310,7 @@ const CreateTrip: React.FC = () => {
       endDate,
       travelers,
       budget: budget || 0,
+      budgetCurrency,
       vibe: selectedVibe,
       status: existingTrip?.status ?? 'planning',
       notes,

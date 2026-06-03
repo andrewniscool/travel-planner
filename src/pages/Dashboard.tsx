@@ -245,7 +245,11 @@ const Dashboard: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-500">Est. Budget</span>
-                    <PriceTag amount={trip.budget} size="sm" />
+                    <PriceTag
+                      amount={trip.budget}
+                      currency={trip.budgetCurrency ?? 'USD'}
+                      size="sm"
+                    />
                   </div>
 
                   <div>

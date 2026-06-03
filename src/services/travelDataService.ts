@@ -1,9 +1,12 @@
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
 import type {
   BudgetExpense,
+  BudgetCategory,
   ChecklistItem,
   Hotel,
   ItineraryDay,
+  ItineraryItem,
+  LocationRef,
   Note,
   Place,
   TransportSegment,
@@ -13,11 +16,15 @@ import {
   mapBudgetExpenseRowToBudgetExpense,
   mapBudgetExpenseToInsert,
   mapBudgetExpenseToUpdate,
+  mapBudgetCategoryRowToBudgetCategory,
+  mapBudgetCategoryToInsert,
+  mapBudgetCategoryToUpdate,
   mapChecklistItemRowToChecklistItem,
   mapChecklistItemToInsert,
   mapChecklistItemToUpdate,
   mapHotelToLodgingOptionInsert,
   mapHotelToLodgingOptionUpdate,
+  mapItineraryItemRowToItineraryItem,
   mapPlaceToSavedPlaceInsert,
   mapPlaceToSavedPlaceUpdate,
   mapItineraryRowsToDays,
@@ -32,8 +39,11 @@ import {
 } from './tripMappers';
 import type {
   BudgetExpenseRow,
+  BudgetCategoryRow,
   ChecklistItemRow,
+  ItineraryItemInsert,
   ItineraryItemRow,
+  ItineraryItemUpdate,
   LodgingOptionRow,
   LocationRefInsert,
   LocationRefRow,
@@ -52,6 +62,7 @@ import type {
   TripStopRow,
   TripStopUpdate,
   TripUpdate,
+  Json,
 } from './supabaseTypes';
 
 export interface TripWithRelations extends TripRow {
@@ -315,6 +326,55 @@ export const locationRefService = {
     return data;
   },
 
+  async upsertGoogleLocationRef(
+    userId: string,
+    location: LocationRef,
+    rawGooglePayload?: Json,
+  ): Promise<LocationRefRow> {
+    if (!location.googlePlaceId) {
+      throw new Error('googlePlaceId is required to upsert a Google location.');
+    }
+
+    const payload: LocationRefInsert = {
+      user_id: userId,
+      google_place_id: location.googlePlaceId,
+      name: location.name,
+      display_name: location.displayName ?? location.name,
+      formatted_address: location.formattedAddress ?? null,
+      lat: location.latitude ?? null,
+      lng: location.longitude ?? null,
+      place_types: location.placeTypes ?? [],
+      rating: location.rating ?? null,
+      review_count: location.reviewCount ?? null,
+      photo_urls: location.photoUrls ?? [],
+      website_uri: location.websiteUri ?? null,
+      national_phone_number: location.nationalPhoneNumber ?? null,
+      international_phone_number: location.internationalPhoneNumber ?? null,
+      regular_opening_hours: location.regularOpeningHours ?? [],
+      price_level: location.priceLevel ?? null,
+      price_range: location.priceRange ?? null,
+      google_maps_uri: location.googleMapsUri ?? null,
+      business_status: location.businessStatus ?? null,
+      raw_google_payload: rawGooglePayload ?? null,
+      source: 'google',
+    };
+
+    const { data: existing, error: lookupError } = await getSupabaseClient()
+      .from('location_refs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('google_place_id', location.googlePlaceId)
+      .maybeSingle();
+
+    if (lookupError) throw lookupError;
+
+    if (existing) {
+      return this.updateLocationRef(existing.id, payload);
+    }
+
+    return this.createLocationRef(payload);
+  },
+
   async updateLocationRef(
     locationId: string,
     updates: LocationRefUpdate,
@@ -506,6 +566,34 @@ export const itineraryService = {
     return mapItineraryRowsToDays(rows);
   },
 
+  async createItineraryItem(
+    item: ItineraryItemInsert,
+  ): Promise<ItineraryItem> {
+    const { data, error } = await getSupabaseClient()
+      .from('itinerary_items')
+      .insert(item)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapItineraryItemRowToItineraryItem(data);
+  },
+
+  async updateItineraryItem(
+    itemId: string,
+    updates: ItineraryItemUpdate,
+  ): Promise<ItineraryItem> {
+    const { data, error } = await getSupabaseClient()
+      .from('itinerary_items')
+      .update(updates)
+      .eq('id', itemId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapItineraryItemRowToItineraryItem(data);
+  },
+
   async deleteItineraryItem(itemId: string): Promise<void> {
     const { error } = await getSupabaseClient()
       .from('itinerary_items')
@@ -517,6 +605,60 @@ export const itineraryService = {
 };
 
 export const budgetService = {
+  async listBudgetCategoryRows(tripId: string): Promise<BudgetCategoryRow[]> {
+    const { data, error } = await getSupabaseClient()
+      .from('budget_categories')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('order_index', { ascending: true })
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async listBudgetCategories(tripId: string): Promise<BudgetCategory[]> {
+    const rows = await this.listBudgetCategoryRows(tripId);
+    return rows.map(mapBudgetCategoryRowToBudgetCategory);
+  },
+
+  async upsertBudgetCategory(
+    tripId: string,
+    category: BudgetCategory,
+    orderIndex = 0,
+  ): Promise<BudgetCategory> {
+    const insertPayload = mapBudgetCategoryToInsert(
+      tripId,
+      category,
+      orderIndex,
+    );
+    const updatePayload = mapBudgetCategoryToUpdate(category, orderIndex);
+
+    const { data, error } = await getSupabaseClient()
+      .from('budget_categories')
+      .upsert(
+        {
+          ...insertPayload,
+          ...updatePayload,
+        },
+        { onConflict: 'trip_id,stop_key,name' },
+      )
+      .select()
+      .single();
+
+    if (error) throw error;
+    return mapBudgetCategoryRowToBudgetCategory(data);
+  },
+
+  async deleteBudgetCategory(categoryId: string): Promise<void> {
+    const { error } = await getSupabaseClient()
+      .from('budget_categories')
+      .delete()
+      .eq('id', categoryId);
+
+    if (error) throw error;
+  },
+
   async listBudgetExpenseRows(tripId: string): Promise<BudgetExpenseRow[]> {
     const { data, error } = await getSupabaseClient()
       .from('budget_expenses')

@@ -5,6 +5,7 @@ export type ItineraryItemType = 'flight' | 'hotel' | 'restaurant' | 'activity' |
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening';
 export type TransportMode = 'flight' | 'train' | 'bus' | 'car' | 'ferry' | 'walk' | 'other';
 export type TransportRole = 'arrival' | 'departure' | 'between-stops' | 'local';
+export type BudgetCurrency = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CAD' | 'AUD';
 
 export type LocationSource = 'mock' | 'manual' | 'google';
 
@@ -44,6 +45,7 @@ export interface Trip {
   endDate: string;
   travelers: number;
   budget: number;
+  budgetCurrency?: BudgetCurrency;
   vibe: TripVibe;
   status: TripStatus;
   notes: string;

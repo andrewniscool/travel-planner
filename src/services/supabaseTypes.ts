@@ -15,6 +15,10 @@ export interface Database {
           email: string | null;
           full_name: string | null;
           avatar_url: string | null;
+          location: string | null;
+          website: string | null;
+          bio: string | null;
+          notification_preferences: Json;
           created_at: string;
           updated_at: string;
         };
@@ -23,6 +27,10 @@ export interface Database {
           email?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
+          location?: string | null;
+          website?: string | null;
+          bio?: string | null;
+          notification_preferences?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -31,6 +39,10 @@ export interface Database {
           email?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
+          location?: string | null;
+          website?: string | null;
+          bio?: string | null;
+          notification_preferences?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -47,6 +59,12 @@ export interface Database {
           end_date: string | null;
           description: string | null;
           cover_image: string | null;
+          travelers: number;
+          budget: number;
+          budget_currency: string;
+          vibe: string;
+          status: string;
+          planning_progress: number;
           created_at: string;
           updated_at: string;
         };
@@ -60,6 +78,12 @@ export interface Database {
           end_date?: string | null;
           description?: string | null;
           cover_image?: string | null;
+          travelers?: number;
+          budget?: number;
+          budget_currency?: string;
+          vibe?: string;
+          status?: string;
+          planning_progress?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -73,6 +97,12 @@ export interface Database {
           end_date?: string | null;
           description?: string | null;
           cover_image?: string | null;
+          travelers?: number;
+          budget?: number;
+          budget_currency?: string;
+          vibe?: string;
+          status?: string;
+          planning_progress?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -92,10 +122,23 @@ export interface Database {
           user_id: string;
           google_place_id: string | null;
           name: string;
+          display_name: string | null;
           formatted_address: string | null;
           lat: number | null;
           lng: number | null;
           place_types: string[];
+          rating: number | null;
+          review_count: number | null;
+          photo_urls: string[];
+          website_uri: string | null;
+          national_phone_number: string | null;
+          international_phone_number: string | null;
+          regular_opening_hours: string[];
+          price_level: string | null;
+          price_range: string | null;
+          google_maps_uri: string | null;
+          business_status: string | null;
+          raw_google_payload: Json | null;
           source: string;
           created_at: string;
           updated_at: string;
@@ -105,10 +148,23 @@ export interface Database {
           user_id: string;
           google_place_id?: string | null;
           name: string;
+          display_name?: string | null;
           formatted_address?: string | null;
           lat?: number | null;
           lng?: number | null;
           place_types?: string[];
+          rating?: number | null;
+          review_count?: number | null;
+          photo_urls?: string[];
+          website_uri?: string | null;
+          national_phone_number?: string | null;
+          international_phone_number?: string | null;
+          regular_opening_hours?: string[];
+          price_level?: string | null;
+          price_range?: string | null;
+          google_maps_uri?: string | null;
+          business_status?: string | null;
+          raw_google_payload?: Json | null;
           source?: string;
           created_at?: string;
           updated_at?: string;
@@ -118,10 +174,23 @@ export interface Database {
           user_id?: string;
           google_place_id?: string | null;
           name?: string;
+          display_name?: string | null;
           formatted_address?: string | null;
           lat?: number | null;
           lng?: number | null;
           place_types?: string[];
+          rating?: number | null;
+          review_count?: number | null;
+          photo_urls?: string[];
+          website_uri?: string | null;
+          national_phone_number?: string | null;
+          international_phone_number?: string | null;
+          regular_opening_hours?: string[];
+          price_level?: string | null;
+          price_range?: string | null;
+          google_maps_uri?: string | null;
+          business_status?: string | null;
+          raw_google_payload?: Json | null;
           source?: string;
           created_at?: string;
           updated_at?: string;
@@ -592,6 +661,58 @@ export interface Database {
           },
         ];
       };
+      budget_categories: {
+        Row: {
+          id: string;
+          trip_id: string;
+          stop_id: string | null;
+          stop_key: string;
+          name: string;
+          allocated: number;
+          icon: string | null;
+          order_index: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          trip_id: string;
+          stop_id?: string | null;
+          name: string;
+          allocated?: number;
+          icon?: string | null;
+          order_index?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          trip_id?: string;
+          stop_id?: string | null;
+          name?: string;
+          allocated?: number;
+          icon?: string | null;
+          order_index?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'budget_categories_stop_id_fkey';
+            columns: ['stop_id'];
+            isOneToOne: false;
+            referencedRelation: 'trip_stops';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'budget_categories_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'trips';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       trip_notes: {
         Row: {
           id: string;
@@ -745,6 +866,13 @@ export type BudgetExpenseInsert =
   Database['public']['Tables']['budget_expenses']['Insert'];
 export type BudgetExpenseUpdate =
   Database['public']['Tables']['budget_expenses']['Update'];
+
+export type BudgetCategoryRow =
+  Database['public']['Tables']['budget_categories']['Row'];
+export type BudgetCategoryInsert =
+  Database['public']['Tables']['budget_categories']['Insert'];
+export type BudgetCategoryUpdate =
+  Database['public']['Tables']['budget_categories']['Update'];
 
 export type TripNoteRow = Database['public']['Tables']['trip_notes']['Row'];
 export type TripNoteInsert =

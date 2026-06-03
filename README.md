@@ -1,6 +1,6 @@
 # Travel Builder
 
-Travel Builder is a travel planning frontend prototype for organizing trips, comparing flights and hotels, saving places, building itineraries, tracking budgets, and reviewing trip details in one workspace.
+Travel Builder is a travel planning app for organizing trips, comparing lodging and transport options, saving places, building itineraries, tracking budgets, and reviewing trip details in one workspace.
 
 ## Tech Stack
 
@@ -10,24 +10,64 @@ Travel Builder is a travel planning frontend prototype for organizing trips, com
 - React Router
 - Tailwind CSS
 - Lucide React icons
-- ESLint
+- Supabase Auth, Database, Row Level Security, and Edge Functions
 
 ## Project Status
 
-This is a Phase 1 frontend-only prototype. It uses mock data from `src/data` and local component state for interactions.
+The app now has a Supabase-backed data layer for trips, stops, transport segments, lodging selections, saved places, itinerary items, budgets, notes, checklists, and profile preferences.
 
-There are no real APIs, authentication flows, databases, payment systems, map integrations, flight or hotel booking integrations, or external backend services connected yet.
+Mock data still exists in `src/data` as fallback/demo content. Some screens continue to merge or fall back to local/mock data when Supabase data is unavailable.
+
+## Google Places Phase
+
+The project has the backend boundary needed before using Google Places from the app:
+
+- `supabase/functions/places` proxies Google Places API calls from Supabase Edge Functions.
+- The browser calls the Edge Function through `src/services/placesService.ts`; it should not call Google Places directly.
+- `GOOGLE_PLACES_API_KEY` must be stored as a Supabase secret, not as a `VITE_*` variable.
+- `supabase/migrations/010_google_places_location_refs.sql` expands `location_refs` to store Google place metadata.
+- `src/services/travelDataService.ts` includes `locationRefService.upsertGoogleLocationRef` for reusing a user's saved Google-backed locations.
+
+Current Places actions supported by the Edge Function:
+
+- `autocomplete`
+- `details`
+- `textSearch`
+
+Next UI integration step: replace the mock suggestions in `LocationInput` with debounced `placesService.autocomplete`, then fetch `placesService.getDetails` on selection and persist the result with `locationRefService.upsertGoogleLocationRef`.
+
+## Environment
+
+Create a local env file from the example:
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+Required browser-safe variables:
+
+```text
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+VITE_ENABLE_MOCK_DATA=false
+```
+
+Required Supabase Edge Function secret:
+
+```powershell
+supabase secrets set GOOGLE_PLACES_API_KEY=your_google_places_key
+```
 
 ## Install
 
 ```powershell
-npm install
+pnpm install
 ```
 
 ## Run Locally
 
 ```powershell
-npm run dev
+pnpm run dev
 ```
 
 The Vite dev server usually runs at:
@@ -36,16 +76,30 @@ The Vite dev server usually runs at:
 http://localhost:5173
 ```
 
+## Supabase
+
+Apply database migrations:
+
+```powershell
+pnpm run db:push
+```
+
+Deploy the Places Edge Function:
+
+```powershell
+pnpm supabase functions deploy places
+```
+
+For local Edge Function development:
+
+```powershell
+pnpm supabase functions serve places --env-file .env.local
+```
+
 ## Checks
 
 ```powershell
-npm run typecheck
-npm run lint
-npm run build
+pnpm run typecheck
+pnpm run lint
+pnpm run build
 ```
-
-## Notes
-
-- Trip, flight, hotel, place, itinerary, budget, note, weather, and testimonial data are currently static mock data.
-- Some buttons intentionally use local-only placeholder behavior.
-- Data changes made in the UI may reset after refresh until a real persistence layer is added.

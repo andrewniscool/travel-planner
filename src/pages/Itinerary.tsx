@@ -29,7 +29,6 @@ import {
   getAuthenticatedUserId,
   itineraryService,
 } from '../services/travelDataService';
-import { getSupabaseClient } from '../services/supabaseClient';
 import Modal from '../components/ui/Modal';
 import type {
   BudgetCategory,
@@ -41,7 +40,10 @@ import type {
   Place,
   TripStop,
 } from '../types';
-import type { ItineraryItemInsert, ItineraryItemRow, ItineraryItemUpdate } from '../services/supabaseTypes';
+import type {
+  ItineraryItemInsert,
+  ItineraryItemUpdate,
+} from '../services/supabaseTypes';
 
 const LOCAL_REMOVED_ITINERARY_ITEMS_KEY = 'travel-builder:removed-itinerary-items';
 const LOCAL_ITINERARY_DAYS_KEY = 'travel-builder:itinerary-days';
@@ -218,19 +220,6 @@ const findItineraryExpense = (
   const linkedExpenseId = expenseLinks[item.id] ?? getItineraryExpenseId(item.id);
   return expenses.find((expense) => expense.id === linkedExpenseId);
 };
-
-const mapItineraryRowToItem = (row: ItineraryItemRow): ItineraryItem => ({
-  id: row.id,
-  stopId: row.stop_id ?? undefined,
-  time: row.start_time?.slice(0, 5) ?? '',
-  name: row.title,
-  type: itineraryItemTypes.some((type) => type.value === row.item_type)
-    ? (row.item_type as ItineraryItemType)
-    : 'activity',
-  location: row.location_text ?? '',
-  estimatedCost: row.estimated_cost ?? 0,
-  notes: row.notes ?? '',
-});
 
 const getDaySection = (
   days: ItineraryDay[],
@@ -911,22 +900,14 @@ const Itinerary: React.FC = () => {
       order_index: orderIndex,
     };
 
-    const query = mode === 'edit' && itemModal?.itemId
-      ? getSupabaseClient()
-          .from('itinerary_items')
-          .update(payload)
-          .eq('id', itemModal.itemId)
-          .select()
-          .single()
-      : getSupabaseClient()
-          .from('itinerary_items')
-          .insert(payload as ItineraryItemInsert)
-          .select()
-          .single();
-    const { data, error } = await query;
+    if (mode === 'edit' && itemModal?.itemId) {
+      return itineraryService.updateItineraryItem(
+        itemModal.itemId,
+        payload as ItineraryItemUpdate,
+      );
+    }
 
-    if (error) throw error;
-    return mapItineraryRowToItem(data as ItineraryItemRow);
+    return itineraryService.createItineraryItem(payload as ItineraryItemInsert);
   };
 
   const saveItineraryBudgetExpense = async (

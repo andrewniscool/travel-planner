@@ -152,10 +152,10 @@ function mapStop(row: TripStopRow, previousStops: TripStop[]) {
     startDate: row.start_date ?? '',
     endDate: row.end_date ?? '',
     order: row.order_index,
-    image: previousStop?.image,
-    latitude: previousStop?.latitude,
-    longitude: previousStop?.longitude,
-    notes: previousStop?.notes,
+    image: row.image ?? previousStop?.image,
+    latitude: row.latitude ?? previousStop?.latitude,
+    longitude: row.longitude ?? previousStop?.longitude,
+    notes: row.notes ?? previousStop?.notes,
     locationRef: previousStop?.locationRef,
   };
 }
@@ -261,14 +261,14 @@ export function mapTripToTripInsert(userId: string, trip: Trip): TripInsert {
     country: trip.country,
     start_date: trip.startDate || null,
     end_date: trip.endDate || null,
-    description: trip.notes || null,
-    cover_image: trip.image || null,
     travelers: trip.travelers,
     budget: trip.budget,
     budget_currency: trip.budgetCurrency ?? DEFAULT_BUDGET_CURRENCY,
     vibe: trip.vibe,
     status: trip.status,
     planning_progress: trip.planningProgress,
+    description: trip.notes || null,
+    cover_image: trip.image || null,
   };
 }
 
@@ -279,14 +279,14 @@ export function mapTripToTripUpdate(trip: Trip): TripUpdate {
     country: trip.country,
     start_date: trip.startDate || null,
     end_date: trip.endDate || null,
-    description: trip.notes || null,
-    cover_image: trip.image || null,
     travelers: trip.travelers,
     budget: trip.budget,
     budget_currency: trip.budgetCurrency ?? DEFAULT_BUDGET_CURRENCY,
     vibe: trip.vibe,
     status: trip.status,
     planning_progress: trip.planningProgress,
+    description: trip.notes || null,
+    cover_image: trip.image || null,
   };
 }
 
@@ -302,6 +302,10 @@ export function mapTripStopToTripStopInsert(
     end_date: stop.endDate || null,
     order_index: stop.order,
     location_ref_id: stop.locationRef?.id ?? null,
+    notes: stop.notes ?? null,
+    image: stop.image ?? null,
+    latitude: stop.latitude ?? null,
+    longitude: stop.longitude ?? null,
   };
 }
 

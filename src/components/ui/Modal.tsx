@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 type ModalSize = 'sm' | 'md' | 'lg';
@@ -25,7 +26,7 @@ const Modal: React.FC<ModalProps> = ({
   title,
   children,
   className = '',
-  overlayClassName = 'bg-black/50 backdrop-blur-sm',
+  overlayClassName = 'bg-black/65',
   size = 'md',
 }) => {
   useEffect(() => {
@@ -41,9 +42,9 @@ const Modal: React.FC<ModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
-      className={['fixed inset-0 z-50 animate-fade-in', overlayClassName]
+      className={['fixed -inset-px z-[100] animate-fade-in', overlayClassName]
         .filter(Boolean)
         .join(' ')}
       onClick={onClose}
@@ -71,7 +72,8 @@ const Modal: React.FC<ModalProps> = ({
           <div className="p-6">{children}</div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

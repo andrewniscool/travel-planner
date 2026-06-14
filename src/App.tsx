@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './hooks/AuthProvider';
 import LandingLayout from './components/layout/LandingLayout';
 import AppLayout from './components/layout/AppLayout';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 import Landing from './pages/Landing';
 import SignIn from './pages/SignIn';
 import Dashboard from './pages/Dashboard';
@@ -27,7 +28,13 @@ function App() {
             <Route path="/" element={<Landing />} />
           </Route>
           <Route path="/sign-in" element={<SignIn />} />
-          <Route element={<AppLayout />}>
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/create-trip" element={<CreateTrip />} />
             <Route path="/trip/:tripId" element={<TripDetails />} />

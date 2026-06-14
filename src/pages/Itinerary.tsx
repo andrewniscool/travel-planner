@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import {
   Sun,
@@ -491,9 +492,9 @@ const ItineraryItemModal: React.FC<{
   const title = mode === 'add' ? 'Add itinerary item' : 'Edit itinerary item';
   const buttonText = mode === 'add' ? 'Add item' : 'Save changes';
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-white/25 backdrop-blur-[2px] animate-fade-in"
+      className="fixed -inset-px z-[100] bg-black/65 animate-fade-in"
       onClick={onClose}
     >
       <div className="flex items-center justify-center min-h-screen p-4">
@@ -650,7 +651,8 @@ const ItineraryItemModal: React.FC<{
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

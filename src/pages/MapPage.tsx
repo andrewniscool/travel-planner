@@ -11,11 +11,11 @@ import {
   Train,
   UtensilsCrossed,
 } from 'lucide-react';
-import { useTrip } from '../hooks/useTrip';
+import { getTripFromStorageOrMock } from '../hooks/useTrip';
+import { useServiceTrip } from '../hooks/useServiceTrips';
 import { getHotelsByTripId } from '../data/hotels';
 import { getItineraryByTripId } from '../data/itinerary';
 import { getPlacesByTripId } from '../data/places';
-import { useServiceTrip } from '../hooks/useServiceTrips';
 import {
   getAuthenticatedUserId,
   itineraryService,
@@ -304,9 +304,10 @@ const PanelItem: React.FC<{
 
 const MapPage: React.FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
-  const fallbackTrip = useTrip();
+  const fallbackTrip = tripId ? getTripFromStorageOrMock(tripId) : undefined;
   const {
     trip: serviceTrip,
+    isLoading: isLoadingServiceTrip,
     error: serviceTripError,
     source: tripSource,
   } = useServiceTrip(tripId);
@@ -499,9 +500,21 @@ const MapPage: React.FC = () => {
   })();
 
   if (!trip || !primaryStop) {
+    if (isLoadingServiceTrip) {
+      return (
+        <div className="flex h-64 items-center justify-center">
+          <p className="text-neutral-500">Loading trip map...</p>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-neutral-500">Trip not found</p>
+        <p className="text-neutral-500">
+          {serviceTripError
+            ? 'Unable to load this trip map.'
+            : 'Trip not found'}
+        </p>
       </div>
     );
   }

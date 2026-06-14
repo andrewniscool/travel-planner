@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   CalendarDays,
@@ -93,7 +93,14 @@ const featureCards: FeatureCard[] = [
 
 const SignIn: React.FC = () => {
   const navigate = useNavigate();
-  const { signInWithPassword, signUpWithPassword, isConfigured } = useAuth();
+  const location = useLocation();
+  const {
+    user,
+    isLoading,
+    signInWithPassword,
+    signUpWithPassword,
+    isConfigured,
+  } = useAuth();
   const [mode, setMode] = useState<AuthMode>('sign-in');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -106,6 +113,20 @@ const SignIn: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isSignUp = mode === 'sign-up';
+  const returnTo =
+    typeof location.state === 'object' &&
+    location.state !== null &&
+    'returnTo' in location.state &&
+    typeof location.state.returnTo === 'string' &&
+    location.state.returnTo.startsWith('/')
+      ? location.state.returnTo
+      : '/dashboard';
+
+  useEffect(() => {
+    if (isConfigured && !isLoading && user) {
+      navigate(returnTo, { replace: true });
+    }
+  }, [isConfigured, isLoading, navigate, returnTo, user]);
 
   const updateMode = (nextMode: AuthMode) => {
     setMode(nextMode);
@@ -143,7 +164,7 @@ const SignIn: React.FC = () => {
         );
       } else {
         await signInWithPassword(email.trim(), password);
-        navigate('/dashboard');
+        navigate(returnTo, { replace: true });
       }
     } catch (authError) {
       setError(

@@ -136,7 +136,12 @@ const CreateTrip: React.FC = () => {
   const [travelers, setTravelers] = useState(existingTrip?.travelers ?? 1);
   const [budget, setBudget] = useState<number | ''>(existingTrip?.budget ?? '');
   const [budgetCurrency, setBudgetCurrency] = useState<BudgetCurrency>(
-    () => loadStoredCurrency(existingTrip?.id)
+    () => {
+      const persistedCurrency = existingTrip?.budgetCurrency;
+      return persistedCurrency && isBudgetCurrency(persistedCurrency)
+        ? persistedCurrency
+        : loadStoredCurrency(existingTrip?.id);
+    }
   );
   const [vibe, setVibe] = useState<TripVibe | ''>(existingTrip?.vibe ?? '');
   const [notes, setNotes] = useState(existingTrip?.notes ?? '');

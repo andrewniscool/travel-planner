@@ -25,6 +25,8 @@ The project has the backend boundary needed before using Google Places from the 
 - `supabase/functions/places` proxies Google Places API calls from Supabase Edge Functions.
 - The browser calls the Edge Function through `src/services/placesService.ts`; it should not call Google Places directly.
 - `GOOGLE_PLACES_API_KEY` must be stored as a Supabase secret, not as a `VITE_*` variable.
+- The function verifies the bearer token against Supabase Auth; a publishable key by itself is rejected.
+- Migration `012_google_places_rate_limits.sql` enforces a service-role-only per-user rate limit before Google is called.
 - `supabase/migrations/010_google_places_location_refs.sql` expands `location_refs` to store Google place metadata.
 - `src/services/travelDataService.ts` includes `locationRefService.upsertGoogleLocationRef` for reusing a user's saved Google-backed locations.
 

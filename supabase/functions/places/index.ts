@@ -31,6 +31,10 @@ type PlacesRequestBody = {
   maxResultCount?: number;
 };
 
+type AuthUser = {
+  id: string;
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
@@ -39,6 +43,12 @@ const corsHeaders = {
 };
 
 const GOOGLE_PLACES_BASE_URL = 'https://places.googleapis.com/v1';
+const RATE_LIMIT_PER_MINUTE = 60;
+const ACTION_COSTS: Record<NonNullable<PlacesRequestBody['action']>, number> = {
+  autocomplete: 1,
+  details: 5,
+  textSearch: 5,
+};
 
 const AUTOCOMPLETE_FIELD_MASK = [
   'suggestions.placePrediction.place',
@@ -73,12 +83,17 @@ const TEXT_SEARCH_FIELD_MASK = PLACE_FIELD_MASK.split(',')
   .map((field) => `places.${field}`)
   .join(',');
 
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       ...corsHeaders,
       'Content-Type': 'application/json',
+      ...headers,
     },
   });
 }
@@ -93,6 +108,65 @@ function requireString(value: unknown, fieldName: string) {
   }
 
   return value.trim();
+}
+
+function getBearerToken(request: Request) {
+  const authorization = request.headers.get('Authorization');
+  if (!authorization?.startsWith('Bearer ')) return null;
+
+  const token = authorization.slice('Bearer '.length).trim();
+  return token || null;
+}
+
+async function getAuthenticatedUser(
+  request: Request,
+  supabaseUrl: string,
+  anonKey: string,
+): Promise<AuthUser | null> {
+  const token = getBearerToken(request);
+  if (!token) return null;
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) return null;
+
+  const user = await response.json().catch(() => null) as AuthUser | null;
+  return user?.id ? user : null;
+}
+
+async function consumeRateLimit(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  userId: string,
+  cost: number,
+) {
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/rpc/consume_google_places_rate_limit`,
+    {
+      method: 'POST',
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        p_user_id: userId,
+        p_cost: cost,
+        p_limit: RATE_LIMIT_PER_MINUTE,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error('Rate limit service is unavailable.');
+  }
+
+  return await response.json() === true;
 }
 
 async function callGooglePlaces(
@@ -140,11 +214,19 @@ Deno.serve(async (request) => {
   }
 
   const apiKey = Deno.env.get('GOOGLE_PLACES_API_KEY');
-  if (!apiKey) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!apiKey || !supabaseUrl || !anonKey || !serviceRoleKey) {
     return jsonResponse(
-      { error: 'GOOGLE_PLACES_API_KEY is not configured.' },
+      { error: 'Places function is not configured.' },
       500,
     );
+  }
+
+  const user = await getAuthenticatedUser(request, supabaseUrl, anonKey);
+  if (!user) {
+    return jsonResponse({ error: 'Authentication required.' }, 401);
   }
 
   let body: PlacesRequestBody;
@@ -155,6 +237,28 @@ Deno.serve(async (request) => {
   }
 
   try {
+    const action = body.action;
+    if (!action || !(action in ACTION_COSTS)) {
+      return jsonResponse(
+        { error: 'action must be autocomplete, details, or textSearch.' },
+        400,
+      );
+    }
+
+    const withinRateLimit = await consumeRateLimit(
+      supabaseUrl,
+      serviceRoleKey,
+      user.id,
+      ACTION_COSTS[action],
+    );
+    if (!withinRateLimit) {
+      return jsonResponse(
+        { error: 'Google Places request limit exceeded. Try again shortly.' },
+        429,
+        { 'Retry-After': '60' },
+      );
+    }
+
     if (body.action === 'autocomplete') {
       const input = requireString(body.input, 'input');
       return callGooglePlaces('/places:autocomplete', {
@@ -211,14 +315,18 @@ Deno.serve(async (request) => {
       });
     }
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === 'Rate limit service is unavailable.'
+    ) {
+      return jsonResponse({ error: error.message }, 503);
+    }
+
     return jsonResponse(
       { error: error instanceof Error ? error.message : 'Invalid request.' },
       400,
     );
   }
 
-  return jsonResponse(
-    { error: 'action must be autocomplete, details, or textSearch.' },
-    400,
-  );
+  return jsonResponse({ error: 'Unsupported Places action.' }, 400);
 });

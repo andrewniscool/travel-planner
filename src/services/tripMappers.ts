@@ -10,6 +10,7 @@ import type {
   ItineraryDay,
   ItineraryItem,
   ItineraryItemType,
+  LocationRef,
   Note,
   Place,
   TimeOfDay,
@@ -31,6 +32,7 @@ import type {
   LodgingOptionInsert,
   LodgingOptionRow,
   LodgingOptionUpdate,
+  LocationRefRow,
   ItineraryItemRow,
   SavedPlaceInsert,
   SavedPlaceRow,
@@ -52,6 +54,8 @@ import type { TripWithRelations } from './travelDataService';
 const DEFAULT_TRIP_VIBE: TripVibe = 'Cultural';
 const DEFAULT_TRIP_STATUS: TripStatus = 'planning';
 const DEFAULT_BUDGET_CURRENCY: BudgetCurrency = 'USD';
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function getStatusFromDates(startDate?: string, endDate?: string): TripStatus {
   const today = new Date();
@@ -133,6 +137,36 @@ function normalizeTimeOfDay(
   }
 
   return getTimeOfDayFromTime(time);
+}
+
+function getPersistedLocationRefId(location?: LocationRef) {
+  return location?.id && UUID_PATTERN.test(location.id) ? location.id : null;
+}
+
+export function mapLocationRefRowToLocationRef(row: LocationRefRow): LocationRef {
+  return {
+    id: row.id,
+    googlePlaceId: row.google_place_id ?? undefined,
+    name: row.display_name ?? row.name,
+    displayName: row.display_name ?? undefined,
+    formattedAddress: row.formatted_address ?? undefined,
+    latitude: row.lat ?? undefined,
+    longitude: row.lng ?? undefined,
+    placeTypes: row.place_types,
+    rating: row.rating ?? undefined,
+    reviewCount: row.review_count ?? undefined,
+    photoUrls: row.photo_urls,
+    websiteUri: row.website_uri ?? undefined,
+    nationalPhoneNumber: row.national_phone_number ?? undefined,
+    internationalPhoneNumber: row.international_phone_number ?? undefined,
+    regularOpeningHours: row.regular_opening_hours,
+    priceLevel: row.price_level ?? undefined,
+    priceRange: row.price_range ?? undefined,
+    googleMapsUri: row.google_maps_uri ?? undefined,
+    businessStatus: row.business_status ?? undefined,
+    source:
+      row.source === 'google' || row.source === 'mock' ? row.source : 'manual',
+  };
 }
 
 function findPreviousStop(row: TripStopRow, previousStops: TripStop[]) {
@@ -337,8 +371,8 @@ export function mapTransportSegmentToInsert(
     notes: segment.notes ?? null,
     from_text: segment.departureLocation || segment.fromLocation?.name || null,
     to_text: segment.arrivalLocation || segment.toLocation?.name || null,
-    from_location_ref_id: null,
-    to_location_ref_id: null,
+    from_location_ref_id: getPersistedLocationRefId(segment.fromLocation),
+    to_location_ref_id: getPersistedLocationRefId(segment.toLocation),
   };
 }
 
@@ -360,8 +394,8 @@ export function mapTransportSegmentToUpdate(
     notes: segment.notes ?? null,
     from_text: segment.departureLocation || segment.fromLocation?.name || null,
     to_text: segment.arrivalLocation || segment.toLocation?.name || null,
-    from_location_ref_id: null,
-    to_location_ref_id: null,
+    from_location_ref_id: getPersistedLocationRefId(segment.fromLocation),
+    to_location_ref_id: getPersistedLocationRefId(segment.toLocation),
   };
 }
 

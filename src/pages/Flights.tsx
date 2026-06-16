@@ -18,9 +18,13 @@ import { getTripDisplayName } from '../data/trips';
 import { useServiceTrip } from '../hooks/useServiceTrips';
 import {
   getAuthenticatedUserId,
+  locationRefService,
   transportService,
 } from '../services/travelDataService';
-import { mapTransportSegmentRowToTransportSegment } from '../services/tripMappers';
+import {
+  mapLocationRefRowToLocationRef,
+  mapTransportSegmentRowToTransportSegment,
+} from '../services/tripMappers';
 import type { LocationRef, TransportMode, TransportSegment } from '../types';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
@@ -154,6 +158,16 @@ const makeManualLocationRef = (name: string): LocationRef | null => {
     name: trimmedName,
     source: 'manual',
   };
+};
+
+const persistGoogleLocation = async (
+  userId: string,
+  location?: LocationRef,
+): Promise<LocationRef | undefined> => {
+  if (!location || location.source !== 'google') return location;
+
+  const row = await locationRefService.upsertGoogleLocationRef(userId, location);
+  return mapLocationRefRowToLocationRef(row);
 };
 
 const loadStoredSegments = (tripId: string, fallbackSegments: TransportSegment[]) => {
@@ -724,11 +738,22 @@ const Flights: React.FC = () => {
       const userId = await getAuthenticatedUserId();
 
       if (userId && travelSource === 'supabase') {
+        const [fromLocation, toLocation] = await Promise.all([
+          persistGoogleLocation(userId, nextSegment.fromLocation),
+          persistGoogleLocation(userId, nextSegment.toLocation),
+        ]);
+        const segmentToSave: TransportSegment = {
+          ...nextSegment,
+          fromLocation,
+          toLocation,
+          departureLocation: getLocationName(fromLocation, nextSegment.departureLocation).trim(),
+          arrivalLocation: getLocationName(toLocation, nextSegment.arrivalLocation).trim(),
+        };
         const row = editingSegmentId
-          ? await transportService.updateTravelSegment(nextSegment)
-          : await transportService.createTravelSegment(trip.id, nextSegment);
+          ? await transportService.updateTravelSegment(segmentToSave)
+          : await transportService.createTravelSegment(trip.id, segmentToSave);
         const savedSegment = mapTransportSegmentRowToTransportSegment(row, [], [
-          nextSegment,
+          segmentToSave,
         ]);
 
         saveLocally(savedSegment);

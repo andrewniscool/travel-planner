@@ -36,7 +36,7 @@ Current Places actions supported by the Edge Function:
 - `details`
 - `textSearch`
 
-Next UI integration step: replace the mock suggestions in `LocationInput` with debounced `placesService.autocomplete`, then fetch `placesService.getDetails` on selection and persist the result with `locationRefService.upsertGoogleLocationRef`.
+Current UI integration: `LocationInput` uses live Google autocomplete/details in Flights & Transportation, then persists selected Google places through `locationRefService.upsertGoogleLocationRef`.
 
 ## Environment
 
@@ -57,7 +57,13 @@ VITE_ENABLE_MOCK_DATA=false
 Required Supabase Edge Function secret:
 
 ```powershell
-supabase secrets set GOOGLE_PLACES_API_KEY=your_google_places_key
+pnpm supabase secrets set --env-file .env.supabase.local
+```
+
+`.env.supabase.local` should contain server-only secrets and should not use `VITE_*` names:
+
+```text
+GOOGLE_PLACES_API_KEY=
 ```
 
 ## Install
@@ -67,6 +73,8 @@ pnpm install
 ```
 
 ## Run Locally
+
+The backend is hosted Supabase. You usually do not start a backend server for normal development; run the React app and it talks to the linked Supabase project from `.env.local`.
 
 ```powershell
 pnpm run dev
@@ -80,22 +88,45 @@ http://localhost:5173
 
 ## Supabase
 
-Apply database migrations:
+One-time setup on a new machine:
 
 ```powershell
-pnpm run db:push
+pnpm supabase login
+pnpm supabase link --project-ref YOUR_PROJECT_REF
+pnpm supabase migration list
 ```
 
-Deploy the Places Edge Function:
+After adding or pulling migrations, inspect first, then push:
 
 ```powershell
-pnpm supabase functions deploy places
+pnpm supabase db push --linked --dry-run
+pnpm supabase db push --linked
 ```
 
-For local Edge Function development:
+After changing `supabase/functions/places`, deploy the Edge Function:
 
 ```powershell
-pnpm supabase functions serve places --env-file .env.local
+pnpm supabase functions deploy places --project-ref YOUR_PROJECT_REF
+```
+
+After changing hosted secrets:
+
+```powershell
+pnpm supabase secrets set --env-file .env.supabase.local --project-ref YOUR_PROJECT_REF
+pnpm supabase secrets list --project-ref YOUR_PROJECT_REF
+```
+
+Useful verification commands:
+
+```powershell
+pnpm supabase migration list
+pnpm supabase functions list --project-ref YOUR_PROJECT_REF
+```
+
+Optional local Edge Function development, mainly for function-only debugging:
+
+```powershell
+pnpm supabase functions serve places --env-file .env.supabase.local
 ```
 
 ## Checks

@@ -10,6 +10,7 @@ interface PlaceCardProps {
   onSave: (placeId: string) => void;
   onAddToItinerary: (placeId: string) => void;
   onViewDetails: (placeId: string) => void;
+  isAddingToItinerary?: boolean;
 }
 
 const PlaceCard: React.FC<PlaceCardProps> = ({
@@ -17,6 +18,7 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
   onSave,
   onAddToItinerary,
   onViewDetails,
+  isAddingToItinerary = false,
 }) => {
   const displayName = place.locationRef?.displayName || place.name;
   const displayImage = place.locationRef?.photoUrls?.[0] || place.image;
@@ -103,10 +105,11 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
 
           <button
             onClick={() => onAddToItinerary(place.id)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
+            disabled={isAddingToItinerary}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <CalendarPlus className="w-3.5 h-3.5" />
-            Add
+            {isAddingToItinerary ? 'Adding' : 'Add'}
           </button>
 
           <button

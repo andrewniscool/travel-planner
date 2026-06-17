@@ -11,6 +11,7 @@ interface PlaceDetailModalProps {
   onClose: () => void;
   onSave?: (placeId: string) => void;
   onAddToItinerary?: (placeId: string) => void;
+  isAddingToItinerary?: boolean;
 }
 
 const mockReviews = [
@@ -37,6 +38,7 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
   onClose,
   onSave,
   onAddToItinerary,
+  isAddingToItinerary = false,
 }) => {
   if (!place) return null;
 
@@ -166,10 +168,11 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
 
           <button
             onClick={() => onAddToItinerary?.(place.id)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+            disabled={isAddingToItinerary}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <CalendarPlus className="w-4 h-4" />
-            Add to Itinerary
+            {isAddingToItinerary ? 'Adding...' : 'Add to Itinerary'}
           </button>
 
           <a

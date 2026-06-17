@@ -6,6 +6,7 @@ import { getPlacesByTripId } from '../data/places';
 import { useServiceTrip } from '../hooks/useServiceTrips';
 import {
   getAuthenticatedUserId,
+  itineraryService,
   locationRefService,
   savedPlaceService,
 } from '../services/travelDataService';
@@ -21,7 +22,14 @@ import EmptyState from '../components/ui/EmptyState';
 import PlaceCard from '../components/explore/PlaceCard';
 import PlaceDetailModal from '../components/explore/PlaceDetailModal';
 import StopSelector from '../components/trips/StopSelector';
-import type { LocationRef, Place, PlaceCategory } from '../types';
+import type {
+  ItineraryItemType,
+  LocationRef,
+  Place,
+  PlaceCategory,
+  TimeOfDay,
+} from '../types';
+import type { ItineraryItemInsert } from '../services/supabaseTypes';
 
 const CATEGORIES: (PlaceCategory | 'All')[] = [
   'All',
@@ -39,6 +47,8 @@ const CATEGORIES: (PlaceCategory | 'All')[] = [
 const LOCAL_SAVED_PLACES_KEY = 'travel-builder:saved-places';
 const GOOGLE_PLACE_IMAGE =
   'https://images.pexels.com/photos/2422461/pexels-photo-2422461.jpeg?auto=compress&cs=tinysrgb&w=600';
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const loadSavedPlaces = (tripId: string, initialSavedPlaceIds: string[]) => {
   try {
@@ -120,6 +130,23 @@ const mapLocationRefToPlace = (
   };
 };
 
+const getPlaceItineraryType = (place: Place): ItineraryItemType => {
+  if (place.category === 'Restaurants' || place.category === 'Cafes') {
+    return 'restaurant';
+  }
+
+  return 'activity';
+};
+
+const getPlaceItineraryTimeOfDay = (place: Place): TimeOfDay => {
+  if (place.category === 'Restaurants') return 'evening';
+  if (place.category === 'Cafes') return 'morning';
+  return 'afternoon';
+};
+
+const getPersistedLocationRefId = (location?: LocationRef) =>
+  location?.id && UUID_PATTERN.test(location.id) ? location.id : null;
+
 const Explore: React.FC = () => {
   const { tripId: routeTripId } = useParams<{ tripId: string }>();
   const fallbackTrip = useTrip();
@@ -167,6 +194,11 @@ const Explore: React.FC = () => {
   const [googlePlaces, setGooglePlaces] = useState<Place[]>([]);
   const [isSearchingGoogle, setIsSearchingGoogle] = useState(false);
   const [googlePlacesError, setGooglePlacesError] = useState<string | null>(null);
+  const [addingItineraryPlaceIds, setAddingItineraryPlaceIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [itineraryMessage, setItineraryMessage] = useState<string | null>(null);
+  const [itineraryError, setItineraryError] = useState<string | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
   useEffect(() => {
@@ -365,10 +397,66 @@ const Explore: React.FC = () => {
   };
 
   const handleAddToItinerary = (placeId: string) => {
-    // Placeholder: would add to itinerary
+    void addPlaceToItinerary(placeId);
+  };
+
+  const addPlaceToItinerary = async (placeId: string) => {
+    if (!trip) return;
     const place = availablePlaces.find((p) => p.id === placeId);
-    if (place) {
-      alert(`Added "${place.name}" to your itinerary!`);
+    if (!place) return;
+
+    setItineraryMessage(null);
+    setItineraryError(null);
+
+    if (tripSource !== 'supabase') {
+      setItineraryError('Add to itinerary is available after this trip is saved to Supabase.');
+      return;
+    }
+
+    setAddingItineraryPlaceIds((current) => new Set(current).add(placeId));
+
+    try {
+      const userId = await getAuthenticatedUserId();
+      if (!userId) {
+        setItineraryError('Sign in again to add places to your itinerary.');
+        return;
+      }
+
+      const locationRef =
+        place.locationRef?.googlePlaceId
+          ? mapLocationRefRowToLocationRef(
+              await locationRefService.upsertGoogleLocationRef(
+                userId,
+                place.locationRef,
+              ),
+            )
+          : place.locationRef;
+      const itineraryDate =
+        selectedStop?.startDate || trip.startDate || new Date().toISOString().slice(0, 10);
+      const payload: ItineraryItemInsert = {
+        trip_id: trip.id,
+        stop_id: selectedStop?.id ?? place.stopId ?? null,
+        location_ref_id: getPersistedLocationRefId(locationRef),
+        title: place.locationRef?.displayName || place.name,
+        item_type: getPlaceItineraryType(place),
+        date: itineraryDate,
+        time_of_day: getPlaceItineraryTimeOfDay(place),
+        location_text: locationRef?.formattedAddress ?? place.location,
+        estimated_cost: 0,
+        notes: place.description || place.reviewSnippet || 'Added from Explore.',
+        order_index: Date.now() % 1_000_000,
+      };
+
+      await itineraryService.createItineraryItem(payload);
+      setItineraryMessage(`Added "${payload.title}" to your itinerary.`);
+    } catch {
+      setItineraryError('Could not add this place to your itinerary. Try again.');
+    } finally {
+      setAddingItineraryPlaceIds((current) => {
+        const next = new Set(current);
+        next.delete(placeId);
+        return next;
+      });
     }
   };
 
@@ -389,12 +477,16 @@ const Explore: React.FC = () => {
         <p className="text-sm text-neutral-500 mt-1">
           Discover places and activities in {selectedStop?.name || trip?.destination || 'your destination'}
         </p>
-        {(serviceTripError || savedPlacesError || googlePlacesError) && (
+        {(serviceTripError || savedPlacesError || googlePlacesError || itineraryError) && (
           <p className="text-sm text-warning-700 mt-2">
-            {savedPlacesError ||
+            {itineraryError ||
+              savedPlacesError ||
               googlePlacesError ||
               'Supabase trip data could not be loaded. Showing local places instead.'}
           </p>
+        )}
+        {itineraryMessage && (
+          <p className="text-sm text-success-700 mt-2">{itineraryMessage}</p>
         )}
       </div>
 
@@ -445,6 +537,7 @@ const Explore: React.FC = () => {
               onSave={(placeId) => void handleSave(placeId)}
               onAddToItinerary={handleAddToItinerary}
               onViewDetails={handleViewDetails}
+              isAddingToItinerary={addingItineraryPlaceIds.has(place.id)}
             />
           ))}
         </div>
@@ -476,6 +569,9 @@ const Explore: React.FC = () => {
         onClose={() => setSelectedPlace(null)}
         onSave={(placeId) => void handleSave(placeId)}
         onAddToItinerary={handleAddToItinerary}
+        isAddingToItinerary={
+          selectedPlace ? addingItineraryPlaceIds.has(selectedPlace.id) : false
+        }
       />
     </div>
   );

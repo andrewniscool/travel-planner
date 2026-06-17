@@ -49,7 +49,10 @@ import type {
   TripUpdate,
   TransportSegmentUpdate,
 } from './supabaseTypes';
-import type { TripWithRelations } from './travelDataService';
+import type {
+  TripStopWithLocationRef,
+  TripWithRelations,
+} from './travelDataService';
 
 const DEFAULT_TRIP_VIBE: TripVibe = 'Cultural';
 const DEFAULT_TRIP_STATUS: TripStatus = 'planning';
@@ -169,28 +172,43 @@ export function mapLocationRefRowToLocationRef(row: LocationRefRow): LocationRef
   };
 }
 
-function findPreviousStop(row: TripStopRow, previousStops: TripStop[]) {
+function findPreviousStop(
+  row: TripStopRow | TripStopWithLocationRef,
+  previousStops: TripStop[],
+) {
   return previousStops.find(
     (stop) => stop.id === row.id || stop.order === row.order_index,
   );
 }
 
-function mapStop(row: TripStopRow, previousStops: TripStop[]) {
+function getStopLocationRef(row: TripStopRow | TripStopWithLocationRef) {
+  if ('location_refs' in row && row.location_refs) {
+    return mapLocationRefRowToLocationRef(row.location_refs);
+  }
+
+  return undefined;
+}
+
+function mapStop(
+  row: TripStopRow | TripStopWithLocationRef,
+  previousStops: TripStop[],
+) {
   const previousStop = findPreviousStop(row, previousStops);
+  const locationRef = getStopLocationRef(row) ?? previousStop?.locationRef;
 
   return {
     id: row.id,
     tripId: row.trip_id,
-    name: row.name,
+    name: locationRef?.name ?? row.name,
     country: row.country ?? undefined,
     startDate: row.start_date ?? '',
     endDate: row.end_date ?? '',
     order: row.order_index,
     image: row.image ?? previousStop?.image,
-    latitude: row.latitude ?? previousStop?.latitude,
-    longitude: row.longitude ?? previousStop?.longitude,
+    latitude: row.latitude ?? locationRef?.latitude ?? previousStop?.latitude,
+    longitude: row.longitude ?? locationRef?.longitude ?? previousStop?.longitude,
     notes: row.notes ?? previousStop?.notes,
-    locationRef: previousStop?.locationRef,
+    locationRef,
   };
 }
 
@@ -231,7 +249,7 @@ function mapTransportSegment(
 
 export function mapTripRowToTrip(
   row: TripRow,
-  tripStops: TripStopRow[] = [],
+  tripStops: Array<TripStopRow | TripStopWithLocationRef> = [],
   transportSegments: TransportSegmentRow[] = [],
   previousTrip?: Trip,
 ): Trip {
@@ -335,7 +353,7 @@ export function mapTripStopToTripStopInsert(
     start_date: stop.startDate || null,
     end_date: stop.endDate || null,
     order_index: stop.order,
-    location_ref_id: stop.locationRef?.id ?? null,
+    location_ref_id: getPersistedLocationRefId(stop.locationRef),
     notes: stop.notes ?? null,
     image: stop.image ?? null,
     latitude: stop.latitude ?? null,
@@ -407,7 +425,7 @@ export function mapHotelToLodgingOptionInsert(
   return {
     trip_id: tripId,
     stop_id: hotel.stopId ?? null,
-    location_ref_id: hotel.locationRef?.id ?? null,
+    location_ref_id: getPersistedLocationRefId(hotel.locationRef),
     name: hotel.name,
     address: hotel.locationRef?.formattedAddress ?? hotel.neighborhood ?? null,
     neighborhood: hotel.neighborhood,
@@ -431,7 +449,7 @@ export function mapHotelToLodgingOptionUpdate(
 ): LodgingOptionUpdate {
   return {
     stop_id: hotel.stopId ?? null,
-    location_ref_id: hotel.locationRef?.id ?? null,
+    location_ref_id: getPersistedLocationRefId(hotel.locationRef),
     name: hotel.name,
     address: hotel.locationRef?.formattedAddress ?? hotel.neighborhood ?? null,
     neighborhood: hotel.neighborhood,
@@ -458,7 +476,7 @@ export function mapPlaceToSavedPlaceInsert(
   return {
     trip_id: tripId,
     stop_id: place.stopId ?? null,
-    location_ref_id: place.locationRef?.id ?? null,
+    location_ref_id: getPersistedLocationRefId(place.locationRef),
     name: place.name,
     type: place.category,
     category: place.category,
@@ -476,7 +494,7 @@ export function mapPlaceToSavedPlaceUpdate(
 ): SavedPlaceUpdate {
   return {
     stop_id: place.stopId ?? null,
-    location_ref_id: place.locationRef?.id ?? null,
+    location_ref_id: getPersistedLocationRefId(place.locationRef),
     name: place.name,
     type: place.category,
     category: place.category,

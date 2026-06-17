@@ -44,6 +44,15 @@ const corsHeaders = {
 
 const GOOGLE_PLACES_BASE_URL = 'https://places.googleapis.com/v1';
 const RATE_LIMIT_PER_MINUTE = 60;
+const MAX_QUERY_LENGTH = 200;
+const MAX_PLACE_ID_LENGTH = 200;
+const MAX_SESSION_TOKEN_LENGTH = 128;
+const MAX_LANGUAGE_CODE_LENGTH = 16;
+const MAX_REGION_CODE_LENGTH = 8;
+const MAX_INCLUDED_PRIMARY_TYPES = 5;
+const MAX_INCLUDED_PRIMARY_TYPE_LENGTH = 80;
+const MAX_TEXT_SEARCH_RESULTS = 10;
+const MAX_LOCATION_BIAS_RADIUS_METERS = 50000;
 const ACTION_COSTS: Record<NonNullable<PlacesRequestBody['action']>, number> = {
   autocomplete: 1,
   details: 5,
@@ -108,6 +117,161 @@ function requireString(value: unknown, fieldName: string) {
   }
 
   return value.trim();
+}
+
+function requireBoundedString(
+  value: unknown,
+  fieldName: string,
+  maxLength: number,
+) {
+  const stringValue = requireString(value, fieldName);
+  if (stringValue.length > maxLength) {
+    throw new Error(`${fieldName} is too long.`);
+  }
+
+  return stringValue;
+}
+
+function optionalBoundedString(
+  value: unknown,
+  fieldName: string,
+  maxLength: number,
+) {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value !== 'string') {
+    throw new Error(`${fieldName} must be a string.`);
+  }
+
+  const stringValue = value.trim();
+  if (!stringValue) return undefined;
+  if (stringValue.length > maxLength) {
+    throw new Error(`${fieldName} is too long.`);
+  }
+
+  return stringValue;
+}
+
+function optionalIncludedPrimaryTypes(value: unknown) {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) {
+    throw new Error('includedPrimaryTypes must be an array.');
+  }
+  if (value.length > MAX_INCLUDED_PRIMARY_TYPES) {
+    throw new Error('includedPrimaryTypes has too many values.');
+  }
+
+  return value.map((type) => {
+    if (typeof type !== 'string' || !type.trim()) {
+      throw new Error('includedPrimaryTypes values must be strings.');
+    }
+
+    const normalizedType = type.trim();
+    if (normalizedType.length > MAX_INCLUDED_PRIMARY_TYPE_LENGTH) {
+      throw new Error('includedPrimaryTypes value is too long.');
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(normalizedType)) {
+      throw new Error('includedPrimaryTypes value is invalid.');
+    }
+
+    return normalizedType;
+  });
+}
+
+function requireLatitude(value: unknown, fieldName: string) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`${fieldName} must be a number.`);
+  }
+  if (value < -90 || value > 90) {
+    throw new Error(`${fieldName} is out of range.`);
+  }
+
+  return value;
+}
+
+function requireLongitude(value: unknown, fieldName: string) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`${fieldName} must be a number.`);
+  }
+  if (value < -180 || value > 180) {
+    throw new Error(`${fieldName} is out of range.`);
+  }
+
+  return value;
+}
+
+function optionalLocationBias(value: unknown): LocationBias | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('locationBias must be an object.');
+  }
+
+  const bias = value as LocationBias;
+  if (bias.circle) {
+    const radius = bias.circle.radius;
+    if (typeof radius !== 'number' || !Number.isFinite(radius)) {
+      throw new Error('locationBias.circle.radius must be a number.');
+    }
+    if (radius <= 0 || radius > MAX_LOCATION_BIAS_RADIUS_METERS) {
+      throw new Error('locationBias.circle.radius is out of range.');
+    }
+
+    return {
+      circle: {
+        center: {
+          latitude: requireLatitude(
+            bias.circle.center?.latitude,
+            'locationBias.circle.center.latitude',
+          ),
+          longitude: requireLongitude(
+            bias.circle.center?.longitude,
+            'locationBias.circle.center.longitude',
+          ),
+        },
+        radius,
+      },
+    };
+  }
+
+  if (bias.rectangle) {
+    return {
+      rectangle: {
+        low: {
+          latitude: requireLatitude(
+            bias.rectangle.low?.latitude,
+            'locationBias.rectangle.low.latitude',
+          ),
+          longitude: requireLongitude(
+            bias.rectangle.low?.longitude,
+            'locationBias.rectangle.low.longitude',
+          ),
+        },
+        high: {
+          latitude: requireLatitude(
+            bias.rectangle.high?.latitude,
+            'locationBias.rectangle.high.latitude',
+          ),
+          longitude: requireLongitude(
+            bias.rectangle.high?.longitude,
+            'locationBias.rectangle.high.longitude',
+          ),
+        },
+      },
+    };
+  }
+
+  throw new Error('locationBias must include circle or rectangle.');
+}
+
+function optionalTextSearchResultCount(value: unknown) {
+  if (value === undefined || value === null) return undefined;
+  if (!Number.isInteger(value)) {
+    throw new Error('maxResultCount must be an integer.');
+  }
+  if (value < 1 || value > MAX_TEXT_SEARCH_RESULTS) {
+    throw new Error('maxResultCount is out of range.');
+  }
+
+  return value;
 }
 
 function getBearerToken(request: Request) {
@@ -188,19 +352,17 @@ async function callGooglePlaces(
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
-  const responseBody = await response.json().catch(() => ({}));
-
   if (!response.ok) {
     return jsonResponse(
       {
         error: 'Google Places request failed.',
         status: response.status,
-        details: responseBody,
       },
       response.status,
     );
   }
 
+  const responseBody = await response.json().catch(() => ({}));
   return jsonResponse(responseBody);
 }
 
@@ -245,6 +407,27 @@ Deno.serve(async (request) => {
       );
     }
 
+    const sessionToken = optionalBoundedString(
+      body.sessionToken,
+      'sessionToken',
+      MAX_SESSION_TOKEN_LENGTH,
+    );
+    const languageCode = optionalBoundedString(
+      body.languageCode,
+      'languageCode',
+      MAX_LANGUAGE_CODE_LENGTH,
+    );
+    const regionCode = optionalBoundedString(
+      body.regionCode,
+      'regionCode',
+      MAX_REGION_CODE_LENGTH,
+    );
+    const includedPrimaryTypes = optionalIncludedPrimaryTypes(
+      body.includedPrimaryTypes,
+    );
+    const locationBias = optionalLocationBias(body.locationBias);
+    const maxResultCount = optionalTextSearchResultCount(body.maxResultCount);
+
     const withinRateLimit = await consumeRateLimit(
       supabaseUrl,
       serviceRoleKey,
@@ -260,29 +443,31 @@ Deno.serve(async (request) => {
     }
 
     if (body.action === 'autocomplete') {
-      const input = requireString(body.input, 'input');
+      const input = requireBoundedString(body.input, 'input', MAX_QUERY_LENGTH);
       return callGooglePlaces('/places:autocomplete', {
         apiKey,
         fieldMask: AUTOCOMPLETE_FIELD_MASK,
         body: {
           input,
-          ...(body.sessionToken ? { sessionToken: body.sessionToken } : {}),
-          ...(body.languageCode ? { languageCode: body.languageCode } : {}),
-          ...(body.regionCode ? { regionCode: body.regionCode } : {}),
-          ...(body.includedPrimaryTypes
-            ? { includedPrimaryTypes: body.includedPrimaryTypes }
-            : {}),
-          ...(body.locationBias ? { locationBias: body.locationBias } : {}),
+          ...(sessionToken ? { sessionToken } : {}),
+          ...(languageCode ? { languageCode } : {}),
+          ...(regionCode ? { regionCode } : {}),
+          ...(includedPrimaryTypes ? { includedPrimaryTypes } : {}),
+          ...(locationBias ? { locationBias } : {}),
         },
       });
     }
 
     if (body.action === 'details') {
-      const placeId = requireString(body.placeId, 'placeId');
+      const placeId = requireBoundedString(
+        body.placeId,
+        'placeId',
+        MAX_PLACE_ID_LENGTH,
+      );
       const searchParams = new URLSearchParams();
-      if (body.sessionToken) searchParams.set('sessionToken', body.sessionToken);
-      if (body.languageCode) searchParams.set('languageCode', body.languageCode);
-      if (body.regionCode) searchParams.set('regionCode', body.regionCode);
+      if (sessionToken) searchParams.set('sessionToken', sessionToken);
+      if (languageCode) searchParams.set('languageCode', languageCode);
+      if (regionCode) searchParams.set('regionCode', regionCode);
 
       const query = searchParams.toString();
       return callGooglePlaces(
@@ -296,21 +481,23 @@ Deno.serve(async (request) => {
     }
 
     if (body.action === 'textSearch') {
-      const textQuery = requireString(body.textQuery, 'textQuery');
+      const textQuery = requireBoundedString(
+        body.textQuery,
+        'textQuery',
+        MAX_QUERY_LENGTH,
+      );
       return callGooglePlaces('/places:searchText', {
         apiKey,
         fieldMask: TEXT_SEARCH_FIELD_MASK,
         body: {
           textQuery,
-          ...(body.languageCode ? { languageCode: body.languageCode } : {}),
-          ...(body.regionCode ? { regionCode: body.regionCode } : {}),
-          ...(body.includedPrimaryTypes
-            ? { includedType: body.includedPrimaryTypes[0] }
+          ...(languageCode ? { languageCode } : {}),
+          ...(regionCode ? { regionCode } : {}),
+          ...(includedPrimaryTypes?.[0]
+            ? { includedType: includedPrimaryTypes[0] }
             : {}),
-          ...(body.locationBias ? { locationBias: body.locationBias } : {}),
-          ...(body.maxResultCount
-            ? { maxResultCount: body.maxResultCount }
-            : {}),
+          ...(locationBias ? { locationBias } : {}),
+          ...(maxResultCount ? { maxResultCount } : {}),
         },
       });
     }

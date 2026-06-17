@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { MapPin, Calendar, Users, DollarSign, FileText, ArrowRight, Plus, Trash2, ChevronDown } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
+import LocationInput from '../components/ui/LocationInput';
 import Button from '../components/ui/Button';
 import ImagePlaceholder from '../components/ui/ImagePlaceholder';
 import Badge from '../components/ui/Badge';
@@ -12,10 +13,20 @@ import { getTripFromStorageOrMock } from '../hooks/useTrip';
 import { useServiceTrip } from '../hooks/useServiceTrips';
 import {
   getAuthenticatedUserId,
+  locationRefService,
   tripService,
 } from '../services/travelDataService';
-import { mapTripWithRelationsToTrip } from '../services/tripMappers';
-import type { BudgetCurrency, Trip, TripStop, TripVibe } from '../types';
+import {
+  mapLocationRefRowToLocationRef,
+  mapTripWithRelationsToTrip,
+} from '../services/tripMappers';
+import type {
+  BudgetCurrency,
+  LocationRef,
+  Trip,
+  TripStop,
+  TripVibe,
+} from '../types';
 
 const VIBE_OPTIONS: TripVibe[] = [
   'Relaxing',
@@ -47,6 +58,7 @@ interface StopForm {
   startDate: string;
   endDate: string;
   notes: string;
+  locationRef: LocationRef | null;
 }
 
 const emptyStop = (): StopForm => ({
@@ -55,7 +67,22 @@ const emptyStop = (): StopForm => ({
   startDate: '',
   endDate: '',
   notes: '',
+  locationRef: null,
 });
+
+const makeManualStopLocation = (name: string): LocationRef | null => {
+  const trimmedName = name.trim();
+  if (!trimmedName) return null;
+
+  return {
+    id: `manual-${trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'location'}`,
+    name: trimmedName,
+    source: 'manual',
+  };
+};
+
+const getStopFormLocationRef = (stop: TripStop) =>
+  stop.locationRef ?? makeManualStopLocation(stop.name);
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return '';
@@ -99,6 +126,38 @@ const persistStoredCurrency = (tripId: string, currency: BudgetCurrency) => {
   }
 };
 
+const persistTripStopLocationRefs = async (
+  userId: string,
+  trip: Trip,
+): Promise<Trip> => {
+  const stops = await Promise.all(
+    trip.stops.map(async (stop) => {
+      if (!stop.locationRef?.googlePlaceId) return stop;
+
+      const row = await locationRefService.upsertGoogleLocationRef(
+        userId,
+        stop.locationRef,
+      );
+      const locationRef = mapLocationRefRowToLocationRef(row);
+
+      return {
+        ...stop,
+        name: locationRef.name,
+        latitude: locationRef.latitude ?? stop.latitude,
+        longitude: locationRef.longitude ?? stop.longitude,
+        locationRef,
+      };
+    }),
+  );
+
+  return {
+    ...trip,
+    stops,
+    destination: stops.length === 1 ? stops[0].name : trip.title,
+    country: stops[0]?.country ?? trip.country,
+  };
+};
+
 const CreateTrip: React.FC = () => {
   const navigate = useNavigate();
   const { tripId } = useParams<{ tripId: string }>();
@@ -130,6 +189,7 @@ const CreateTrip: React.FC = () => {
             startDate: stop.startDate,
             endDate: stop.endDate,
             notes: stop.notes ?? '',
+            locationRef: getStopFormLocationRef(stop),
           }))
       : [emptyStop()]
   );
@@ -167,6 +227,7 @@ const CreateTrip: React.FC = () => {
             startDate: stop.startDate,
             endDate: stop.endDate,
             notes: stop.notes ?? '',
+            locationRef: getStopFormLocationRef(stop),
           }))
         : [emptyStop()],
     );
@@ -304,6 +365,9 @@ const CreateTrip: React.FC = () => {
       endDate: stop.endDate || stop.startDate || endDate,
       order: index + 1,
       notes: stop.notes.trim() || undefined,
+      locationRef: stop.locationRef ?? undefined,
+      latitude: stop.locationRef?.latitude,
+      longitude: stop.locationRef?.longitude,
     }));
 
     return {
@@ -372,11 +436,21 @@ const CreateTrip: React.FC = () => {
         Boolean(userId) && (!isEditing || serviceTripSource === 'supabase');
 
       if (userId && shouldSaveToSupabase) {
+        const tripWithPersistedLocations = await persistTripStopLocationRefs(
+          userId,
+          trip,
+        );
         const savedRow =
           isEditing && serviceExistingTrip
-            ? await tripService.updateTripWithStops(trip)
-            : await tripService.createTripWithStops(userId, trip);
-        const savedTrip = mapTripWithRelationsToTrip(savedRow, trip);
+            ? await tripService.updateTripWithStops(tripWithPersistedLocations)
+            : await tripService.createTripWithStops(
+                userId,
+                tripWithPersistedLocations,
+              );
+        const savedTrip = mapTripWithRelationsToTrip(
+          savedRow,
+          tripWithPersistedLocations,
+        );
 
         saveTripLocally(savedTrip);
         persistStoredCurrency(savedTrip.id, budgetCurrency);
@@ -465,10 +539,17 @@ const CreateTrip: React.FC = () => {
                     )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Input
+                    <LocationInput
                       label="City / Destination"
-                      value={stop.name}
-                      onChange={(e) => updateStop(index, { name: e.target.value })}
+                      value={stop.locationRef}
+                      onChange={(location) =>
+                        updateStop(index, {
+                          name: location?.name ?? '',
+                          locationRef: location,
+                        })
+                      }
+                      placeholder="Search for a city or destination"
+                      required
                       error={getStopFieldError(index, 'name')}
                     />
                     <Input label="Country" value={stop.country} onChange={(e) => updateStop(index, { country: e.target.value })} />

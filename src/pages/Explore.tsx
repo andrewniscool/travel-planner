@@ -6,16 +6,22 @@ import { getPlacesByTripId } from '../data/places';
 import { useServiceTrip } from '../hooks/useServiceTrips';
 import {
   getAuthenticatedUserId,
+  locationRefService,
   savedPlaceService,
 } from '../services/travelDataService';
-import { getPlaceIdFromSavedPlace } from '../services/tripMappers';
+import {
+  getPlaceIdFromSavedPlace,
+  mapLocationRefRowToLocationRef,
+} from '../services/tripMappers';
+import { placesService } from '../services/placesService';
+import { isSupabaseConfigured } from '../services/supabaseClient';
 import FilterTabs from '../components/ui/FilterTabs';
 import SearchBar from '../components/ui/SearchBar';
 import EmptyState from '../components/ui/EmptyState';
 import PlaceCard from '../components/explore/PlaceCard';
 import PlaceDetailModal from '../components/explore/PlaceDetailModal';
 import StopSelector from '../components/trips/StopSelector';
-import type { Place, PlaceCategory } from '../types';
+import type { LocationRef, Place, PlaceCategory } from '../types';
 
 const CATEGORIES: (PlaceCategory | 'All')[] = [
   'All',
@@ -31,6 +37,8 @@ const CATEGORIES: (PlaceCategory | 'All')[] = [
 ];
 
 const LOCAL_SAVED_PLACES_KEY = 'travel-builder:saved-places';
+const GOOGLE_PLACE_IMAGE =
+  'https://images.pexels.com/photos/2422461/pexels-photo-2422461.jpeg?auto=compress&cs=tinysrgb&w=600';
 
 const loadSavedPlaces = (tripId: string, initialSavedPlaceIds: string[]) => {
   try {
@@ -58,6 +66,58 @@ const persistSavedPlaces = (tripId: string, placeIds: Set<string>) => {
       JSON.stringify({ [tripId]: [...placeIds] }),
     );
   }
+};
+
+const getCategoryFromGoogleTypes = (
+  location: LocationRef,
+  activeCategory: string,
+): PlaceCategory => {
+  if (activeCategory !== 'All') return activeCategory as PlaceCategory;
+
+  const types = location.placeTypes ?? [];
+  if (types.some((type) => ['restaurant', 'meal_takeaway', 'food'].includes(type))) {
+    return 'Restaurants';
+  }
+  if (types.some((type) => ['cafe', 'bakery'].includes(type))) return 'Cafes';
+  if (types.some((type) => ['museum', 'art_gallery'].includes(type))) return 'Museums';
+  if (types.some((type) => ['park', 'campground', 'tourist_attraction'].includes(type))) {
+    return 'Outdoor';
+  }
+  if (types.some((type) => ['bar', 'night_club'].includes(type))) return 'Nightlife';
+  if (types.some((type) => ['shopping_mall', 'store'].includes(type))) return 'Shopping';
+  if (types.some((type) => ['travel_agency'].includes(type))) return 'Tours';
+
+  return 'Landmarks';
+};
+
+const mapLocationRefToPlace = (
+  tripId: string,
+  stopId: string | undefined,
+  location: LocationRef,
+  activeCategory: string,
+): Place => {
+  const category = getCategoryFromGoogleTypes(location, activeCategory);
+  const tags = location.placeTypes?.slice(0, 3).map((type) => type.replace(/_/g, ' ')) ?? [];
+
+  return {
+    id: location.googlePlaceId ? `google-${location.googlePlaceId}` : location.id,
+    tripId,
+    stopId,
+    name: location.displayName ?? location.name,
+    image: location.photoUrls?.[0] ?? GOOGLE_PLACE_IMAGE,
+    category,
+    rating: location.rating ?? 0,
+    reviewCount: location.reviewCount ?? 0,
+    priceRange: location.priceRange ?? location.priceLevel ?? 'Not listed',
+    location: location.formattedAddress ?? location.name,
+    locationRef: location,
+    reviewSnippet: location.formattedAddress
+      ? `Found near ${location.formattedAddress}.`
+      : 'Found through Google Places.',
+    tags,
+    description: location.formattedAddress,
+    hours: location.regularOpeningHours?.[0],
+  };
 };
 
 const Explore: React.FC = () => {
@@ -103,8 +163,10 @@ const Explore: React.FC = () => {
   const [savedPlaces, setSavedPlaces] = useState<Set<string>>(() =>
     trip ? loadSavedPlaces(trip.id, initialSavedPlaceIds) : new Set(),
   );
-  const [savedPlacesSource, setSavedPlacesSource] = useState<'supabase' | 'fallback'>('fallback');
   const [savedPlacesError, setSavedPlacesError] = useState<string | null>(null);
+  const [googlePlaces, setGooglePlaces] = useState<Place[]>([]);
+  const [isSearchingGoogle, setIsSearchingGoogle] = useState(false);
+  const [googlePlacesError, setGooglePlacesError] = useState<string | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
   useEffect(() => {
@@ -113,7 +175,6 @@ const Explore: React.FC = () => {
     let cancelled = false;
 
     setSavedPlaces(localSavedPlaces);
-    setSavedPlacesSource('fallback');
     setSavedPlacesError(null);
 
     async function loadSupabaseSavedPlaces() {
@@ -136,7 +197,6 @@ const Explore: React.FC = () => {
 
         setSavedPlaces(nextSavedPlaces);
         persistSavedPlaces(trip.id, nextSavedPlaces);
-        setSavedPlacesSource('supabase');
       } catch {
         if (cancelled) return;
         setSavedPlacesError('Supabase saved places could not be loaded. Showing local saved places instead.');
@@ -150,8 +210,91 @@ const Explore: React.FC = () => {
     };
   }, [initialSavedPlaceIds, trip, tripSource]);
 
+  useEffect(() => {
+    if (!trip || !selectedStop || tripSource !== 'supabase' || !isSupabaseConfigured) {
+      setGooglePlaces([]);
+      setIsSearchingGoogle(false);
+      setGooglePlacesError(null);
+      return;
+    }
+
+    const trimmedSearch = searchQuery.trim();
+    const shouldSearchGoogle = trimmedSearch.length >= 2 || activeCategory !== 'All';
+    if (!shouldSearchGoogle) {
+      setGooglePlaces([]);
+      setIsSearchingGoogle(false);
+      setGooglePlacesError(null);
+      return;
+    }
+
+    const searchLabel = activeCategory === 'All' ? 'places' : activeCategory.toLowerCase();
+    const textQuery = `${trimmedSearch || searchLabel} in ${selectedStop.name}`;
+    const locationBias =
+      selectedStop.locationRef?.latitude != null && selectedStop.locationRef?.longitude != null
+        ? {
+            circle: {
+              center: {
+                latitude: selectedStop.locationRef.latitude,
+                longitude: selectedStop.locationRef.longitude,
+              },
+              radius: 15000,
+            },
+          }
+        : undefined;
+    let cancelled = false;
+
+    setIsSearchingGoogle(true);
+    setGooglePlacesError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      getAuthenticatedUserId()
+        .then((userId) => {
+          if (!userId) return [];
+          return placesService.textSearch(textQuery, {
+            locationBias,
+            maxResultCount: 9,
+          });
+        })
+        .then((locations) => {
+          if (cancelled) return;
+          setGooglePlaces(
+            locations.map((location) =>
+              mapLocationRefToPlace(
+                trip.id,
+                selectedStop.id,
+                location,
+                activeCategory,
+              ),
+            ),
+          );
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setGooglePlaces([]);
+          setGooglePlacesError('Google Places search is unavailable. Showing saved and local places instead.');
+        })
+        .finally(() => {
+          if (cancelled) return;
+          setIsSearchingGoogle(false);
+        });
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeCategory, searchQuery, selectedStop, trip, tripSource]);
+
+  const availablePlaces = useMemo(() => {
+    const placesById = new Map<string, Place>();
+    [...stopPlaces, ...googlePlaces].forEach((place) => {
+      placesById.set(place.id, place);
+    });
+    return [...placesById.values()];
+  }, [googlePlaces, stopPlaces]);
+
   const filteredPlaces = useMemo(() => {
-    let places = stopPlaces;
+    let places = availablePlaces;
 
     // Filter by category
     if (activeCategory !== 'All') {
@@ -174,11 +317,11 @@ const Explore: React.FC = () => {
       ...p,
       isSaved: savedPlaces.has(p.id),
     }));
-  }, [stopPlaces, activeCategory, searchQuery, savedPlaces]);
+  }, [availablePlaces, activeCategory, searchQuery, savedPlaces]);
 
   const handleSave = async (placeId: string) => {
     if (!trip) return;
-    const place = allPlaces.find((item) => item.id === placeId);
+    const place = availablePlaces.find((item) => item.id === placeId);
     if (!place) return;
 
     const next = new Set(savedPlaces);
@@ -188,34 +331,49 @@ const Explore: React.FC = () => {
     setSavedPlaces(next);
     persistSavedPlaces(trip.id, next);
 
-    if (savedPlacesSource !== 'supabase') return;
+    if (tripSource !== 'supabase') return;
 
     try {
       const userId = await getAuthenticatedUserId();
       if (!userId) {
         setSavedPlacesError('Saved locally. Sign-in is not connected yet.');
-        setSavedPlacesSource('fallback');
         return;
       }
 
-      await savedPlaceService.upsertSavedPlace(trip.id, place, next.has(placeId));
+      const placeToSave =
+        place.locationRef?.googlePlaceId && next.has(placeId)
+          ? {
+              ...place,
+              locationRef: mapLocationRefRowToLocationRef(
+                await locationRefService.upsertGoogleLocationRef(
+                  userId,
+                  place.locationRef,
+                ),
+              ),
+            }
+          : place;
+
+      await savedPlaceService.upsertSavedPlace(
+        trip.id,
+        placeToSave,
+        next.has(placeId),
+      );
       setSavedPlacesError(null);
     } catch {
       setSavedPlacesError('Supabase saved place update failed. Saved locally instead.');
-      setSavedPlacesSource('fallback');
     }
   };
 
   const handleAddToItinerary = (placeId: string) => {
     // Placeholder: would add to itinerary
-    const place = allPlaces.find((p) => p.id === placeId);
+    const place = availablePlaces.find((p) => p.id === placeId);
     if (place) {
       alert(`Added "${place.name}" to your itinerary!`);
     }
   };
 
   const handleViewDetails = (placeId: string) => {
-    const place = allPlaces.find((p) => p.id === placeId);
+    const place = availablePlaces.find((p) => p.id === placeId);
     if (place) {
       setSelectedPlace({ ...place, isSaved: savedPlaces.has(placeId) });
     }
@@ -231,9 +389,11 @@ const Explore: React.FC = () => {
         <p className="text-sm text-neutral-500 mt-1">
           Discover places and activities in {selectedStop?.name || trip?.destination || 'your destination'}
         </p>
-        {(serviceTripError || savedPlacesError) && (
+        {(serviceTripError || savedPlacesError || googlePlacesError) && (
           <p className="text-sm text-warning-700 mt-2">
-            {savedPlacesError || 'Supabase trip data could not be loaded. Showing local places instead.'}
+            {savedPlacesError ||
+              googlePlacesError ||
+              'Supabase trip data could not be loaded. Showing local places instead.'}
           </p>
         )}
       </div>
@@ -265,15 +425,16 @@ const Explore: React.FC = () => {
           {filteredPlaces.length} {filteredPlaces.length === 1 ? 'place' : 'places'} found
           {activeCategory !== 'All' && ` in ${activeCategory}`}
           {searchQuery && ` matching "${searchQuery}"`}
+          {isSearchingGoogle && ' · searching Google Places'}
         </p>
       </div>
 
       {/* Place Cards Grid */}
-      {stopPlaces.length === 0 ? (
+      {availablePlaces.length === 0 && !isSearchingGoogle ? (
         <EmptyState
           icon={<Compass className="w-8 h-8" />}
           title={selectedStop ? `No places in ${selectedStop.name} yet` : 'No places yet'}
-          description="Restaurants, activities, and saved places for this stop will appear here once they are added."
+          description="Search by name or category to find places from Google."
         />
       ) : filteredPlaces.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

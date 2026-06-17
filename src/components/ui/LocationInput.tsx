@@ -16,6 +16,7 @@ interface LocationInputProps {
   required?: boolean;
   className?: string;
   useGooglePlaces?: boolean;
+  error?: string;
 }
 
 type LocationSuggestion =
@@ -36,6 +37,7 @@ const LocationInput: React.FC<LocationInputProps> = ({
   required = false,
   className = '',
   useGooglePlaces = true,
+  error,
 }) => {
   const inputId = useId();
   const [query, setQuery] = useState(value?.name ?? '');
@@ -49,6 +51,10 @@ const LocationInput: React.FC<LocationInputProps> = ({
     crypto.randomUUID?.() ?? String(Date.now()),
   );
   const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    setQuery(value?.name ?? '');
+  }, [value?.name]);
 
   const mockSuggestions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -177,9 +183,11 @@ const LocationInput: React.FC<LocationInputProps> = ({
           onFocus={() => setIsOpen(true)}
           onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
           placeholder={placeholder}
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+          aria-invalid={Boolean(error)}
+          className={`w-full pl-10 pr-4 py-2.5 rounded-xl border bg-white text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${error ? 'border-error-400 text-error-500' : 'border-neutral-200'}`}
         />
       </div>
+      {error && <p className="mt-1.5 text-sm text-error-500">{error}</p>}
 
       {isOpen && (
         <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-neutral-100 bg-white shadow-lg">

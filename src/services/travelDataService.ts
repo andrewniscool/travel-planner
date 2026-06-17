@@ -66,8 +66,12 @@ import type {
 } from './supabaseTypes';
 
 export interface TripWithRelations extends TripRow {
-  trip_stops: TripStopRow[];
+  trip_stops: TripStopWithLocationRef[];
   transport_segments: TransportSegmentRow[];
+}
+
+export interface TripStopWithLocationRef extends TripStopRow {
+  location_refs: LocationRefRow | null;
 }
 
 export async function getAuthenticatedUserId(): Promise<string | null> {
@@ -136,7 +140,7 @@ export const tripService = {
   async listTripsWithRelations(userId: string): Promise<TripWithRelations[]> {
     const { data, error } = await getSupabaseClient()
       .from('trips')
-      .select('*, trip_stops(*), transport_segments(*)')
+      .select('*, trip_stops(*, location_refs(*)), transport_segments(*)')
       .eq('user_id', userId)
       .order('start_date', { ascending: true, nullsFirst: false })
       .order('order_index', {
@@ -156,7 +160,7 @@ export const tripService = {
   async getTrip(tripId: string): Promise<TripWithRelations | null> {
     const { data, error } = await getSupabaseClient()
       .from('trips')
-      .select('*, trip_stops(*), transport_segments(*)')
+      .select('*, trip_stops(*, location_refs(*)), transport_segments(*)')
       .eq('id', tripId)
       .maybeSingle();
 

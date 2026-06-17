@@ -74,6 +74,14 @@ export interface TripStopWithLocationRef extends TripStopRow {
   location_refs: LocationRefRow | null;
 }
 
+export interface SavedPlaceWithLocationRef extends SavedPlaceRow {
+  location_refs: LocationRefRow | null;
+}
+
+export interface ItineraryItemWithLocationRef extends ItineraryItemRow {
+  location_refs: LocationRefRow | null;
+}
+
 export async function getAuthenticatedUserId(): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
 
@@ -516,10 +524,10 @@ export const lodgingService = {
 };
 
 export const savedPlaceService = {
-  async listSavedPlaces(tripId: string): Promise<SavedPlaceRow[]> {
+  async listSavedPlaces(tripId: string): Promise<SavedPlaceWithLocationRef[]> {
     const { data, error } = await getSupabaseClient()
       .from('saved_places')
-      .select('*')
+      .select('*, location_refs(*)')
       .eq('trip_id', tripId)
       .order('created_at', { ascending: false });
 
@@ -553,10 +561,10 @@ export const savedPlaceService = {
 };
 
 export const itineraryService = {
-  async listItineraryItems(tripId: string): Promise<ItineraryItemRow[]> {
+  async listItineraryItems(tripId: string): Promise<ItineraryItemWithLocationRef[]> {
     const { data, error } = await getSupabaseClient()
       .from('itinerary_items')
-      .select('*')
+      .select('*, location_refs(*)')
       .eq('trip_id', tripId)
       .order('date', { ascending: true })
       .order('order_index', { ascending: true });
@@ -576,7 +584,7 @@ export const itineraryService = {
     const { data, error } = await getSupabaseClient()
       .from('itinerary_items')
       .insert(item)
-      .select()
+      .select('*, location_refs(*)')
       .single();
 
     if (error) throw error;
@@ -591,7 +599,7 @@ export const itineraryService = {
       .from('itinerary_items')
       .update(updates)
       .eq('id', itemId)
-      .select()
+      .select('*, location_refs(*)')
       .single();
 
     if (error) throw error;

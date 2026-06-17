@@ -13,6 +13,7 @@ import {
 import {
   getPlaceIdFromSavedPlace,
   mapLocationRefRowToLocationRef,
+  mapSavedPlaceRowToPlace,
 } from '../services/tripMappers';
 import { placesService } from '../services/placesService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
@@ -191,6 +192,7 @@ const Explore: React.FC = () => {
     trip ? loadSavedPlaces(trip.id, initialSavedPlaceIds) : new Set(),
   );
   const [savedPlacesError, setSavedPlacesError] = useState<string | null>(null);
+  const [serviceSavedPlaces, setServiceSavedPlaces] = useState<Place[]>([]);
   const [googlePlaces, setGooglePlaces] = useState<Place[]>([]);
   const [isSearchingGoogle, setIsSearchingGoogle] = useState(false);
   const [googlePlacesError, setGooglePlacesError] = useState<string | null>(null);
@@ -207,6 +209,7 @@ const Explore: React.FC = () => {
     let cancelled = false;
 
     setSavedPlaces(localSavedPlaces);
+    setServiceSavedPlaces([]);
     setSavedPlacesError(null);
 
     async function loadSupabaseSavedPlaces() {
@@ -222,11 +225,15 @@ const Explore: React.FC = () => {
         const savedPlaceIds = rows
           .filter((row) => row.is_saved)
           .map(getPlaceIdFromSavedPlace);
+        const nextServiceSavedPlaces = rows
+          .filter((row) => row.is_saved)
+          .map((row) => mapSavedPlaceRowToPlace(row, trip.id));
         const nextSavedPlaces = new Set([
           ...initialSavedPlaceIds,
           ...savedPlaceIds,
         ]);
 
+        setServiceSavedPlaces(nextServiceSavedPlaces);
         setSavedPlaces(nextSavedPlaces);
         persistSavedPlaces(trip.id, nextSavedPlaces);
       } catch {
@@ -317,13 +324,20 @@ const Explore: React.FC = () => {
     };
   }, [activeCategory, searchQuery, selectedStop, trip, tripSource]);
 
+  const serviceStopPlaces = useMemo(() => {
+    if (!selectedStop) return serviceSavedPlaces;
+    return serviceSavedPlaces.filter((place) =>
+      place.stopId === selectedStop.id || (!place.stopId && orderedStops.length <= 1)
+    );
+  }, [orderedStops.length, selectedStop, serviceSavedPlaces]);
+
   const availablePlaces = useMemo(() => {
     const placesById = new Map<string, Place>();
-    [...stopPlaces, ...googlePlaces].forEach((place) => {
+    [...stopPlaces, ...serviceStopPlaces, ...googlePlaces].forEach((place) => {
       placesById.set(place.id, place);
     });
     return [...placesById.values()];
-  }, [googlePlaces, stopPlaces]);
+  }, [googlePlaces, serviceStopPlaces, stopPlaces]);
 
   const filteredPlaces = useMemo(() => {
     let places = availablePlaces;

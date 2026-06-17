@@ -24,7 +24,7 @@ import {
 } from '../services/travelDataService';
 import {
   getHotelIdFromLodgingOption,
-  getPlaceIdFromSavedPlace,
+  mapSavedPlaceRowToPlace,
 } from '../services/tripMappers';
 import RatingStars from '../components/ui/RatingStars';
 import type {
@@ -38,7 +38,6 @@ import type {
 } from '../types';
 import type {
   LodgingOptionRow,
-  SavedPlaceRow,
 } from '../services/supabaseTypes';
 
 type CategoryFilter = 'Hotels' | 'Food' | 'Activities' | 'Itinerary' | 'Transport';
@@ -74,12 +73,6 @@ const placeCategoryMap: Record<PlaceCategory, CategoryFilter> = {
   'Hidden Gems': 'Activities',
 };
 
-const isPlaceCategory = (category?: string | null): category is PlaceCategory =>
-  Boolean(category && category in placeCategoryMap);
-
-const getSavedPlaceCategory = (row: SavedPlaceRow): PlaceCategory =>
-  isPlaceCategory(row.category) ? row.category : 'Hidden Gems';
-
 const mapLodgingOptionToHotel = (
   row: LodgingOptionRow,
   tripId: string,
@@ -98,23 +91,6 @@ const mapLodgingOptionToHotel = (
   distanceToCenter: '',
   description: row.notes ?? '',
   isSelected: row.is_selected || row.is_saved,
-});
-
-const mapSavedPlaceToPlace = (row: SavedPlaceRow, tripId: string): Place => ({
-  id: getPlaceIdFromSavedPlace(row),
-  tripId,
-  stopId: row.stop_id ?? undefined,
-  name: row.name,
-  image: '',
-  category: getSavedPlaceCategory(row),
-  rating: 0,
-  reviewCount: 0,
-  priceRange: '',
-  location: row.address ?? 'Saved place',
-  reviewSnippet: row.notes ?? '',
-  tags: [getSavedPlaceCategory(row)],
-  description: row.notes ?? undefined,
-  isSaved: row.is_saved,
 });
 
 const mergeHotels = (baseHotels: Hotel[], savedHotels: Hotel[]) => {
@@ -386,7 +362,7 @@ const MapPage: React.FC = () => {
         setServicePlaces(
           savedPlaceRows
             .filter((row) => row.is_saved)
-            .map((row) => mapSavedPlaceToPlace(row, trip.id)),
+            .map((row) => mapSavedPlaceRowToPlace(row, trip.id)),
         );
         setServiceItineraryDays(supabaseItineraryDays);
         setMapDataSource('supabase');

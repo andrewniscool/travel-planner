@@ -50,6 +50,8 @@ import type {
   TransportSegmentUpdate,
 } from './supabaseTypes';
 import type {
+  ItineraryItemWithLocationRef,
+  SavedPlaceWithLocationRef,
   TripStopWithLocationRef,
   TripWithRelations,
 } from './travelDataService';
@@ -110,6 +112,20 @@ function isItineraryItemType(type: string): type is ItineraryItemType {
     'free-time',
     'transport',
   ].includes(type);
+}
+
+function isPlaceCategory(category: string): category is Place['category'] {
+  return [
+    'Restaurants',
+    'Cafes',
+    'Museums',
+    'Outdoor',
+    'Nightlife',
+    'Shopping',
+    'Tours',
+    'Landmarks',
+    'Hidden Gems',
+  ].includes(category);
 }
 
 function isChecklistCategory(
@@ -510,23 +526,76 @@ export function getPlaceIdFromSavedPlace(row: SavedPlaceRow): string {
   return row.source_id ?? row.id;
 }
 
+function getSavedPlaceLocationRef(
+  row: SavedPlaceRow | SavedPlaceWithLocationRef,
+) {
+  if ('location_refs' in row && row.location_refs) {
+    return mapLocationRefRowToLocationRef(row.location_refs);
+  }
+
+  return undefined;
+}
+
+export function mapSavedPlaceRowToPlace(
+  row: SavedPlaceRow | SavedPlaceWithLocationRef,
+  tripId: string,
+): Place {
+  const locationRef = getSavedPlaceLocationRef(row);
+  const category =
+    row.category && isPlaceCategory(row.category)
+      ? row.category
+      : 'Hidden Gems';
+
+  return {
+    id: getPlaceIdFromSavedPlace(row),
+    tripId,
+    stopId: row.stop_id ?? undefined,
+    name: locationRef?.displayName ?? locationRef?.name ?? row.name,
+    image: locationRef?.photoUrls?.[0] ?? '',
+    category,
+    rating: locationRef?.rating ?? 0,
+    reviewCount: locationRef?.reviewCount ?? 0,
+    priceRange: locationRef?.priceRange ?? locationRef?.priceLevel ?? '',
+    location: locationRef?.formattedAddress ?? row.address ?? 'Saved place',
+    locationRef,
+    reviewSnippet: row.notes ?? '',
+    tags: locationRef?.placeTypes?.slice(0, 3).map((type) => type.replace(/_/g, ' ')) ?? [category],
+    description: row.notes ?? undefined,
+    hours: locationRef?.regularOpeningHours?.[0],
+    isSaved: row.is_saved,
+  };
+}
+
+function getItineraryItemLocationRef(
+  row: ItineraryItemRow | ItineraryItemWithLocationRef,
+) {
+  if ('location_refs' in row && row.location_refs) {
+    return mapLocationRefRowToLocationRef(row.location_refs);
+  }
+
+  return undefined;
+}
+
 export function mapItineraryItemRowToItineraryItem(
-  row: ItineraryItemRow,
+  row: ItineraryItemRow | ItineraryItemWithLocationRef,
 ): ItineraryItem {
+  const locationRef = getItineraryItemLocationRef(row);
+
   return {
     id: row.id,
     stopId: row.stop_id ?? undefined,
     time: row.start_time?.slice(0, 5) ?? '',
     name: row.title,
     type: isItineraryItemType(row.item_type) ? row.item_type : 'activity',
-    location: row.location_text ?? '',
+    location: locationRef?.formattedAddress ?? row.location_text ?? '',
+    locationRef,
     estimatedCost: row.estimated_cost ?? 0,
     notes: row.notes ?? '',
   };
 }
 
 export function mapItineraryRowsToDays(
-  rows: ItineraryItemRow[],
+  rows: Array<ItineraryItemRow | ItineraryItemWithLocationRef>,
 ): ItineraryDay[] {
   const sortedRows = [...rows].sort((a, b) => {
     const dateCompare = a.date.localeCompare(b.date);

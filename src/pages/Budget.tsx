@@ -308,6 +308,7 @@ const Budget: React.FC = () => {
   );
   const [expenseSource, setExpenseSource] = useState<'supabase' | 'fallback'>('fallback');
   const [expenseError, setExpenseError] = useState<string | null>(null);
+  const [categorySource, setCategorySource] = useState<'supabase' | 'fallback'>('fallback');
   const [isSavingExpense, setIsSavingExpense] = useState(false);
   const [expenseListModalOpen, setExpenseListModalOpen] = useState(false);
   const [expenseManagerMode, setExpenseManagerMode] = useState<'list' | 'form'>('list');
@@ -321,32 +322,49 @@ const Budget: React.FC = () => {
   useEffect(() => {
     if (!tripId) return;
     const localExpenses = loadStoredExpenses(tripId);
+    const localAllocations = loadStoredAllocations(tripId);
     let cancelled = false;
 
     setExpenses(localExpenses);
+    setAllocationOverrides(localAllocations);
     setExpenseSource('fallback');
+    setCategorySource('fallback');
     setExpenseError(null);
 
-    async function loadSupabaseExpenses() {
+    async function loadSupabaseBudgetData() {
       if (!tripId || tripSource !== 'supabase') return;
 
       try {
         const userId = await getAuthenticatedUserId();
         if (!userId) return;
 
-        const rows = await budgetService.listBudgetExpenses(tripId);
+        const [rows, categories] = await Promise.all([
+          budgetService.listBudgetExpenses(tripId),
+          budgetService.listBudgetCategories(tripId),
+        ]);
         if (cancelled) return;
 
+        const nextAllocations = categories.reduce<Record<string, number>>(
+          (allocations, category) => ({
+            ...allocations,
+            [getCategoryAllocationKey(category)]: category.allocated,
+          }),
+          {},
+        );
+
         setExpenses(rows);
+        setAllocationOverrides(nextAllocations);
         persistStoredExpenses(tripId, rows);
+        persistStoredAllocations(tripId, nextAllocations);
         setExpenseSource('supabase');
+        setCategorySource('supabase');
       } catch {
         if (cancelled) return;
-        setExpenseError('Supabase budget expenses could not be loaded. Showing local expenses instead.');
+        setExpenseError('Supabase budget data could not be loaded. Showing local budget data instead.');
       }
     }
 
-    void loadSupabaseExpenses();
+    void loadSupabaseBudgetData();
 
     return () => {
       cancelled = true;
@@ -355,9 +373,11 @@ const Budget: React.FC = () => {
 
   useEffect(() => {
     if (!tripId) return;
-    setAllocationOverrides(loadStoredAllocations(tripId));
+    if (categorySource !== 'supabase') {
+      setAllocationOverrides(loadStoredAllocations(tripId));
+    }
     setBudgetCurrency(trip?.budgetCurrency ?? loadStoredCurrency(tripId));
-  }, [trip?.budgetCurrency, tripId]);
+  }, [categorySource, trip?.budgetCurrency, tripId]);
 
   const formatMoney = useMemo(
     () =>
@@ -540,16 +560,42 @@ const Budget: React.FC = () => {
     setCurrencyForm(budgetCurrency);
   };
 
-  const handleSaveBudgetAllocation = () => {
+  const handleSaveBudgetAllocation = async () => {
     if (!trip || !selectedCategory) return;
     const allocated = Number(allocationForm);
     if (!Number.isFinite(allocated) || allocated < 0) return;
 
-    updateAllocationOverrides({
+    const nextOverrides = {
       ...allocationOverrides,
       [getCategoryAllocationKey(selectedCategory)]: allocated,
-    });
+    };
+    updateAllocationOverrides(nextOverrides);
     updateBudgetCurrency(currencyForm);
+
+    if (categorySource === 'supabase') {
+      try {
+        const userId = await getAuthenticatedUserId();
+        if (!userId) {
+          setExpenseError('Saved locally. Sign-in is not connected yet.');
+          setCategorySource('fallback');
+        } else {
+          await budgetService.upsertBudgetCategory(
+            trip.id,
+            { ...selectedCategory, allocated },
+            Math.max(0, categoriesWithExpenses.findIndex(
+              (category) =>
+                getCategoryAllocationKey(category) ===
+                getCategoryAllocationKey(selectedCategory),
+            )),
+          );
+          setExpenseError(null);
+        }
+      } catch {
+        setCategorySource('fallback');
+        setExpenseError('Supabase budget allocation save failed. Saved the allocation locally instead.');
+      }
+    }
+
     closeBudgetModal();
   };
 
@@ -1113,7 +1159,7 @@ const Budget: React.FC = () => {
           className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault();
-            handleSaveBudgetAllocation();
+            void handleSaveBudgetAllocation();
           }}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1148,7 +1194,7 @@ const Budget: React.FC = () => {
           </div>
           {selectedCategory && (
             <p className="text-sm text-neutral-500">
-              Updates the local allocation for {selectedCategory.name}
+              Updates the allocation for {selectedCategory.name}
               {selectedCategory.stopId
                 ? ` at ${orderedStops.find((stop) => stop.id === selectedCategory.stopId)?.name ?? 'this stop'}`
                 : ''}

@@ -25,7 +25,10 @@ import {
   getAuthenticatedUserId,
   lodgingService,
 } from '../services/travelDataService';
-import { getHotelIdFromLodgingOption } from '../services/tripMappers';
+import {
+  getHotelIdFromLodgingOption,
+  mapLodgingOptionRowToHotel,
+} from '../services/tripMappers';
 import type { Hotel, LocationRef } from '../types';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -408,6 +411,7 @@ const Hotels: React.FC = () => {
   const [savedHotels, setSavedHotels] = useState<Set<string>>(() =>
     trip ? loadSelectedHotels(trip.id, initiallySelectedHotelIds) : new Set()
   );
+  const [serviceHotels, setServiceHotels] = useState<Hotel[]>([]);
   const [lodgingSource, setLodgingSource] = useState<'supabase' | 'fallback'>('fallback');
   const [lodgingError, setLodgingError] = useState<string | null>(null);
   const [detailHotel, setDetailHotel] = useState<Hotel | null>(null);
@@ -419,6 +423,7 @@ const Hotels: React.FC = () => {
     let cancelled = false;
 
     setSavedHotels(localSelections);
+    setServiceHotels([]);
     setLodgingSource('fallback');
     setLodgingError(null);
 
@@ -435,11 +440,15 @@ const Hotels: React.FC = () => {
         const selectedHotelIds = lodgingOptions
           .filter((option) => option.is_selected || option.is_saved)
           .map(getHotelIdFromLodgingOption);
+        const nextServiceHotels = lodgingOptions
+          .filter((option) => option.is_selected || option.is_saved)
+          .map((option) => mapLodgingOptionRowToHotel(option, tripId));
         const nextSelections = new Set([
           ...initiallySelectedHotelIds,
           ...selectedHotelIds,
         ]);
 
+        setServiceHotels(nextServiceHotels);
         setSavedHotels(nextSelections);
         persistSelectedHotels(tripId, nextSelections);
         setLodgingSource('supabase');
@@ -467,12 +476,20 @@ const Hotels: React.FC = () => {
     [orderedStops, selectedStopId]
   );
 
+  const availableHotels = useMemo(() => {
+    const hotelsById = new Map<string, Hotel>();
+    [...allHotels, ...serviceHotels].forEach((hotel) => {
+      hotelsById.set(hotel.id, hotel);
+    });
+    return [...hotelsById.values()];
+  }, [allHotels, serviceHotels]);
+
   const stopHotels = useMemo(() => {
-    if (!selectedStop) return allHotels;
-    return allHotels.filter((hotel) =>
+    if (!selectedStop) return availableHotels;
+    return availableHotels.filter((hotel) =>
       hotel.stopId === selectedStop.id || (!hotel.stopId && orderedStops.length <= 1)
     );
-  }, [allHotels, orderedStops.length, selectedStop]);
+  }, [availableHotels, orderedStops.length, selectedStop]);
 
   const availableAmenities = useMemo(
     () => [...new Set(stopHotels.flatMap((hotel) => hotel.amenities))].sort(),
@@ -531,7 +548,7 @@ const Hotels: React.FC = () => {
 
   const toggleHotelSelection = async (hotelId: string) => {
     if (!trip) return;
-    const hotel = allHotels.find((item) => item.id === hotelId);
+    const hotel = availableHotels.find((item) => item.id === hotelId);
     if (!hotel) return;
 
     const next = new Set(savedHotels);

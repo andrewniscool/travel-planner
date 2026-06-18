@@ -51,6 +51,7 @@ import type {
 } from './supabaseTypes';
 import type {
   ItineraryItemWithLocationRef,
+  LodgingOptionWithLocationRef,
   SavedPlaceWithLocationRef,
   TripStopWithLocationRef,
   TripWithRelations,
@@ -482,6 +483,46 @@ export function mapHotelToLodgingOptionUpdate(
 
 export function getHotelIdFromLodgingOption(row: LodgingOptionRow): string {
   return row.source_id ?? row.id;
+}
+
+function getLodgingOptionLocationRef(
+  row: LodgingOptionRow | LodgingOptionWithLocationRef,
+) {
+  if ('location_refs' in row && row.location_refs) {
+    return mapLocationRefRowToLocationRef(row.location_refs);
+  }
+
+  return undefined;
+}
+
+export function mapLodgingOptionRowToHotel(
+  row: LodgingOptionRow | LodgingOptionWithLocationRef,
+  tripId: string,
+): Hotel {
+  const locationRef = getLodgingOptionLocationRef(row);
+  const pricePerNight = row.price_per_night ?? 0;
+
+  return {
+    id: getHotelIdFromLodgingOption(row),
+    tripId,
+    stopId: row.stop_id ?? undefined,
+    name: locationRef?.displayName ?? locationRef?.name ?? row.name,
+    image: locationRef?.photoUrls?.[0] ?? '',
+    rating: locationRef?.rating ?? 0,
+    reviewCount: locationRef?.reviewCount ?? 0,
+    pricePerNight,
+    totalCost: row.total_cost ?? pricePerNight,
+    amenities: [],
+    neighborhood:
+      row.neighborhood ??
+      row.address ??
+      locationRef?.formattedAddress ??
+      'Saved lodging',
+    locationRef,
+    distanceToCenter: '',
+    description: row.notes ?? '',
+    isSelected: row.is_selected || row.is_saved,
+  };
 }
 
 export function mapPlaceToSavedPlaceInsert(

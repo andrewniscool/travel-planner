@@ -23,7 +23,7 @@ import {
   savedPlaceService,
 } from '../services/travelDataService';
 import {
-  getHotelIdFromLodgingOption,
+  mapLodgingOptionRowToHotel,
   mapSavedPlaceRowToPlace,
 } from '../services/tripMappers';
 import RatingStars from '../components/ui/RatingStars';
@@ -36,10 +36,6 @@ import type {
   TransportSegment,
   TripStop,
 } from '../types';
-import type {
-  LodgingOptionRow,
-} from '../services/supabaseTypes';
-
 type CategoryFilter = 'Hotels' | 'Food' | 'Activities' | 'Itinerary' | 'Transport';
 type StopSelection = 'all' | string;
 type MapPinKind = 'hotel' | 'food' | 'activity' | 'itinerary' | 'transport';
@@ -72,26 +68,6 @@ const placeCategoryMap: Record<PlaceCategory, CategoryFilter> = {
   Landmarks: 'Activities',
   'Hidden Gems': 'Activities',
 };
-
-const mapLodgingOptionToHotel = (
-  row: LodgingOptionRow,
-  tripId: string,
-): Hotel => ({
-  id: getHotelIdFromLodgingOption(row),
-  tripId,
-  stopId: row.stop_id ?? undefined,
-  name: row.name,
-  image: '',
-  rating: 0,
-  reviewCount: 0,
-  pricePerNight: row.price_per_night ?? 0,
-  totalCost: row.total_cost ?? 0,
-  amenities: [],
-  neighborhood: row.neighborhood ?? row.address ?? 'Saved lodging',
-  distanceToCenter: '',
-  description: row.notes ?? '',
-  isSelected: row.is_selected || row.is_saved,
-});
 
 const mergeHotels = (baseHotels: Hotel[], savedHotels: Hotel[]) => {
   const hotelsById = new Map(baseHotels.map((hotel) => [hotel.id, hotel]));
@@ -357,7 +333,7 @@ const MapPage: React.FC = () => {
         setServiceHotels(
           lodgingRows
             .filter((row) => row.is_selected || row.is_saved)
-            .map((row) => mapLodgingOptionToHotel(row, trip.id)),
+            .map((row) => mapLodgingOptionRowToHotel(row, trip.id)),
         );
         setServicePlaces(
           savedPlaceRows

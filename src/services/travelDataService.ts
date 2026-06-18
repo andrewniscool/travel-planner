@@ -74,6 +74,10 @@ export interface TripStopWithLocationRef extends TripStopRow {
   location_refs: LocationRefRow | null;
 }
 
+export interface LodgingOptionWithLocationRef extends LodgingOptionRow {
+  location_refs: LocationRefRow | null;
+}
+
 export interface SavedPlaceWithLocationRef extends SavedPlaceRow {
   location_refs: LocationRefRow | null;
 }
@@ -483,10 +487,10 @@ export const transportSegmentService = {
 export const transportService = transportSegmentService;
 
 export const lodgingService = {
-  async listLodgingOptions(tripId: string): Promise<LodgingOptionRow[]> {
+  async listLodgingOptions(tripId: string): Promise<LodgingOptionWithLocationRef[]> {
     const { data, error } = await getSupabaseClient()
       .from('lodging_options')
-      .select('*')
+      .select('*, location_refs(*)')
       .eq('trip_id', tripId)
       .order('created_at', { ascending: false });
 
@@ -515,7 +519,7 @@ export const lodgingService = {
         },
         { onConflict: 'trip_id,source,source_id' },
       )
-      .select()
+      .select('*, location_refs(*)')
       .single();
 
     if (error) throw error;

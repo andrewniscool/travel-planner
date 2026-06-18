@@ -67,7 +67,7 @@ import type {
 
 export interface TripWithRelations extends TripRow {
   trip_stops: TripStopWithLocationRef[];
-  transport_segments: TransportSegmentRow[];
+  transport_segments: TransportSegmentWithLocationRefs[];
 }
 
 export interface TripStopWithLocationRef extends TripStopRow {

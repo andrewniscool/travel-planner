@@ -86,6 +86,11 @@ export interface ItineraryItemWithLocationRef extends ItineraryItemRow {
   location_refs: LocationRefRow | null;
 }
 
+export interface TransportSegmentWithLocationRefs extends TransportSegmentRow {
+  from_location_ref: LocationRefRow | null;
+  to_location_ref: LocationRefRow | null;
+}
+
 export async function getAuthenticatedUserId(): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
 
@@ -152,7 +157,7 @@ export const tripService = {
   async listTripsWithRelations(userId: string): Promise<TripWithRelations[]> {
     const { data, error } = await getSupabaseClient()
       .from('trips')
-      .select('*, trip_stops(*, location_refs(*)), transport_segments(*)')
+      .select('*, trip_stops(*, location_refs(*)), transport_segments(*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*))')
       .eq('user_id', userId)
       .order('start_date', { ascending: true, nullsFirst: false })
       .order('order_index', {
@@ -172,7 +177,7 @@ export const tripService = {
   async getTrip(tripId: string): Promise<TripWithRelations | null> {
     const { data, error } = await getSupabaseClient()
       .from('trips')
-      .select('*, trip_stops(*, location_refs(*)), transport_segments(*)')
+      .select('*, trip_stops(*, location_refs(*)), transport_segments(*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*))')
       .eq('id', tripId)
       .maybeSingle();
 
@@ -417,10 +422,10 @@ export const locationRefService = {
 };
 
 export const transportSegmentService = {
-  async listTransportSegments(tripId: string): Promise<TransportSegmentRow[]> {
+  async listTransportSegments(tripId: string): Promise<TransportSegmentWithLocationRefs[]> {
     const { data, error } = await getSupabaseClient()
       .from('transport_segments')
-      .select('*')
+      .select('*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*)')
       .eq('trip_id', tripId)
       .order('departure_time', { ascending: true, nullsFirst: false });
 
@@ -430,11 +435,11 @@ export const transportSegmentService = {
 
   async createTransportSegment(
     segment: TransportSegmentInsert,
-  ): Promise<TransportSegmentRow> {
+  ): Promise<TransportSegmentWithLocationRefs> {
     const { data, error } = await getSupabaseClient()
       .from('transport_segments')
       .insert(segment)
-      .select()
+      .select('*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*)')
       .single();
 
     if (error) throw error;
@@ -444,7 +449,7 @@ export const transportSegmentService = {
   async createTravelSegment(
     tripId: string,
     segment: TransportSegment,
-  ): Promise<TransportSegmentRow> {
+  ): Promise<TransportSegmentWithLocationRefs> {
     return this.createTransportSegment(
       mapTransportSegmentToInsert(tripId, segment),
     );
@@ -453,12 +458,12 @@ export const transportSegmentService = {
   async updateTransportSegment(
     segmentId: string,
     updates: TransportSegmentUpdate,
-  ): Promise<TransportSegmentRow> {
+  ): Promise<TransportSegmentWithLocationRefs> {
     const { data, error } = await getSupabaseClient()
       .from('transport_segments')
       .update(updates)
       .eq('id', segmentId)
-      .select()
+      .select('*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*)')
       .single();
 
     if (error) throw error;
@@ -467,7 +472,7 @@ export const transportSegmentService = {
 
   async updateTravelSegment(
     segment: TransportSegment,
-  ): Promise<TransportSegmentRow> {
+  ): Promise<TransportSegmentWithLocationRefs> {
     return this.updateTransportSegment(
       segment.id,
       mapTransportSegmentToUpdate(segment),

@@ -53,6 +53,7 @@ import type {
   ItineraryItemWithLocationRef,
   LodgingOptionWithLocationRef,
   SavedPlaceWithLocationRef,
+  TransportSegmentWithLocationRefs,
   TripStopWithLocationRef,
   TripWithRelations,
 } from './travelDataService';
@@ -230,7 +231,7 @@ function mapStop(
 }
 
 function mapTransportSegment(
-  row: TransportSegmentRow,
+  row: TransportSegmentRow | TransportSegmentWithLocationRefs,
   stops: TripStopRow[],
   previousSegments: TransportSegment[] = [],
 ): TransportSegment {
@@ -238,6 +239,14 @@ function mapTransportSegment(
   const toStop = stops.find((stop) => stop.id === row.to_stop_id);
   const previousSegment = previousSegments.find((segment) => segment.id === row.id);
   const role = row.role && isTransportRole(row.role) ? row.role : undefined;
+  const fromLocation =
+    'from_location_ref' in row && row.from_location_ref
+      ? mapLocationRefRowToLocationRef(row.from_location_ref)
+      : previousSegment?.fromLocation;
+  const toLocation =
+    'to_location_ref' in row && row.to_location_ref
+      ? mapLocationRefRowToLocationRef(row.to_location_ref)
+      : previousSegment?.toLocation;
 
   return {
     id: row.id,
@@ -248,10 +257,10 @@ function mapTransportSegment(
     role,
     isPrimary: row.is_primary,
     provider: row.provider ?? undefined,
-    fromLocation: previousSegment?.fromLocation,
-    toLocation: previousSegment?.toLocation,
-    departureLocation: row.from_text ?? fromStop?.name ?? '',
-    arrivalLocation: row.to_text ?? toStop?.name ?? '',
+    fromLocation,
+    toLocation,
+    departureLocation: row.from_text ?? fromLocation?.name ?? fromStop?.name ?? '',
+    arrivalLocation: row.to_text ?? toLocation?.name ?? toStop?.name ?? '',
     departureDateTime: row.departure_time ?? undefined,
     arrivalDateTime: row.arrival_time ?? undefined,
     duration: previousSegment?.duration,
@@ -267,7 +276,7 @@ function mapTransportSegment(
 export function mapTripRowToTrip(
   row: TripRow,
   tripStops: Array<TripStopRow | TripStopWithLocationRef> = [],
-  transportSegments: TransportSegmentRow[] = [],
+  transportSegments: Array<TransportSegmentRow | TransportSegmentWithLocationRefs> = [],
   previousTrip?: Trip,
 ): Trip {
   const orderedStops = [...tripStops].sort(
@@ -379,7 +388,7 @@ export function mapTripStopToTripStopInsert(
 }
 
 export function mapTransportSegmentRowToTransportSegment(
-  row: TransportSegmentRow,
+  row: TransportSegmentRow | TransportSegmentWithLocationRefs,
   stops: TripStopRow[] = [],
   previousSegments: TransportSegment[] = [],
 ): TransportSegment {

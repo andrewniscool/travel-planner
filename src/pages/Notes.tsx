@@ -143,6 +143,8 @@ const WeatherDay: React.FC<{ day: WeatherData }> = ({ day }) => (
   </div>
 );
 
+type ChecklistCategory = ChecklistItem['category'];
+
 const Notes: React.FC = () => {
   const { tripId: routeTripId } = useParams<{ tripId: string }>();
   const fallbackTrip = useTrip();
@@ -174,6 +176,15 @@ const Notes: React.FC = () => {
   );
   const [notesError, setNotesError] = useState<string | null>(null);
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [newChecklistText, setNewChecklistText] = useState<
+    Record<ChecklistCategory, string>
+  >({
+    packing: '',
+    documents: '',
+    reminders: '',
+  });
+  const [savingChecklistCategory, setSavingChecklistCategory] =
+    useState<ChecklistCategory | null>(null);
 
   useEffect(() => {
     if (!tripId) return;
@@ -285,6 +296,59 @@ const Notes: React.FC = () => {
       setNotesError(
         'Supabase checklist delete failed. Removed the item locally instead.',
       );
+    }
+  };
+
+  const handleSaveChecklistItem = async (category: ChecklistCategory) => {
+    if (!trip) return;
+    const text = newChecklistText[category].trim();
+    if (!text) return;
+
+    const nextItem: ChecklistItem = {
+      id: `checklist-${trip.id}-${Date.now()}`,
+      tripId: trip.id,
+      stopId: trip.stops[0]?.id,
+      text,
+      checked: false,
+      category,
+    };
+    const orderIndex = localChecklist.filter(
+      (item) => item.category === category,
+    ).length;
+
+    const saveLocally = (item: ChecklistItem) => {
+      updateChecklist([...localChecklist, item]);
+    };
+
+    setSavingChecklistCategory(category);
+
+    try {
+      const userId = await getAuthenticatedUserId();
+
+      if (userId && notesSource === 'supabase') {
+        const savedItem = await notesService.createChecklistItem(
+          nextItem,
+          orderIndex,
+        );
+        saveLocally(savedItem);
+        setNotesError(null);
+      } else {
+        saveLocally(nextItem);
+        if (!userId) {
+          setNotesError('Saved locally. Sign-in is not connected yet.');
+        }
+      }
+
+      setNewChecklistText((current) => ({ ...current, [category]: '' }));
+    } catch {
+      saveLocally(nextItem);
+      setNotesSource('fallback');
+      setNotesError(
+        'Supabase checklist save failed. Saved the item locally instead.',
+      );
+      setNewChecklistText((current) => ({ ...current, [category]: '' }));
+    } finally {
+      setSavingChecklistCategory(null);
     }
   };
 
@@ -499,10 +563,34 @@ const Notes: React.FC = () => {
                 <Luggage className="w-4 h-4 text-primary-500" />
                 Packing List
               </h3>
-              <Button variant="ghost" size="sm">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void handleSaveChecklistItem('packing')}
+                disabled={savingChecklistCategory === 'packing'}
+              >
                 <Plus className="w-3.5 h-3.5 mr-1" />
-                Add Item
+                {savingChecklistCategory === 'packing' ? 'Adding...' : 'Add Item'}
               </Button>
+            </div>
+            <div className="mb-3">
+              <input
+                type="text"
+                value={newChecklistText.packing}
+                onChange={(event) =>
+                  setNewChecklistText((current) => ({
+                    ...current,
+                    packing: event.target.value,
+                  }))
+                }
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    void handleSaveChecklistItem('packing');
+                  }
+                }}
+                placeholder="Add packing item"
+                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+              />
             </div>
             <div className="divide-y divide-neutral-100">
               {packingItems.map((item) => (
@@ -534,6 +622,34 @@ const Notes: React.FC = () => {
                 <FileText className="w-4 h-4 text-accent-500" />
                 Travel Documents
               </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void handleSaveChecklistItem('documents')}
+                disabled={savingChecklistCategory === 'documents'}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                {savingChecklistCategory === 'documents' ? 'Adding...' : 'Add Item'}
+              </Button>
+            </div>
+            <div className="mb-3">
+              <input
+                type="text"
+                value={newChecklistText.documents}
+                onChange={(event) =>
+                  setNewChecklistText((current) => ({
+                    ...current,
+                    documents: event.target.value,
+                  }))
+                }
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    void handleSaveChecklistItem('documents');
+                  }
+                }}
+                placeholder="Add document"
+                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+              />
             </div>
             <div className="divide-y divide-neutral-100">
               {documentItems.map((item) => (
@@ -565,10 +681,36 @@ const Notes: React.FC = () => {
                 <Bell className="w-4 h-4 text-warning-500" />
                 Reminders
               </h3>
-              <Button variant="ghost" size="sm">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void handleSaveChecklistItem('reminders')}
+                disabled={savingChecklistCategory === 'reminders'}
+              >
                 <Plus className="w-3.5 h-3.5 mr-1" />
-                Add Reminder
+                {savingChecklistCategory === 'reminders'
+                  ? 'Adding...'
+                  : 'Add Reminder'}
               </Button>
+            </div>
+            <div className="mb-3">
+              <input
+                type="text"
+                value={newChecklistText.reminders}
+                onChange={(event) =>
+                  setNewChecklistText((current) => ({
+                    ...current,
+                    reminders: event.target.value,
+                  }))
+                }
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    void handleSaveChecklistItem('reminders');
+                  }
+                }}
+                placeholder="Add reminder"
+                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+              />
             </div>
             <div className="divide-y divide-neutral-100">
               {reminderItems.map((item) => (

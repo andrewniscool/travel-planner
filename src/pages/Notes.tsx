@@ -168,6 +168,7 @@ const Notes: React.FC = () => {
   const [showAddNote, setShowAddNote] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [localNotes, setLocalNotes] = useState<Note[]>(fallbackNotes);
   const [localChecklist, setLocalChecklist] =
     useState<ChecklistItem[]>(fallbackChecklist);
@@ -354,18 +355,27 @@ const Notes: React.FC = () => {
 
   const handleSaveNote = async () => {
     if (!trip || !newNoteTitle.trim() || !newNoteContent.trim()) return;
+    const existingNote = editingNoteId
+      ? localNotes.find((note) => note.id === editingNoteId)
+      : undefined;
 
     const nextNote: Note = {
-      id: `note-${trip.id}-${Date.now()}`,
+      id: existingNote?.id ?? `note-${trip.id}-${Date.now()}`,
       tripId: trip.id,
-      stopId: trip.stops[0]?.id,
+      stopId: existingNote?.stopId ?? trip.stops[0]?.id,
       title: newNoteTitle.trim(),
       content: newNoteContent.trim(),
-      createdAt: new Date().toISOString(),
+      createdAt: existingNote?.createdAt ?? new Date().toISOString(),
     };
 
     const saveLocally = (note: Note) => {
-      updateNotes([note, ...localNotes]);
+      updateNotes(
+        editingNoteId
+          ? localNotes.map((currentNote) =>
+              currentNote.id === editingNoteId ? note : currentNote,
+            )
+          : [note, ...localNotes],
+      );
     };
 
     setIsSavingNote(true);
@@ -374,7 +384,10 @@ const Notes: React.FC = () => {
       const userId = await getAuthenticatedUserId();
 
       if (userId && notesSource === 'supabase') {
-        const savedNote = await notesService.createNote(nextNote);
+        const savedNote =
+          editingNoteId && isUuid(editingNoteId)
+            ? await notesService.updateNote(nextNote)
+            : await notesService.createNote(nextNote);
         saveLocally(savedNote);
         setNotesError(null);
       } else {
@@ -386,6 +399,7 @@ const Notes: React.FC = () => {
 
       setNewNoteTitle('');
       setNewNoteContent('');
+      setEditingNoteId(null);
       setShowAddNote(false);
     } catch {
       saveLocally(nextNote);
@@ -395,10 +409,25 @@ const Notes: React.FC = () => {
       );
       setNewNoteTitle('');
       setNewNoteContent('');
+      setEditingNoteId(null);
       setShowAddNote(false);
     } finally {
       setIsSavingNote(false);
     }
+  };
+
+  const handleEditNote = (note: Note) => {
+    setEditingNoteId(note.id);
+    setNewNoteTitle(note.title);
+    setNewNoteContent(note.content);
+    setShowAddNote(true);
+  };
+
+  const resetNoteForm = () => {
+    setShowAddNote(false);
+    setEditingNoteId(null);
+    setNewNoteTitle('');
+    setNewNoteContent('');
   };
 
   const handleDeleteNote = async (id: string) => {
@@ -457,7 +486,16 @@ const Notes: React.FC = () => {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => setShowAddNote(!showAddNote)}
+              onClick={() => {
+                if (showAddNote && !editingNoteId) {
+                  resetNoteForm();
+                } else {
+                  setShowAddNote(true);
+                  setEditingNoteId(null);
+                  setNewNoteTitle('');
+                  setNewNoteContent('');
+                }
+              }}
             >
               <Plus className="w-4 h-4 mr-1" />
               Add Note
@@ -486,11 +524,7 @@ const Notes: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      setShowAddNote(false);
-                      setNewNoteTitle('');
-                      setNewNoteContent('');
-                    }}
+                    onClick={resetNoteForm}
                   >
                     <X className="w-3.5 h-3.5 mr-1" />
                     Cancel
@@ -502,7 +536,11 @@ const Notes: React.FC = () => {
                     disabled={isSavingNote}
                   >
                     <Check className="w-3.5 h-3.5 mr-1" />
-                    {isSavingNote ? 'Saving...' : 'Save Note'}
+                    {isSavingNote
+                      ? 'Saving...'
+                      : editingNoteId
+                        ? 'Update Note'
+                        : 'Save Note'}
                   </Button>
                 </div>
               </div>
@@ -518,7 +556,10 @@ const Notes: React.FC = () => {
                     {note.title}
                   </h3>
                   <div className="flex items-center gap-1 shrink-0 ml-2">
-                    <button className="p-1.5 text-neutral-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors duration-150">
+                    <button
+                      onClick={() => handleEditNote(note)}
+                      className="p-1.5 text-neutral-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors duration-150"
+                    >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button

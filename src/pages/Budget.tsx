@@ -24,6 +24,7 @@ import { useServiceTrip } from '../hooks/useServiceTrips';
 import {
   budgetService,
   getAuthenticatedUserId,
+  tripService,
 } from '../services/travelDataService';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -572,27 +573,43 @@ const Budget: React.FC = () => {
     updateAllocationOverrides(nextOverrides);
     updateBudgetCurrency(currencyForm);
 
-    if (categorySource === 'supabase') {
+    if (categorySource === 'supabase' || tripSource === 'supabase') {
       try {
         const userId = await getAuthenticatedUserId();
         if (!userId) {
           setExpenseError('Saved locally. Sign-in is not connected yet.');
           setCategorySource('fallback');
         } else {
-          await budgetService.upsertBudgetCategory(
-            trip.id,
-            { ...selectedCategory, allocated },
-            Math.max(0, categoriesWithExpenses.findIndex(
-              (category) =>
-                getCategoryAllocationKey(category) ===
-                getCategoryAllocationKey(selectedCategory),
-            )),
-          );
+          const updates: Promise<unknown>[] = [];
+
+          if (categorySource === 'supabase') {
+            updates.push(
+              budgetService.upsertBudgetCategory(
+                trip.id,
+                { ...selectedCategory, allocated },
+                Math.max(0, categoriesWithExpenses.findIndex(
+                  (category) =>
+                    getCategoryAllocationKey(category) ===
+                    getCategoryAllocationKey(selectedCategory),
+                )),
+              ),
+            );
+          }
+
+          if (tripSource === 'supabase') {
+            updates.push(
+              tripService.updateTrip(trip.id, {
+                budget_currency: currencyForm,
+              }),
+            );
+          }
+
+          await Promise.all(updates);
           setExpenseError(null);
         }
       } catch {
         setCategorySource('fallback');
-        setExpenseError('Supabase budget allocation save failed. Saved the allocation locally instead.');
+        setExpenseError('Supabase budget save failed. Saved the change locally instead.');
       }
     }
 

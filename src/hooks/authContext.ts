@@ -12,6 +12,7 @@ export interface AuthContextValue {
     password: string,
     fullName?: string,
   ) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 

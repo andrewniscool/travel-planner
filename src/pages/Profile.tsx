@@ -20,9 +20,14 @@ import Badge from '../components/ui/Badge';
 import { useAuth } from '../hooks/useAuth';
 import { getLocalTrips } from '../hooks/useTrip';
 import {
+  budgetService,
+  itineraryService,
+  lodgingService,
+  notesService,
   profileService,
   savedPlaceService,
   tripService,
+  transportSegmentService,
 } from '../services/travelDataService';
 import type { ProfileRow } from '../services/supabaseTypes';
 
@@ -183,6 +188,58 @@ const getSupabaseProfileStats = async (
   };
 };
 
+const downloadJsonFile = (filename: string, data: unknown) => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const getLocalProfileExport = (profile: ProfileState, stats: ProfileStats) => ({
+  exportedAt: new Date().toISOString(),
+  source: 'local',
+  profile,
+  stats,
+  trips: getLocalTrips(),
+});
+
+const getSupabaseProfileExport = async (
+  userId: string,
+  profile: ProfileState,
+  stats: ProfileStats,
+) => {
+  const trips = await tripService.listTripsWithRelations(userId);
+  const tripData = await Promise.all(
+    trips.map(async (trip) => ({
+      trip,
+      transportSegments:
+        await transportSegmentService.listTransportSegments(trip.id),
+      lodgingOptions: await lodgingService.listLodgingOptions(trip.id),
+      savedPlaces: await savedPlaceService.listSavedPlaces(trip.id),
+      itineraryItems: await itineraryService.listItineraryItems(trip.id),
+      budgetCategories: await budgetService.listBudgetCategoryRows(trip.id),
+      budgetExpenses: await budgetService.listBudgetExpenseRows(trip.id),
+      notes: await notesService.listTripNotes(trip.id),
+      checklistItems: await notesService.listChecklistItemRows(trip.id),
+    })),
+  );
+
+  return {
+    exportedAt: new Date().toISOString(),
+    source: 'supabase',
+    userId,
+    profile,
+    stats,
+    trips: tripData,
+  };
+};
+
 const normalizeNotifications = (
   value: unknown,
   fallback: ProfileNotifications = defaultProfile.notifications,
@@ -262,7 +319,7 @@ const mapProfileRowToState = (
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, signOut, updatePassword } = useAuth();
   const { profile: storedProfile, hasStoredProfile } = useMemo(
     () => loadProfile(),
     [],
@@ -275,11 +332,16 @@ const Profile: React.FC = () => {
   const [bio, setBio] = useState(storedProfile.bio);
   const [saved, setSaved] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [accountNotice, setAccountNotice] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(Boolean(user));
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isStatsLoading, setIsStatsLoading] = useState(Boolean(user));
+  const [isPasswordFormOpen, setIsPasswordFormOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [isExportingData, setIsExportingData] = useState(false);
 
   const [notifications, setNotifications] = useState(storedProfile.notifications);
   const [stats, setStats] = useState<ProfileStats>(() => getLocalProfileStats());
@@ -460,8 +522,70 @@ const Profile: React.FC = () => {
       .map((part) => part[0]?.toUpperCase())
       .join('') || 'U';
 
+  const currentProfile = (): ProfileState => ({
+    name,
+    email,
+    location,
+    website,
+    bio,
+    notifications,
+  });
+
+  const handlePasswordUpdate = async () => {
+    setAccountError(null);
+    setAccountNotice(null);
+
+    if (!user) {
+      setAccountError('Sign in before changing your password.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setAccountError('Password must be at least 8 characters.');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+
+    try {
+      await updatePassword(newPassword);
+      setNewPassword('');
+      setIsPasswordFormOpen(false);
+      setAccountNotice('Password updated.');
+    } catch (error) {
+      setAccountError(
+        error instanceof Error ? error.message : 'Unable to update password.',
+      );
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    setAccountError(null);
+    setAccountNotice(null);
+    setIsExportingData(true);
+
+    try {
+      const exportData = user
+        ? await getSupabaseProfileExport(user.id, currentProfile(), stats)
+        : getLocalProfileExport(currentProfile(), stats);
+
+      downloadJsonFile(
+        `travel-builder-export-${new Date().toISOString().slice(0, 10)}.json`,
+        exportData,
+      );
+      setAccountNotice('Data export downloaded.');
+    } catch {
+      setAccountError('Unable to export your data right now.');
+    } finally {
+      setIsExportingData(false);
+    }
+  };
+
   const handleSignOut = async () => {
     setAccountError(null);
+    setAccountNotice(null);
 
     try {
       await signOut();
@@ -683,13 +807,42 @@ const Profile: React.FC = () => {
           <h3 className="text-lg font-semibold text-neutral-900 mb-4">Account</h3>
           <div className="space-y-1">
             {[
-              { label: 'Change Password', desc: 'Update your account password', icon: Shield },
-              { label: 'Billing & Plan', desc: 'Manage your subscription and payment methods', icon: CreditCard },
-              { label: 'Export Data', desc: 'Download all your trip data', icon: Globe },
+              {
+                label: 'Change Password',
+                desc: user
+                  ? 'Update your account password'
+                  : 'Sign in to update your password',
+                icon: Shield,
+                disabled: !user,
+                onClick: () => setIsPasswordFormOpen((isOpen) => !isOpen),
+              },
+              {
+                label: 'Billing & Plan',
+                desc: 'No billing provider is connected yet',
+                icon: CreditCard,
+                disabled: true,
+                onClick: undefined,
+              },
+              {
+                label: 'Export Data',
+                desc: user
+                  ? 'Download your Supabase travel data'
+                  : 'Download your local travel data',
+                icon: Globe,
+                disabled: isExportingData,
+                onClick: handleExportData,
+              },
             ].map((item) => (
               <button
                 key={item.label}
-                className="w-full flex items-center justify-between py-3 px-3 rounded-lg hover:bg-neutral-50 transition-colors group"
+                onClick={item.onClick}
+                disabled={item.disabled}
+                className={[
+                  'w-full flex items-center justify-between py-3 px-3 rounded-lg transition-colors group',
+                  item.disabled
+                    ? 'cursor-not-allowed opacity-50'
+                    : 'hover:bg-neutral-50',
+                ].join(' ')}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
@@ -704,7 +857,43 @@ const Profile: React.FC = () => {
               </button>
             ))}
           </div>
+          {isPasswordFormOpen && (
+            <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+              <Input
+                label="New Password"
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="At least 8 characters"
+                icon={<Shield className="w-4 h-4 text-neutral-400" />}
+              />
+              <div className="mt-3 flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setNewPassword('');
+                    setIsPasswordFormOpen(false);
+                  }}
+                  disabled={isUpdatingPassword}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handlePasswordUpdate}
+                  disabled={isUpdatingPassword}
+                >
+                  {isUpdatingPassword ? 'Updating...' : 'Update Password'}
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="mt-4 pt-4 border-t border-neutral-100">
+            {accountNotice && (
+              <p className="mb-3 rounded-lg bg-success-50 px-3 py-2 text-sm text-success-600">
+                {accountNotice}
+              </p>
+            )}
             {accountError && (
               <p className="mb-3 rounded-lg bg-error-50 px-3 py-2 text-sm text-error-600">
                 {accountError}

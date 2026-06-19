@@ -110,6 +110,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (error) throw new Error(getErrorMessage(error));
         if (data.user) await ensureProfile(data.user, fullName);
       },
+      async updatePassword(password) {
+        if (!isSupabaseConfigured) {
+          throw new Error('Supabase is not configured.');
+        }
+
+        const { error } = await getSupabaseClient().auth.updateUser({
+          password,
+        });
+
+        if (error) throw new Error(getErrorMessage(error));
+      },
       async signOut() {
         if (!isSupabaseConfigured) return;
         const { error } = await getSupabaseClient().auth.signOut();

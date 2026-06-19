@@ -18,10 +18,16 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Badge from '../components/ui/Badge';
 import { useAuth } from '../hooks/useAuth';
-import { profileService } from '../services/travelDataService';
+import { getLocalTrips } from '../hooks/useTrip';
+import {
+  profileService,
+  savedPlaceService,
+  tripService,
+} from '../services/travelDataService';
 import type { ProfileRow } from '../services/supabaseTypes';
 
 const LOCAL_PROFILE_KEY = 'travel-builder:profile';
+const LOCAL_SAVED_PLACES_KEY = 'travel-builder:saved-places';
 
 type ProfileNotifications = {
   tripReminders: boolean;
@@ -39,6 +45,18 @@ type ProfileState = {
   notifications: ProfileNotifications;
 };
 
+type LoadedProfileState = {
+  profile: ProfileState;
+  hasStoredProfile: boolean;
+};
+
+type ProfileStats = {
+  tripsPlanned: number;
+  countries: number;
+  placesSaved: number;
+  daysTraveled: number;
+};
+
 const defaultProfile = {
   name: 'Alex Mitchell',
   email: 'alex.mitchell@email.com',
@@ -53,24 +71,116 @@ const defaultProfile = {
   },
 } satisfies ProfileState;
 
-const loadProfile = (): ProfileState => {
+const mergeProfile = (profile: Partial<ProfileState> = {}): ProfileState => ({
+  ...defaultProfile,
+  ...profile,
+  notifications: {
+    ...defaultProfile.notifications,
+    ...(profile.notifications ?? {}),
+  },
+});
+
+const loadProfile = (): LoadedProfileState => {
   try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_PROFILE_KEY) ?? '{}') as Partial<ProfileState>;
+    const rawProfile = window.localStorage.getItem(LOCAL_PROFILE_KEY);
+    if (!rawProfile) {
+      return { profile: defaultProfile, hasStoredProfile: false };
+    }
+
+    const stored = JSON.parse(rawProfile) as Partial<ProfileState>;
     return {
-      ...defaultProfile,
-      ...stored,
-      notifications: {
-        ...defaultProfile.notifications,
-        ...(stored.notifications ?? {}),
-      },
+      profile: mergeProfile(stored),
+      hasStoredProfile: true,
     };
   } catch {
-    return defaultProfile;
+    return { profile: defaultProfile, hasStoredProfile: false };
   }
 };
 
 const persistLocalProfile = (profile: ProfileState) => {
   window.localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(profile));
+};
+
+const countTripDays = (startDate?: string | null, endDate?: string | null) => {
+  if (!startDate || !endDate) return 0;
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  return Math.max(
+    1,
+    Math.round((end.getTime() - start.getTime()) / millisecondsPerDay) + 1,
+  );
+};
+
+const getLocalSavedPlacesCount = (tripIds: string[]) => {
+  try {
+    const stored = JSON.parse(
+      window.localStorage.getItem(LOCAL_SAVED_PLACES_KEY) ?? '{}',
+    ) as Record<string, string[]>;
+    const scopedTripIds = tripIds.length > 0 ? tripIds : Object.keys(stored);
+
+    return scopedTripIds.reduce(
+      (total, tripId) => total + (stored[tripId]?.length ?? 0),
+      0,
+    );
+  } catch {
+    return 0;
+  }
+};
+
+const getLocalProfileStats = (): ProfileStats => {
+  const trips = getLocalTrips();
+  const countries = new Set(
+    trips
+      .flatMap((trip) => [
+        trip.country,
+        ...trip.stops.map((stop) => stop.country),
+      ])
+      .filter(Boolean),
+  );
+
+  return {
+    tripsPlanned: trips.length,
+    countries: countries.size,
+    placesSaved: getLocalSavedPlacesCount(trips.map((trip) => trip.id)),
+    daysTraveled: trips.reduce(
+      (total, trip) => total + countTripDays(trip.startDate, trip.endDate),
+      0,
+    ),
+  };
+};
+
+const getSupabaseProfileStats = async (
+  userId: string,
+): Promise<ProfileStats> => {
+  const trips = await tripService.listTripsWithRelations(userId);
+  const savedPlaceRowsByTrip = await Promise.all(
+    trips.map((trip) => savedPlaceService.listSavedPlaces(trip.id)),
+  );
+  const countries = new Set(
+    trips
+      .flatMap((trip) => [
+        trip.country,
+        ...trip.trip_stops.map((stop) => stop.country),
+      ])
+      .filter(Boolean),
+  );
+
+  return {
+    tripsPlanned: trips.length,
+    countries: countries.size,
+    placesSaved: savedPlaceRowsByTrip.reduce(
+      (total, rows) => total + rows.filter((row) => row.is_saved).length,
+      0,
+    ),
+    daysTraveled: trips.reduce(
+      (total, trip) => total + countTripDays(trip.start_date, trip.end_date),
+      0,
+    ),
+  };
 };
 
 const normalizeNotifications = (
@@ -108,6 +218,31 @@ const getAuthFullName = (user: ReturnType<typeof useAuth>['user']) =>
     ? user.user_metadata.full_name
     : '';
 
+const createAuthenticatedFallbackProfile = (
+  user: NonNullable<ReturnType<typeof useAuth>['user']>,
+  storedProfile: ProfileState,
+  hasStoredProfile: boolean,
+): ProfileState => {
+  const authName = getAuthFullName(user);
+
+  if (hasStoredProfile) {
+    return {
+      ...storedProfile,
+      name: authName || storedProfile.name,
+      email: user.email ?? storedProfile.email,
+    };
+  }
+
+  return {
+    ...defaultProfile,
+    name: authName,
+    email: user.email ?? '',
+    location: '',
+    website: '',
+    bio: '',
+  };
+};
+
 const mapProfileRowToState = (
   row: ProfileRow | null,
   fallback: ProfileState,
@@ -128,7 +263,10 @@ const mapProfileRowToState = (
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const storedProfile = useMemo(() => loadProfile(), []);
+  const { profile: storedProfile, hasStoredProfile } = useMemo(
+    () => loadProfile(),
+    [],
+  );
   const authName = getAuthFullName(user);
   const [name, setName] = useState(authName || storedProfile.name);
   const [email, setEmail] = useState(user?.email ?? storedProfile.email);
@@ -138,10 +276,13 @@ const Profile: React.FC = () => {
   const [saved, setSaved] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(Boolean(user));
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isStatsLoading, setIsStatsLoading] = useState(Boolean(user));
 
   const [notifications, setNotifications] = useState(storedProfile.notifications);
+  const [stats, setStats] = useState<ProfileStats>(() => getLocalProfileStats());
 
   useEffect(() => {
     let isMounted = true;
@@ -159,9 +300,14 @@ const Profile: React.FC = () => {
         const row = await profileService.getProfile(user.id);
         if (!isMounted) return;
 
+        const fallbackProfile = createAuthenticatedFallbackProfile(
+          user,
+          storedProfile,
+          hasStoredProfile,
+        );
         const nextProfile = mapProfileRowToState(
           row,
-          storedProfile,
+          fallbackProfile,
           user.email ?? undefined,
           getAuthFullName(user) || undefined,
         );
@@ -176,8 +322,13 @@ const Profile: React.FC = () => {
       } catch {
         if (!isMounted) return;
         setProfileError('Supabase profile could not be loaded. Showing local profile instead.');
-        setName(getAuthFullName(user) || storedProfile.name);
-        setEmail(user.email ?? storedProfile.email);
+        const fallbackProfile = createAuthenticatedFallbackProfile(
+          user,
+          storedProfile,
+          hasStoredProfile,
+        );
+        setName(fallbackProfile.name);
+        setEmail(fallbackProfile.email);
       } finally {
         if (isMounted) setIsProfileLoading(false);
       }
@@ -188,7 +339,41 @@ const Profile: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [storedProfile, user]);
+  }, [hasStoredProfile, storedProfile, user]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadStats() {
+      if (!user) {
+        setStats(getLocalProfileStats());
+        setStatsError(null);
+        setIsStatsLoading(false);
+        return;
+      }
+
+      setIsStatsLoading(true);
+      setStatsError(null);
+
+      try {
+        const nextStats = await getSupabaseProfileStats(user.id);
+        if (!isMounted) return;
+        setStats(nextStats);
+      } catch {
+        if (!isMounted) return;
+        setStats(getLocalProfileStats());
+        setStatsError('Supabase stats could not be loaded. Showing local stats instead.');
+      } finally {
+        if (isMounted) setIsStatsLoading(false);
+      }
+    }
+
+    void loadStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const handleSave = async () => {
     const nextProfile = { name, email, location, website, bio, notifications };
@@ -410,22 +595,40 @@ const Profile: React.FC = () => {
       {/* Travel Stats */}
       <Card hover={false}>
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Travel Stats</h3>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold text-neutral-900">Travel Stats</h3>
+            {isStatsLoading && (
+              <span className="text-xs font-medium text-neutral-500">Syncing...</span>
+            )}
+          </div>
+          {statsError && (
+            <p className="mb-4 rounded-lg bg-warning-50 px-3 py-2 text-sm text-warning-700">
+              {statsError}
+            </p>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-neutral-50 rounded-xl">
-              <p className="text-2xl font-bold text-primary-600">5</p>
+              <p className="text-2xl font-bold text-primary-600">
+                {stats.tripsPlanned}
+              </p>
               <p className="text-sm text-neutral-500 mt-1">Trips Planned</p>
             </div>
             <div className="text-center p-4 bg-neutral-50 rounded-xl">
-              <p className="text-2xl font-bold text-accent-600">8</p>
+              <p className="text-2xl font-bold text-accent-600">
+                {stats.countries}
+              </p>
               <p className="text-sm text-neutral-500 mt-1">Countries</p>
             </div>
             <div className="text-center p-4 bg-neutral-50 rounded-xl">
-              <p className="text-2xl font-bold text-success-600">24</p>
+              <p className="text-2xl font-bold text-success-600">
+                {stats.placesSaved}
+              </p>
               <p className="text-sm text-neutral-500 mt-1">Places Saved</p>
             </div>
             <div className="text-center p-4 bg-neutral-50 rounded-xl">
-              <p className="text-2xl font-bold text-neutral-700">42</p>
+              <p className="text-2xl font-bold text-neutral-700">
+                {stats.daysTraveled}
+              </p>
               <p className="text-sm text-neutral-500 mt-1">Days Traveled</p>
             </div>
           </div>

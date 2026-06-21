@@ -472,15 +472,15 @@ const MapPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col lg:h-[calc(100vh-8rem)] lg:min-h-[640px] lg:overflow-hidden">
       {(serviceTripError || mapDataError) && (
-        <p className="text-sm text-warning-700">
+        <p className="mb-4 text-sm text-warning-700">
           {mapDataError || 'Supabase trip data could not be loaded. Showing local map data instead.'}
         </p>
       )}
 
       {isMultiStop && (
-        <div className="bg-white rounded-2xl shadow-card border border-neutral-100 p-4">
+        <div className="mb-4 shrink-0 bg-white rounded-2xl shadow-card border border-neutral-100 p-4">
           <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Trip Route</p>
           <div className="flex flex-wrap items-center gap-2 text-lg font-semibold text-neutral-900">
             {orderedStops.map((stop, index) => (
@@ -521,9 +521,9 @@ const MapPage: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-6 h-full">
-        <div className="lg:w-[70%] w-full">
-          <div className="relative w-full h-[440px] lg:h-full min-h-[440px] rounded-2xl overflow-hidden bg-gradient-to-br from-primary-50 via-accent-50 to-primary-100">
+      <div className="grid flex-1 grid-cols-1 gap-6 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-h-[420px] lg:min-h-0">
+          <div className="relative h-[420px] w-full rounded-2xl overflow-hidden bg-gradient-to-br from-primary-50 via-accent-50 to-primary-100 lg:h-full">
             <div className="absolute top-4 left-4 right-4 z-10 bg-white/80 backdrop-blur-sm rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-sm">
               <MapPin className="w-4 h-4 text-primary-500" />
               <span className="text-sm text-neutral-600">
@@ -589,8 +589,8 @@ const MapPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="lg:w-[30%] w-full flex flex-col gap-4">
-          <div className="bg-white rounded-2xl shadow-card border border-neutral-100 p-4">
+        <div className="flex flex-col gap-4 lg:min-h-0">
+          <div className="shrink-0 bg-white rounded-2xl shadow-card border border-neutral-100 p-4">
             <div className="flex items-center gap-2 mb-3">
               <Filter className="w-4 h-4 text-neutral-500" />
               <h3 className="text-sm font-semibold text-neutral-700">Filter Pins</h3>
@@ -614,7 +614,7 @@ const MapPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 bg-white rounded-2xl shadow-card border border-neutral-100 overflow-hidden flex flex-col">
+          <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-card lg:min-h-0">
             <div className="px-4 py-3 border-b border-neutral-100">
               <h3 className="text-sm font-semibold text-neutral-700">
                 {isMultiStop && effectiveSelection === 'all' ? 'All Stops' : `${selectedStop?.name ?? trip.destination} Places`}

@@ -31,6 +31,8 @@ import Button from '../components/ui/Button';
 import ProgressBar from '../components/ui/ProgressBar';
 import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import type {
   BudgetCategory,
   BudgetCurrency,
@@ -1047,40 +1049,32 @@ const Budget: React.FC = () => {
                 onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })}
                 required
               />
-              <label>
-                <span className="block text-sm font-medium text-neutral-700 mb-1.5">Category</span>
-                <select
-                  value={expenseForm.category}
-                  onChange={(event) => setExpenseForm({ ...expenseForm, category: event.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                >
-                  {[...new Set(categoriesWithExpenses.map((category) => category.name))].map((categoryName) => (
-                    <option key={categoryName} value={categoryName}>{categoryName}</option>
-                  ))}
-                </select>
-              </label>
+              <Select
+                label="Category"
+                value={expenseForm.category}
+                onChange={(value) => setExpenseForm({ ...expenseForm, category: value })}
+                options={[...new Set(categoriesWithExpenses.map((category) => category.name))].map((categoryName) => ({
+                  value: categoryName,
+                  label: categoryName,
+                }))}
+              />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {isMultiStop && (
-                <label>
-                  <span className="block text-sm font-medium text-neutral-700 mb-1.5">Stop</span>
-                  <select
-                    value={expenseForm.stopId}
-                    onChange={(event) => setExpenseForm({ ...expenseForm, stopId: event.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  >
-                    <option value="">Trip-wide</option>
-                    {orderedStops.map((stop) => (
-                      <option key={stop.id} value={stop.id}>{stop.name}</option>
-                    ))}
-                  </select>
-                </label>
+                <Select
+                  label="Stop"
+                  value={expenseForm.stopId}
+                  onChange={(value) => setExpenseForm({ ...expenseForm, stopId: value })}
+                  options={[
+                    { value: '', label: 'Trip-wide' },
+                    ...orderedStops.map((stop) => ({ value: stop.id, label: stop.name })),
+                  ]}
+                />
               )}
-              <Input
+              <DatePicker
                 label="Date"
-                type="date"
                 value={expenseForm.date}
-                onChange={(event) => setExpenseForm({ ...expenseForm, date: event.target.value })}
+                onChange={(value) => setExpenseForm({ ...expenseForm, date: value })}
               />
             </div>
             <label>
@@ -1189,25 +1183,19 @@ const Budget: React.FC = () => {
               onChange={(event) => setAllocationForm(event.target.value)}
               required
             />
-            <label>
-              <span className="block text-sm font-medium text-neutral-700 mb-1.5">Currency</span>
-              <select
-                value={currencyForm}
-                onChange={(event) => {
-                  const nextCurrency = event.target.value;
+            <Select
+              label="Currency"
+              value={currencyForm}
+              onChange={(nextCurrency) => {
                   if (isBudgetCurrency(nextCurrency)) {
                     setCurrencyForm(nextCurrency);
                   }
                 }}
-                className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                {BUDGET_CURRENCIES.map((currency) => (
-                  <option key={currency.code} value={currency.code}>
-                    {currency.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              options={BUDGET_CURRENCIES.map((currency) => ({
+                value: currency.code,
+                label: currency.label,
+              }))}
+            />
           </div>
           {selectedCategory && (
             <p className="text-sm text-neutral-500">

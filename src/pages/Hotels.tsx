@@ -23,12 +23,17 @@ import { getHotelsByTripId } from '../data/hotels';
 import { useServiceTrip } from '../hooks/useServiceTrips';
 import {
   getAuthenticatedUserId,
+  locationRefService,
   lodgingService,
 } from '../services/travelDataService';
 import {
   getHotelIdFromLodgingOption,
+  mapLocationRefRowToLocationRef,
   mapLodgingOptionRowToHotel,
 } from '../services/tripMappers';
+import { mapLocationRefToHotel } from '../services/locationDisplayMappers';
+import { placesService } from '../services/placesService';
+import { isSupabaseConfigured } from '../services/supabaseClient';
 import type { Hotel, LocationRef } from '../types';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -36,6 +41,8 @@ import Card from '../components/ui/Card';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
 import RatingStars from '../components/ui/RatingStars';
+import SearchBar from '../components/ui/SearchBar';
+import Select from '../components/ui/Select';
 import StopSelector from '../components/trips/StopSelector';
 
 const LOCAL_SELECTED_HOTELS_KEY = 'travel-builder:selected-hotels';
@@ -163,7 +170,8 @@ const HotelCard: React.FC<HotelCardProps> = ({
 
         <div className="flex items-center gap-1.5 mt-auto pt-1 flex-wrap">
           <Button variant="ghost" size="sm" onClick={onSave}>
-            <Bookmark className="w-4 h-4" />
+            <Bookmark className={`w-4 h-4 ${isSelected ? 'fill-current' : ''}`} />
+            Save
           </Button>
           <Button variant="outline" size="sm" onClick={onViewDetails}>
             View Details
@@ -412,6 +420,9 @@ const Hotels: React.FC = () => {
     trip ? loadSelectedHotels(trip.id, initiallySelectedHotelIds) : new Set()
   );
   const [serviceHotels, setServiceHotels] = useState<Hotel[]>([]);
+  const [googleHotels, setGoogleHotels] = useState<Hotel[]>([]);
+  const [hotelSearchQuery, setHotelSearchQuery] = useState('');
+  const [isSearchingGoogleHotels, setIsSearchingGoogleHotels] = useState(false);
   const [lodgingSource, setLodgingSource] = useState<'supabase' | 'fallback'>('fallback');
   const [lodgingError, setLodgingError] = useState<string | null>(null);
   const [detailHotel, setDetailHotel] = useState<Hotel | null>(null);
@@ -476,13 +487,75 @@ const Hotels: React.FC = () => {
     [orderedStops, selectedStopId]
   );
 
+  useEffect(() => {
+    if (!trip || !selectedStop || tripSource !== 'supabase' || !isSupabaseConfigured) {
+      setGoogleHotels([]);
+      setIsSearchingGoogleHotels(false);
+      return;
+    }
+
+    const trimmedSearch = hotelSearchQuery.trim();
+    if (trimmedSearch.length > 0 && trimmedSearch.length < 2) {
+      setGoogleHotels([]);
+      setIsSearchingGoogleHotels(false);
+      return;
+    }
+
+    const textQuery = `${trimmedSearch || 'hotels'} in ${selectedStop.name}`;
+    const locationBias =
+      selectedStop.locationRef?.latitude != null && selectedStop.locationRef?.longitude != null
+        ? {
+            circle: {
+              center: {
+                latitude: selectedStop.locationRef.latitude,
+                longitude: selectedStop.locationRef.longitude,
+              },
+              radius: 15000,
+            },
+          }
+        : undefined;
+    let cancelled = false;
+
+    setIsSearchingGoogleHotels(true);
+
+    const timeoutId = window.setTimeout(() => {
+      placesService.textSearch(textQuery, {
+        includedPrimaryTypes: ['lodging'],
+        locationBias,
+        maxResultCount: 9,
+      })
+        .then((locations) => {
+          if (cancelled) return;
+          setGoogleHotels(
+            locations.map((location) =>
+              mapLocationRefToHotel(trip.id, selectedStop.id, location),
+            ),
+          );
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setGoogleHotels([]);
+          setLodgingError('Google lodging search is unavailable. Showing saved and local hotels instead.');
+        })
+        .finally(() => {
+          if (cancelled) return;
+          setIsSearchingGoogleHotels(false);
+        });
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [hotelSearchQuery, selectedStop, trip, tripSource]);
+
   const availableHotels = useMemo(() => {
     const hotelsById = new Map<string, Hotel>();
-    [...allHotels, ...serviceHotels].forEach((hotel) => {
+    [...allHotels, ...serviceHotels, ...googleHotels].forEach((hotel) => {
       hotelsById.set(hotel.id, hotel);
     });
     return [...hotelsById.values()];
-  }, [allHotels, serviceHotels]);
+  }, [allHotels, googleHotels, serviceHotels]);
 
   const stopHotels = useMemo(() => {
     if (!selectedStop) return availableHotels;
@@ -568,7 +641,20 @@ const Hotels: React.FC = () => {
         return;
       }
 
-      await lodgingService.upsertHotelSelection(trip.id, hotel, next.has(hotelId));
+      const hotelToSave =
+        hotel.locationRef?.googlePlaceId && next.has(hotelId)
+          ? {
+              ...hotel,
+              locationRef: mapLocationRefRowToLocationRef(
+                await locationRefService.upsertGoogleLocationRef(
+                  userId,
+                  hotel.locationRef,
+                ),
+              ),
+            }
+          : hotel;
+
+      await lodgingService.upsertHotelSelection(trip.id, hotelToSave, next.has(hotelId));
       setLodgingError(null);
     } catch {
       setLodgingError('Supabase lodging save failed. Saved the hotel selection locally instead.');
@@ -605,18 +691,18 @@ const Hotels: React.FC = () => {
           )}
         </div>
 
-        <div className="relative">
-          <select
+        <div className="w-full sm:w-52">
+          <Select
             value={sortBy}
-            onChange={(event) => setSortBy(event.target.value as HotelSortOption)}
-            className="appearance-none bg-white border border-neutral-200 rounded-xl px-4 py-2 pr-9 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
-          >
-            <option value="recommended">Recommended</option>
-            <option value="highest-rated">Highest Rated</option>
-            <option value="most-reviewed">Most Reviewed</option>
-            <option value="closest">Closest</option>
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
+            onChange={(value) => setSortBy(value as HotelSortOption)}
+            options={[
+              { value: 'recommended', label: 'Recommended' },
+              { value: 'highest-rated', label: 'Highest Rated' },
+              { value: 'most-reviewed', label: 'Most Reviewed' },
+              { value: 'closest', label: 'Closest' },
+            ]}
+            aria-label="Sort hotels"
+          />
         </div>
       </div>
 
@@ -625,6 +711,17 @@ const Hotels: React.FC = () => {
         selectedStopId={selectedStop?.id}
         onChange={setSelectedStopId}
       />
+
+      <div className="flex flex-col gap-2 sm:max-w-md">
+        <SearchBar
+          value={hotelSearchQuery}
+          onChange={setHotelSearchQuery}
+          placeholder={`Search hotels${selectedStop ? ` in ${selectedStop.name}` : ''}...`}
+        />
+        {isSearchingGoogleHotels && (
+          <p className="text-xs text-neutral-400">Searching Google lodging results...</p>
+        )}
+      </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
         <aside className="w-full lg:w-64 shrink-0">

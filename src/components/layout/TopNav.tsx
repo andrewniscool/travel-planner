@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Menu, Search, Bell, User } from 'lucide-react';
+import { Menu, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 interface TopNavProps {
@@ -57,7 +57,7 @@ const TopNav: React.FC<TopNavProps> = ({ onMenuClick }) => {
   const { user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-30 bg-white border-b border-neutral-200">
+    <header className="sticky top-0 z-30 bg-white border-b border-neutral-200 dark:bg-[var(--app-surface)] dark:border-[var(--app-border)]">
       <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
         {/* Left Section */}
         <div className="flex items-center gap-4 min-w-0">
@@ -104,35 +104,6 @@ const TopNav: React.FC<TopNavProps> = ({ onMenuClick }) => {
 
         {/* Right Section */}
         <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="hidden md:flex items-center relative">
-            <Search className="absolute left-3 w-4 h-4 text-neutral-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-48 pl-9 pr-3 py-1.5 text-sm bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 placeholder:text-neutral-400 transition-colors"
-            />
-          </div>
-
-          {/* Mobile Search Toggle */}
-          <button
-            type="button"
-            className="md:hidden p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
-            aria-label="Search"
-          >
-            <Search className="w-5 h-5" />
-          </button>
-
-          {/* Notifications */}
-          <button
-            type="button"
-            className="relative p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
-            aria-label="Notifications"
-          >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary-500 rounded-full ring-2 ring-white" />
-          </button>
-
           {/* User Avatar */}
           <Link
             to={user ? '/profile' : '/sign-in'}

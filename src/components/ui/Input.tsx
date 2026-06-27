@@ -27,7 +27,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             placeholder={placeholder}
             className={[
-              'w-full px-4 py-2.5 rounded-xl border bg-white text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors',
+              'w-full px-4 py-2.5 rounded-xl border bg-white text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700',
               icon ? 'pl-10' : '',
               error
                 ? 'border-error-400 text-error-500'

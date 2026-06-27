@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Building2,
   CalendarDays,
@@ -15,6 +15,7 @@ import { getTripFromStorageOrMock } from '../hooks/useTrip';
 import { useServiceTrip } from '../hooks/useServiceTrips';
 import { getHotelsByTripId } from '../data/hotels';
 import { getItineraryByTripId } from '../data/itinerary';
+import { mockLocationSuggestions } from '../data/locationSuggestions';
 import { getPlacesByTripId } from '../data/places';
 import {
   getAuthenticatedUserId,
@@ -22,11 +23,13 @@ import {
   lodgingService,
   savedPlaceService,
 } from '../services/travelDataService';
+import TripGoogleMap, { type TripMapMarker } from '../components/map/TripGoogleMap';
 import {
   mapLodgingOptionRowToHotel,
   mapSavedPlaceRowToPlace,
 } from '../services/tripMappers';
 import RatingStars from '../components/ui/RatingStars';
+import SearchBar from '../components/ui/SearchBar';
 import type {
   Hotel,
   ItineraryDay,
@@ -148,6 +151,41 @@ const getTransportLabel = (segment: TransportSegment, stops: TripStop[]) => {
   return `${from} to ${to}`;
 };
 
+const hasCoordinates = (
+  value?: { latitude?: number; longitude?: number },
+): value is { latitude: number; longitude: number } =>
+  typeof value?.latitude === 'number' &&
+  Number.isFinite(value.latitude) &&
+  typeof value.longitude === 'number' &&
+  Number.isFinite(value.longitude);
+
+const makeTripMapMarker = (
+  marker: Omit<TripMapMarker, 'latitude' | 'longitude'>,
+  location?: { latitude?: number; longitude?: number },
+): TripMapMarker | null =>
+  hasCoordinates(location)
+    ? {
+        ...marker,
+        latitude: location.latitude,
+        longitude: location.longitude,
+      }
+    : null;
+
+const getStopMapLocation = (stop: TripStop) => {
+  if (hasCoordinates(stop)) return stop;
+  if (hasCoordinates(stop.locationRef)) return stop.locationRef;
+
+  const normalizedStopName = stop.name.trim().toLowerCase();
+  return mockLocationSuggestions.find((suggestion) => {
+    const suggestionName = suggestion.name.trim().toLowerCase();
+    return (
+      suggestion.placeTypes?.includes('locality') &&
+      (suggestionName === normalizedStopName ||
+        suggestionName.startsWith(`${normalizedStopName},`))
+    );
+  });
+};
+
 const getPinClasses = (kind: MapPinKind) => {
   switch (kind) {
     case 'hotel':
@@ -181,7 +219,7 @@ const getPinIcon = (kind: MapPinKind) => {
 };
 
 const MapPinMarker: React.FC<MapPinData> = ({ kind, left, top, label }) => (
-  <div className="absolute group cursor-pointer" style={{ left, top }}>
+  <div className="absolute group" style={{ left, top }}>
     <div
       className={[
         'flex items-center justify-center w-9 h-9 rounded-full shadow-lg text-white',
@@ -233,7 +271,8 @@ const PanelItem: React.FC<{
   meta: string;
   actionLabel?: string;
   rating?: number;
-}> = ({ icon, title, meta, actionLabel = 'View details', rating }) => (
+  onAction?: () => void;
+}> = ({ icon, title, meta, actionLabel = 'View details', rating, onAction }) => (
   <div className="flex items-start gap-3 p-3 rounded-xl bg-neutral-50 hover:bg-neutral-100 transition-colors duration-150">
     <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary-50 text-primary-600 shrink-0">
       {icon}
@@ -247,7 +286,11 @@ const PanelItem: React.FC<{
         </div>
       )}
     </div>
-    <button className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors duration-150">
+    <button
+      type="button"
+      onClick={onAction}
+      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors duration-150"
+    >
       <Plus className="w-3 h-3" />
       {actionLabel}
     </button>
@@ -255,6 +298,7 @@ const PanelItem: React.FC<{
 );
 
 const MapPage: React.FC = () => {
+  const navigate = useNavigate();
   const { tripId } = useParams<{ tripId: string }>();
   const fallbackTrip = tripId ? getTripFromStorageOrMock(tripId) : undefined;
   const {
@@ -275,6 +319,7 @@ const MapPage: React.FC = () => {
   >([]);
   const [mapDataSource, setMapDataSource] = useState<'supabase' | 'fallback'>('fallback');
   const [mapDataError, setMapDataError] = useState<string | null>(null);
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
 
   const orderedStops = useMemo(
     () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
@@ -394,6 +439,10 @@ const MapPage: React.FC = () => {
   const selectedItineraryItems = selectedStop ? getStopItineraryItems(selectedStop.id) : [];
   const selectedTransport = selectedStop ? getStopTransport(selectedStop.id) : [];
   const selectedLodging = selectedHotels.find((hotel) => hotel.isSelected) || selectedHotels[0];
+  const normalizedMapSearch = mapSearchQuery.trim().toLowerCase();
+  const matchesMapSearch = (...values: Array<string | undefined>) =>
+    !normalizedMapSearch ||
+    values.some((value) => value?.toLowerCase().includes(normalizedMapSearch));
 
   const visiblePins = (() => {
     if (!primaryStop) return [];
@@ -416,12 +465,14 @@ const MapPage: React.FC = () => {
       let pinIndex = 0;
       if (activeFilters.has('Hotels')) {
         getStopHotels(stop.id).slice(0, 1).forEach((hotel) => {
+          if (!matchesMapSearch(hotel.name, hotel.neighborhood, hotel.locationRef?.formattedAddress)) return;
           pins.push({ id: hotel.id, kind: 'hotel', label: hotel.name, stopId: stop.id, ...makePosition(pinIndex++) });
         });
       }
       getStopPlaces(stop.id).slice(0, 4).forEach((place) => {
         const category = placeCategoryMap[place.category] || 'Activities';
         if (!activeFilters.has(category)) return;
+        if (!matchesMapSearch(place.name, place.category, place.location, place.locationRef?.formattedAddress)) return;
         pins.push({
           id: place.id,
           kind: category === 'Food' ? 'food' : 'activity',
@@ -432,11 +483,13 @@ const MapPage: React.FC = () => {
       });
       if (activeFilters.has('Itinerary')) {
         getStopItineraryItems(stop.id).slice(0, 2).forEach((item) => {
+          if (!matchesMapSearch(item.name, item.location, item.type)) return;
           pins.push({ id: item.id, kind: 'itinerary', label: item.name, stopId: stop.id, ...makePosition(pinIndex++) });
         });
       }
       if (activeFilters.has('Transport')) {
         getStopTransport(stop.id).slice(0, 2).forEach((segment) => {
+          if (!matchesMapSearch(segment.provider, segment.departureLocation, segment.arrivalLocation, segment.mode)) return;
           pins.push({
             id: segment.id,
             kind: 'transport',
@@ -450,6 +503,113 @@ const MapPage: React.FC = () => {
 
     return pins;
   })();
+
+  const googleMapMarkers = (() => {
+    if (!primaryStop) return [];
+    const pinStops =
+      effectiveSelection === 'all'
+        ? orderedStops
+        : orderedStops.filter((stop) => stop.id === effectiveSelection);
+    const markers: TripMapMarker[] = [];
+
+    pinStops.forEach((stop) => {
+      if (matchesMapSearch(stop.name, stop.country)) {
+        const stopMarker = makeTripMapMarker(
+          {
+            id: `stop-${stop.id}`,
+            kind: 'stop',
+            label: stop.name,
+          },
+          getStopMapLocation(stop),
+        );
+        if (stopMarker) markers.push(stopMarker);
+      }
+
+      if (activeFilters.has('Hotels')) {
+        getStopHotels(stop.id).forEach((hotel) => {
+          if (!matchesMapSearch(hotel.name, hotel.neighborhood, hotel.locationRef?.formattedAddress)) return;
+          const marker = makeTripMapMarker(
+            {
+              id: `hotel-${hotel.id}`,
+              kind: 'hotel',
+              label: hotel.name,
+            },
+            hotel.locationRef,
+          );
+          if (marker) markers.push(marker);
+        });
+      }
+
+      getStopPlaces(stop.id).forEach((place) => {
+        const category = placeCategoryMap[place.category] || 'Activities';
+        if (!activeFilters.has(category)) return;
+        if (!matchesMapSearch(place.name, place.category, place.location, place.locationRef?.formattedAddress)) return;
+
+        const marker = makeTripMapMarker(
+          {
+            id: `place-${place.id}`,
+            kind: category === 'Food' ? 'food' : 'activity',
+            label: place.name,
+          },
+          place.locationRef,
+        );
+        if (marker) markers.push(marker);
+      });
+
+      if (activeFilters.has('Itinerary')) {
+        getStopItineraryItems(stop.id).forEach((item) => {
+          if (!matchesMapSearch(item.name, item.location, item.type)) return;
+          const marker = makeTripMapMarker(
+            {
+              id: `itinerary-${item.id}`,
+              kind: 'itinerary',
+              label: item.name,
+            },
+            item.locationRef,
+          );
+          if (marker) markers.push(marker);
+        });
+      }
+
+      if (activeFilters.has('Transport')) {
+        getStopTransport(stop.id).forEach((segment) => {
+          if (!matchesMapSearch(segment.provider, segment.departureLocation, segment.arrivalLocation, segment.mode)) return;
+          const fromMarker = makeTripMapMarker(
+            {
+              id: `transport-from-${segment.id}`,
+              kind: 'transport',
+              label: segment.departureLocation,
+            },
+            segment.fromLocation,
+          );
+          const toMarker = makeTripMapMarker(
+            {
+              id: `transport-to-${segment.id}`,
+              kind: 'transport',
+              label: segment.arrivalLocation,
+            },
+            segment.toLocation,
+          );
+          if (fromMarker) markers.push(fromMarker);
+          if (toMarker) markers.push(toMarker);
+        });
+      }
+    });
+
+    const seen = new Set<string>();
+    return markers.filter((marker) => {
+      const key = `${marker.id}:${marker.latitude}:${marker.longitude}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
+
+  const mapTitle =
+    isMultiStop && effectiveSelection === 'all'
+      ? 'Whole-trip route view'
+      : `${selectedStop?.name ?? trip?.destination ?? 'Trip'} place view`;
+  const tripBasePath = trip ? `/trip/${trip.id}` : '';
 
   if (!trip || !primaryStop) {
     if (isLoadingServiceTrip) {
@@ -523,70 +683,73 @@ const MapPage: React.FC = () => {
 
       <div className="grid flex-1 grid-cols-1 gap-6 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-h-[420px] lg:min-h-0">
-          <div className="relative h-[420px] w-full rounded-2xl overflow-hidden bg-gradient-to-br from-primary-50 via-accent-50 to-primary-100 lg:h-full">
-            <div className="absolute top-4 left-4 right-4 z-10 bg-white/80 backdrop-blur-sm rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-sm">
-              <MapPin className="w-4 h-4 text-primary-500" />
-              <span className="text-sm text-neutral-600">
-                {isMultiStop && effectiveSelection === 'all'
-                  ? 'Whole-trip route view'
-                  : `${selectedStop?.name ?? trip.destination} place view`}
-              </span>
-            </div>
+          <TripGoogleMap
+            markers={googleMapMarkers}
+            selectedLabel={mapTitle}
+            className="lg:h-full"
+            onUnavailable={(
+              <div className="relative h-[420px] w-full rounded-2xl overflow-hidden bg-gradient-to-br from-primary-50 via-accent-50 to-primary-100 lg:h-full">
+                <div className="absolute top-4 left-4 right-4 z-10 bg-white/80 backdrop-blur-sm rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-sm">
+                  <MapPin className="w-4 h-4 text-primary-500" />
+                  <span className="text-sm text-neutral-600">{mapTitle}</span>
+                </div>
 
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-0 bottom-0 left-[20%] w-px bg-primary-400" />
-              <div className="absolute top-0 bottom-0 left-[40%] w-px bg-primary-400" />
-              <div className="absolute top-0 bottom-0 left-[60%] w-px bg-primary-400" />
-              <div className="absolute top-0 bottom-0 left-[80%] w-px bg-primary-400" />
-              <div className="absolute left-0 right-0 top-[25%] h-px bg-primary-400" />
-              <div className="absolute left-0 right-0 top-[50%] h-px bg-primary-400" />
-              <div className="absolute left-0 right-0 top-[75%] h-px bg-primary-400" />
-            </div>
+                <div className="absolute inset-0 opacity-10">
+                  <div className="absolute top-0 bottom-0 left-[20%] w-px bg-primary-400" />
+                  <div className="absolute top-0 bottom-0 left-[40%] w-px bg-primary-400" />
+                  <div className="absolute top-0 bottom-0 left-[60%] w-px bg-primary-400" />
+                  <div className="absolute top-0 bottom-0 left-[80%] w-px bg-primary-400" />
+                  <div className="absolute left-0 right-0 top-[25%] h-px bg-primary-400" />
+                  <div className="absolute left-0 right-0 top-[50%] h-px bg-primary-400" />
+                  <div className="absolute left-0 right-0 top-[75%] h-px bg-primary-400" />
+                </div>
 
-            {isMultiStop && (
-              <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <polyline
-                  points={routeLinePoints}
-                  fill="none"
-                  stroke="rgba(37, 99, 235, 0.35)"
-                  strokeWidth="1.5"
-                  strokeDasharray="4 3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
+                {isMultiStop && (
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <polyline
+                      points={routeLinePoints}
+                      fill="none"
+                      stroke="rgba(37, 99, 235, 0.35)"
+                      strokeWidth="1.5"
+                      strokeDasharray="4 3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
 
-            {isMultiStop
-              ? orderedStops.map((stop, index) => (
-                  <StopMarker
-                    key={stop.id}
-                    stop={stop}
-                    index={index}
-                    isSelected={effectiveSelection === 'all' || effectiveSelection === stop.id}
-                    onSelect={() => setSelectedStopId(stop.id)}
-                  />
-                ))
-              : (
-                <StopMarker
-                  stop={primaryStop}
-                  index={0}
-                  isSelected
-                  onSelect={() => setSelectedStopId(primaryStop.id)}
-                />
-              )}
+                {isMultiStop
+                  ? orderedStops.map((stop, index) => (
+                      <StopMarker
+                        key={stop.id}
+                        stop={stop}
+                        index={index}
+                        isSelected={effectiveSelection === 'all' || effectiveSelection === stop.id}
+                        onSelect={() => setSelectedStopId(stop.id)}
+                      />
+                    ))
+                  : (
+                    <StopMarker
+                      stop={primaryStop}
+                      index={0}
+                      isSelected
+                      onSelect={() => setSelectedStopId(primaryStop.id)}
+                    />
+                  )}
 
-            {visiblePins.map((pin) => (
-              <MapPinMarker key={`${pin.kind}-${pin.id}`} {...pin} />
-            ))}
+                {visiblePins.map((pin) => (
+                  <MapPinMarker key={`${pin.kind}-${pin.id}`} {...pin} />
+                ))}
 
-            {visiblePins.length === 0 && (
-              <div className="absolute left-1/2 bottom-6 -translate-x-1/2 bg-white/90 backdrop-blur-sm rounded-xl px-4 py-3 shadow-sm border border-neutral-100 text-center">
-                <p className="text-sm font-medium text-neutral-700">No pins in this view</p>
-                <p className="text-xs text-neutral-400 mt-0.5">Add hotels, places, itinerary items, or travel details for this stop.</p>
+                {visiblePins.length === 0 && (
+                  <div className="absolute left-1/2 bottom-6 -translate-x-1/2 bg-white/90 backdrop-blur-sm rounded-xl px-4 py-3 shadow-sm border border-neutral-100 text-center">
+                    <p className="text-sm font-medium text-neutral-700">No pins in this view</p>
+                    <p className="text-xs text-neutral-400 mt-0.5">Add hotels, places, itinerary items, or travel details for this stop.</p>
+                  </div>
+                )}
               </div>
             )}
-          </div>
+          />
         </div>
 
         <div className="flex flex-col gap-4 lg:min-h-0">
@@ -595,6 +758,12 @@ const MapPage: React.FC = () => {
               <Filter className="w-4 h-4 text-neutral-500" />
               <h3 className="text-sm font-semibold text-neutral-700">Filter Pins</h3>
             </div>
+            <SearchBar
+              value={mapSearchQuery}
+              onChange={setMapSearchQuery}
+              placeholder="Search mapped places..."
+              className="mb-3"
+            />
             <div className="flex flex-wrap gap-2">
               {(Object.keys(categoryIcons) as CategoryFilter[]).map((category) => (
                 <button
@@ -624,20 +793,27 @@ const MapPage: React.FC = () => {
               {isMultiStop && effectiveSelection === 'all' ? (
                 orderedStops.map((stop) => {
                   const lodging = getStopHotels(stop.id).find((hotel) => hotel.isSelected) || getStopHotels(stop.id)[0];
-                  const topPlaces = getStopPlaces(stop.id).slice(0, 2);
-                  const stopTransport = getStopTransport(stop.id).slice(0, 1);
+                  const showLodging = lodging && matchesMapSearch(lodging.name, lodging.neighborhood, lodging.locationRef?.formattedAddress);
+                  const topPlaces = getStopPlaces(stop.id)
+                    .filter((place) => matchesMapSearch(place.name, place.category, place.location, place.locationRef?.formattedAddress))
+                    .slice(0, 2);
+                  const stopTransport = getStopTransport(stop.id)
+                    .filter((segment) => matchesMapSearch(segment.provider, segment.departureLocation, segment.arrivalLocation, segment.mode))
+                    .slice(0, 1);
                   return (
                     <div key={stop.id}>
                       <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
                         {stop.order}. {stop.name} · {formatStopDates(stop)}
                       </h4>
                       <div className="space-y-2">
-                        {lodging && (
+                        {showLodging && (
                           <PanelItem
                             icon={<Building2 className="w-4 h-4" />}
                             title={lodging.name}
                             meta={lodging.neighborhood}
                             rating={lodging.rating}
+                            actionLabel="Hotels"
+                            onAction={() => navigate(`${tripBasePath}/hotels`)}
                           />
                         )}
                         {topPlaces.map((place) => (
@@ -647,6 +823,8 @@ const MapPage: React.FC = () => {
                             title={place.name}
                             meta={`${place.category} · ${place.location}`}
                             rating={place.rating}
+                            actionLabel="Explore"
+                            onAction={() => navigate(`${tripBasePath}/explore`)}
                           />
                         ))}
                         {stopTransport.map((segment) => (
@@ -655,10 +833,11 @@ const MapPage: React.FC = () => {
                             icon={segment.mode === 'train' ? <Train className="w-4 h-4" /> : <Car className="w-4 h-4" />}
                             title={segment.provider || getTransportLabel(segment, orderedStops)}
                             meta={`${segment.departureLocation} to ${segment.arrivalLocation}`}
-                            actionLabel="View"
+                            actionLabel="Travel"
+                            onAction={() => navigate(`${tripBasePath}/flights`)}
                           />
                         ))}
-                        {!lodging && topPlaces.length === 0 && stopTransport.length === 0 && (
+                        {!showLodging && topPlaces.length === 0 && stopTransport.length === 0 && (
                           <p className="text-sm text-neutral-400">No mapped items yet.</p>
                         )}
                       </div>
@@ -668,15 +847,20 @@ const MapPage: React.FC = () => {
               ) : (
                 <>
                   {activeFilters.has('Hotels') && selectedLodging && (
-                    <PanelItem
-                      icon={<Building2 className="w-4 h-4" />}
-                      title={selectedLodging.name}
-                      meta={selectedLodging.neighborhood}
-                      rating={selectedLodging.rating}
-                    />
+                    matchesMapSearch(selectedLodging.name, selectedLodging.neighborhood, selectedLodging.locationRef?.formattedAddress) && (
+                      <PanelItem
+                        icon={<Building2 className="w-4 h-4" />}
+                        title={selectedLodging.name}
+                        meta={selectedLodging.neighborhood}
+                        rating={selectedLodging.rating}
+                        actionLabel="Hotels"
+                        onAction={() => navigate(`${tripBasePath}/hotels`)}
+                      />
+                    )
                   )}
                   {selectedPlaces
                     .filter((place) => activeFilters.has(placeCategoryMap[place.category] || 'Activities'))
+                    .filter((place) => matchesMapSearch(place.name, place.category, place.location, place.locationRef?.formattedAddress))
                     .map((place: Place) => (
                       <PanelItem
                         key={place.id}
@@ -684,27 +868,35 @@ const MapPage: React.FC = () => {
                         title={place.name}
                         meta={`${place.category} · ${place.location}`}
                         rating={place.rating}
-                        actionLabel="Add"
+                        actionLabel="Explore"
+                        onAction={() => navigate(`${tripBasePath}/explore`)}
                       />
                     ))}
                   {activeFilters.has('Itinerary') &&
-                    selectedItineraryItems.slice(0, 6).map((item: ItineraryItem) => (
+                    selectedItineraryItems
+                      .filter((item) => matchesMapSearch(item.name, item.location, item.type))
+                      .slice(0, 6)
+                      .map((item: ItineraryItem) => (
                       <PanelItem
                         key={item.id}
                         icon={<CalendarDays className="w-4 h-4" />}
                         title={item.name}
                         meta={`${item.time} · ${item.location}`}
-                        actionLabel="View"
+                        actionLabel="Itinerary"
+                        onAction={() => navigate(`${tripBasePath}/itinerary`)}
                       />
                     ))}
                   {activeFilters.has('Transport') &&
-                    selectedTransport.map((segment) => (
+                    selectedTransport
+                      .filter((segment) => matchesMapSearch(segment.provider, segment.departureLocation, segment.arrivalLocation, segment.mode))
+                      .map((segment) => (
                       <PanelItem
                         key={segment.id}
                         icon={segment.mode === 'train' ? <Train className="w-4 h-4" /> : <Plane className="w-4 h-4" />}
                         title={segment.provider || getTransportLabel(segment, orderedStops)}
                         meta={`${segment.departureLocation} to ${segment.arrivalLocation}`}
-                        actionLabel="View"
+                        actionLabel="Travel"
+                        onAction={() => navigate(`${tripBasePath}/flights`)}
                       />
                     ))}
                   {!selectedLodging &&

@@ -165,12 +165,14 @@ const FlightCard: React.FC<FlightCardProps> = ({
               <Check className="w-4 h-4 mr-1" />
               Select
             </Button>
-            <a href="#" target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="sm">
-                <ExternalLink className="w-4 h-4 mr-1" />
-                Book Flight
-              </Button>
-            </a>
+            {flight.bookingUrl && (
+              <a href={flight.bookingUrl} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm">
+                  <ExternalLink className="w-4 h-4 mr-1" />
+                  Book Flight
+                </Button>
+              </a>
+            )}
           </div>
         </div>
       </div>

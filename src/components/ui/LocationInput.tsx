@@ -184,13 +184,13 @@ const LocationInput: React.FC<LocationInputProps> = ({
           onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
           placeholder={placeholder}
           aria-invalid={Boolean(error)}
-          className={`w-full pl-10 pr-4 py-2.5 rounded-xl border bg-white text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${error ? 'border-error-400 text-error-500' : 'border-neutral-200'}`}
+          className={`w-full pl-10 pr-4 py-2.5 rounded-xl border bg-white text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700 ${error ? 'border-error-400 text-error-500' : 'border-neutral-200'}`}
         />
       </div>
       {error && <p className="mt-1.5 text-sm text-error-500">{error}</p>}
 
       {isOpen && (
-        <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-neutral-100 bg-white shadow-lg">
+        <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-neutral-100 bg-white shadow-lg dark:bg-neutral-900 dark:border-neutral-700">
           {isLoadingPlaces && (
             <div className="flex items-center gap-2 px-4 py-3 text-sm text-neutral-500">
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -224,7 +224,7 @@ const LocationInput: React.FC<LocationInputProps> = ({
                     handleSelectLocation(suggestion.location);
                   }
                 }}
-                className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-neutral-50 transition-colors"
+                className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-neutral-50 transition-colors dark:hover:bg-neutral-800"
               >
                 <MapPin className="w-4 h-4 text-primary-500 mt-0.5 shrink-0" />
                 <span className="min-w-0">

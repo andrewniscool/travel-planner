@@ -110,6 +110,7 @@ export interface Flight {
   stopCity?: string;
   baggage: string;
   bookingSource: string;
+  bookingUrl?: string;
   isSelected?: boolean;
 }
 

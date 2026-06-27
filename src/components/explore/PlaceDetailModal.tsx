@@ -48,6 +48,7 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
   const displayReviewCount = place.locationRef?.reviewCount ?? place.reviewCount;
   const displayLocation = place.locationRef?.formattedAddress || place.location;
   const displayPrice = place.locationRef?.priceRange || place.priceRange;
+  const visitUrl = place.locationRef?.websiteUri || place.locationRef?.googleMapsUri;
   const description =
     place.description ||
     `${displayName} is a must-visit ${place.category.toLowerCase().replace(/s$/, '')} located in ${displayLocation}. Known for its exceptional quality and unique atmosphere, it has earned a ${displayRating}-star rating from ${displayReviewCount.toLocaleString()} reviews. Visitors consistently praise the experience and recommend adding it to your itinerary.`;
@@ -175,15 +176,17 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
             {isAddingToItinerary ? 'Adding...' : 'Add to Itinerary'}
           </button>
 
-          <a
-            href={place.locationRef?.websiteUri || place.locationRef?.googleMapsUri || '#'}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-neutral-100 text-neutral-700 hover:bg-neutral-200 transition-colors ml-auto"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Visit Site
-          </a>
+          {visitUrl && (
+            <a
+              href={visitUrl}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-neutral-100 text-neutral-700 hover:bg-neutral-200 transition-colors ml-auto"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Visit Site
+            </a>
+          )}
         </div>
       </div>
     </Modal>

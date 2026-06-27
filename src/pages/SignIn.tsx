@@ -99,6 +99,7 @@ const SignIn: React.FC = () => {
     isLoading,
     signInWithPassword,
     signUpWithPassword,
+    signInWithOAuth,
     isConfigured,
   } = useAuth();
   const [mode, setMode] = useState<AuthMode>('sign-in');
@@ -111,16 +112,22 @@ const SignIn: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [oauthProvider, setOauthProvider] = useState<'google' | 'apple' | null>(null);
 
   const isSignUp = mode === 'sign-up';
-  const returnTo =
+  const searchParams = new URLSearchParams(location.search);
+  const returnToParam = searchParams.get('returnTo');
+  const stateReturnTo =
     typeof location.state === 'object' &&
     location.state !== null &&
     'returnTo' in location.state &&
     typeof location.state.returnTo === 'string' &&
     location.state.returnTo.startsWith('/')
       ? location.state.returnTo
-      : '/dashboard';
+      : null;
+  const returnTo = returnToParam?.startsWith('/')
+    ? returnToParam
+    : stateReturnTo ?? '/dashboard';
 
   useEffect(() => {
     if (isConfigured && !isLoading && user) {
@@ -174,6 +181,31 @@ const SignIn: React.FC = () => {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
+    setError(null);
+    setStatus(null);
+
+    if (!isConfigured) {
+      setError('Supabase is not configured. Add your env vars first.');
+      return;
+    }
+
+    setOauthProvider(provider);
+
+    try {
+      const redirectUrl = new URL('/sign-in', window.location.origin);
+      redirectUrl.searchParams.set('returnTo', returnTo);
+      await signInWithOAuth(provider, redirectUrl.toString());
+    } catch (authError) {
+      setOauthProvider(null);
+      setError(
+        authError instanceof Error
+          ? authError.message
+          : 'Authentication failed.',
+      );
     }
   };
 
@@ -297,12 +329,9 @@ const SignIn: React.FC = () => {
                     Password
                   </span>
                   {!isSignUp && (
-                    <button
-                      type="button"
-                      className="text-xs font-semibold text-primary-700 transition-colors hover:text-primary-800"
-                    >
-                      Forgot?
-                    </button>
+                    <span className="text-xs font-medium text-neutral-400">
+                      Password required
+                    </span>
                   )}
                 </div>
                 <div className="group flex items-center rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-4 focus-within:ring-primary-100">
@@ -372,7 +401,7 @@ const SignIn: React.FC = () => {
                 variant="primary"
                 size="lg"
                 className="w-full gap-3 py-3.5 shadow-lg shadow-primary-600/20 active:scale-[0.98]"
-                disabled={isSubmitting || !isConfigured}
+                disabled={isSubmitting || Boolean(oauthProvider) || !isConfigured}
               >
                 {isSubmitting
                   ? isSignUp
@@ -395,17 +424,21 @@ const SignIn: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-neutral-200 py-3 text-sm font-semibold text-neutral-800 transition-colors hover:bg-neutral-50"
+                  onClick={() => void handleOAuthSignIn('google')}
+                  disabled={!isConfigured || Boolean(oauthProvider)}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-neutral-200 py-3 text-sm font-semibold text-neutral-800 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <span className="text-base font-bold text-primary-700">G</span>
-                  Google
+                  {oauthProvider === 'google' ? 'Opening...' : 'Google'}
                 </button>
                 <button
                   type="button"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-neutral-200 py-3 text-sm font-semibold text-neutral-800 transition-colors hover:bg-neutral-50"
+                  onClick={() => void handleOAuthSignIn('apple')}
+                  disabled={!isConfigured || Boolean(oauthProvider)}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-neutral-200 py-3 text-sm font-semibold text-neutral-800 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <span className="text-base font-bold"></span>
-                  Apple
+                  <span className="text-base font-bold">A</span>
+                  {oauthProvider === 'apple' ? 'Opening...' : 'Apple'}
                 </button>
               </div>
             </form>

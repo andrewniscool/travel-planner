@@ -26,6 +26,7 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
   const displayReviewCount = place.locationRef?.reviewCount ?? place.reviewCount;
   const displayLocation = place.locationRef?.formattedAddress || place.location;
   const displayPrice = place.locationRef?.priceRange || place.priceRange;
+  const visitUrl = place.locationRef?.websiteUri || place.locationRef?.googleMapsUri;
 
   return (
     <Card hover={false} className="flex flex-col h-full">
@@ -120,15 +121,17 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
             Details
           </button>
 
-          <a
-            href={place.locationRef?.websiteUri || place.locationRef?.googleMapsUri || '#'}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors ml-auto"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            Visit
-          </a>
+          {visitUrl && (
+            <a
+              href={visitUrl}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors ml-auto"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Visit
+            </a>
+          )}
         </div>
       </div>
     </Card>

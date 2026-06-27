@@ -5,19 +5,21 @@ import {
   Mail,
   MapPin,
   Globe,
-  Camera,
   Bell,
   Shield,
   CreditCard,
   LogOut,
   ChevronRight,
   Check,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Badge from '../components/ui/Badge';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../hooks/useTheme';
 import { getLocalTrips } from '../hooks/useTrip';
 import {
   budgetService,
@@ -320,6 +322,7 @@ const mapProfileRowToState = (
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut, updatePassword } = useAuth();
+  const { isDarkMode, toggleTheme } = useTheme();
   const { profile: storedProfile, hasStoredProfile } = useMemo(
     () => loadProfile(),
     [],
@@ -629,9 +632,6 @@ const Profile: React.FC = () => {
                     {initials}
                   </span>
                 </div>
-                <button className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center shadow-md hover:bg-primary-700 transition-colors">
-                  <Camera className="w-4 h-4" />
-                </button>
               </div>
               <div className="flex-1 sm:pb-1">
                 <h2 className="text-xl font-bold text-neutral-900">{name}</h2>
@@ -759,6 +759,41 @@ const Profile: React.FC = () => {
         </div>
       </Card>
 
+      {/* Appearance */}
+      <Card hover={false}>
+        <div className="p-6">
+          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Appearance</h3>
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600">
+                {isDarkMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-neutral-900">Dark Mode</p>
+                <p className="text-xs text-neutral-500">
+                  Use a darker interface, including Google Maps.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className={`relative h-6 w-11 rounded-full transition-colors duration-200 ${
+                isDarkMode ? 'bg-primary-600' : 'bg-neutral-200'
+              }`}
+              aria-label="Toggle dark mode"
+              aria-pressed={isDarkMode}
+            >
+              <span
+                className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                  isDarkMode ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </Card>
+
       {/* Notification Preferences */}
       <Card hover={false}>
         <div className="p-6">
@@ -853,7 +888,9 @@ const Profile: React.FC = () => {
                     <p className="text-xs text-neutral-500">{item.desc}</p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-600 transition-colors" />
+                {!item.disabled && (
+                  <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-600 transition-colors" />
+                )}
               </button>
             ))}
           </div>

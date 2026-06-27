@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Plane,
   Building2,
@@ -41,8 +41,32 @@ const statusBadgeVariant: Record<string, 'upcoming' | 'planning' | 'booked' | 'p
   past: 'past',
 };
 
+function safeFilename(value: string): string {
+  const fallback = 'trip-summary';
+  const filename = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return filename || fallback;
+}
+
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 const TripSummary: React.FC = () => {
   const trip = useTrip();
+  const [actionStatus, setActionStatus] = useState<string | null>(null);
   const flights = useMemo(() => (trip ? getFlightsByTripId(trip.id) : []), [trip]);
   const hotels = useMemo(() => (trip ? getHotelsByTripId(trip.id) : []), [trip]);
   const places = useMemo(() => (trip ? getPlacesByTripId(trip.id) : []), [trip]);
@@ -116,6 +140,132 @@ const TripSummary: React.FC = () => {
     );
   }
 
+  const tripName = getTripDisplayName(trip);
+  const tripRoute = isMultiStop ? getTripRouteLabel(trip) : trip.country;
+  const hotelLink = selectedHotel?.locationRef?.websiteUri ?? selectedHotel?.locationRef?.googleMapsUri;
+
+  const buildExportText = () => {
+    const lines: string[] = [
+      tripName,
+      tripRoute,
+      `${formatDate(trip.startDate)} - ${formatDate(trip.endDate)}`,
+      `${trip.travelers} traveler${trip.travelers === 1 ? '' : 's'}`,
+      `$${trip.budget.toLocaleString()} budget`,
+      '',
+    ];
+
+    if (orderedStops.length > 0) {
+      lines.push('Route');
+      orderedStops.forEach((stop) => {
+        lines.push(`- ${stop.order}. ${stop.name}: ${formatDate(stop.startDate)} - ${formatDate(stop.endDate)}`);
+      });
+      lines.push('');
+    }
+
+    lines.push('Selected Flight');
+    if (selectedFlight) {
+      lines.push(
+        `- ${selectedFlight.airline}: ${selectedFlight.departureAirportCode} -> ${selectedFlight.arrivalAirportCode}`,
+        `- Time: ${selectedFlight.departureTime} - ${selectedFlight.arrivalTime}`,
+        `- Duration: ${selectedFlight.duration}`,
+        `- Price: $${selectedFlight.price.toLocaleString()}`,
+        `- Source: ${selectedFlight.bookingSource}`,
+      );
+    } else {
+      lines.push('- No flight selected');
+    }
+    lines.push('');
+
+    lines.push(isMultiStop ? 'Stop Highlights' : 'Selected Hotel');
+    if (isMultiStop) {
+      orderedStops.forEach((stop) => {
+        const stopHotels = hotels.filter((hotel) => hotel.stopId === stop.id);
+        const stopPlaces = places.filter((place) => place.stopId === stop.id && place.isSaved).slice(0, 3);
+        const stopDays = itinerary.filter((day) => getStopForDay(day)?.id === stop.id);
+        lines.push(`- ${stop.name}`);
+        lines.push(`  Hotel: ${stopHotels.find((hotel) => hotel.isSelected)?.name || stopHotels[0]?.name || 'No hotel selected'}`);
+        lines.push(`  Places: ${stopPlaces.length > 0 ? stopPlaces.map((place) => place.name).join(', ') : 'No saved places'}`);
+        lines.push(`  Itinerary days: ${stopDays.length}`);
+      });
+    } else if (selectedHotel) {
+      lines.push(
+        `- ${selectedHotel.name}`,
+        `- ${selectedHotel.neighborhood}`,
+        `- $${selectedHotel.pricePerNight}/night`,
+        `- $${selectedHotel.totalCost.toLocaleString()} total`,
+      );
+    } else {
+      lines.push('- No hotel selected');
+    }
+    lines.push('');
+
+    lines.push('Daily Itinerary');
+    if (itinerary.length > 0) {
+      itinerary.forEach((day) => {
+        lines.push(`Day ${day.dayNumber} - ${formatDayDate(day.date)}`);
+        allItineraryItems(day).forEach((item) => {
+          lines.push(`- ${item.time} ${item.name}${item.location ? ` (${item.location})` : ''}`);
+        });
+      });
+    } else {
+      lines.push('- No itinerary planned');
+    }
+    lines.push('');
+
+    lines.push('Budget');
+    if (budget) {
+      budget.categories.forEach((category) => {
+        lines.push(`- ${category.name}: $${category.spent.toLocaleString()} spent of $${category.allocated.toLocaleString()}`);
+      });
+      lines.push(`Total: $${totalSpent.toLocaleString()} spent of $${totalAllocated.toLocaleString()} allocated`);
+    } else {
+      lines.push('- No budget data');
+    }
+    lines.push('');
+
+    lines.push('Notes');
+    if (notes.length > 0) {
+      notes.slice(0, 3).forEach((note) => {
+        lines.push(`- ${note.title}: ${note.content}`);
+      });
+    } else {
+      lines.push('- No notes');
+    }
+    lines.push(`Checklist: ${checkedCount} of ${checklist.length} items checked`);
+
+    return `${lines.join('\n')}\n`;
+  };
+
+  const handleExport = () => {
+    downloadTextFile(`${safeFilename(tripName)}-summary.txt`, buildExportText());
+    setActionStatus('Itinerary exported.');
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: tripName,
+      text: `${tripName} - ${tripRoute}`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setActionStatus('Share sheet opened.');
+        return;
+      }
+
+      await navigator.clipboard.writeText(window.location.href);
+      setActionStatus('Trip link copied.');
+    } catch {
+      setActionStatus('Unable to share this trip right now.');
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Trip Header */}
@@ -123,10 +273,10 @@ const TripSummary: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900">
-              {getTripDisplayName(trip)}
+              {tripName}
             </h1>
             <p className="text-neutral-500 mt-1">
-              {isMultiStop ? getTripRouteLabel(trip) : trip.country}
+              {tripRoute}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -429,25 +579,35 @@ const TripSummary: React.FC = () => {
           Saved Links
         </h2>
         <div className="space-y-2">
-          {selectedFlight && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50 hover:bg-neutral-100 transition-colors duration-150 cursor-pointer">
+          {selectedFlight?.bookingUrl && (
+            <a
+              href={selectedFlight.bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50 hover:bg-neutral-100 transition-colors duration-150"
+            >
               <Plane className="w-4 h-4 text-neutral-400" />
               <span className="text-sm text-primary-600 underline flex-1">
                 Flight booking - {selectedFlight.airline}
               </span>
               <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
-            </div>
+            </a>
           )}
-          {selectedHotel && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50 hover:bg-neutral-100 transition-colors duration-150 cursor-pointer">
+          {selectedHotel && hotelLink && (
+            <a
+              href={hotelLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50 hover:bg-neutral-100 transition-colors duration-150"
+            >
               <Building2 className="w-4 h-4 text-neutral-400" />
               <span className="text-sm text-primary-600 underline flex-1">
                 Hotel reservation - {selectedHotel.name}
               </span>
               <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
-            </div>
+            </a>
           )}
-          {!selectedFlight && !selectedHotel && (
+          {!selectedFlight?.bookingUrl && !hotelLink && (
             <p className="text-sm text-neutral-400 py-2">
               No booking links yet
             </p>
@@ -495,18 +655,21 @@ const TripSummary: React.FC = () => {
 
       {/* Action Buttons */}
       <div className="flex flex-wrap items-center gap-3 pb-6">
-        <Button variant="outline" size="md">
+        <Button variant="outline" size="md" onClick={handleExport}>
           <Download className="w-4 h-4 mr-2" />
           Export Itinerary
         </Button>
-        <Button variant="outline" size="md">
+        <Button variant="outline" size="md" onClick={() => void handleShare()}>
           <Share2 className="w-4 h-4 mr-2" />
           Share Trip
         </Button>
-        <Button variant="outline" size="md">
+        <Button variant="outline" size="md" onClick={handlePrint}>
           <Printer className="w-4 h-4 mr-2" />
           Print
         </Button>
+        {actionStatus && (
+          <span className="text-sm text-neutral-500">{actionStatus}</span>
+        )}
       </div>
     </div>
   );

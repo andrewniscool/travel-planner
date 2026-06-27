@@ -68,32 +68,32 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const linkClasses = ({ isActive }: { isActive: boolean }) =>
     [
-      'flex items-center gap-3 rounded-lg text-sm font-medium transition-colors duration-150',
-      isCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2',
+      'flex items-center gap-3 rounded-lg py-2 text-sm font-medium transition-[color,background-color,border-color,padding] duration-500 ease-in-out',
+      isCollapsed ? 'pl-[18px] pr-[18px]' : 'px-3',
       isActive
         ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-600'
         : 'text-neutral-600 hover:bg-neutral-50',
     ].join(' ');
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-neutral-200">
+    <div className="flex flex-col h-full bg-white border-r border-neutral-200 dark:bg-[var(--app-surface)] dark:border-[var(--app-border)]">
       {/* Logo */}
       <div className={`flex items-center h-16 border-b border-neutral-100 transition-[padding] duration-500 ease-in-out ${
-        isCollapsed ? 'justify-center px-3' : 'justify-between px-6'
+        isCollapsed ? 'px-[1.125rem]' : 'px-6'
       }`}>
-        <div className={`items-center gap-2 min-w-0 ${isCollapsed ? 'hidden' : 'flex'}`}>
+        <div
+          className={`flex items-center gap-2 min-w-0 overflow-hidden transition-all duration-500 ease-in-out ${
+            isCollapsed ? 'max-w-0 opacity-0' : 'max-w-44 opacity-100'
+          }`}
+        >
           <Compass className="w-8 h-8 text-primary-600 flex-shrink-0" />
-          <span
-            className={`overflow-hidden whitespace-nowrap text-xl font-bold text-primary-600 transition-all duration-500 ease-in-out ${
-              isCollapsed ? 'max-w-0 opacity-0' : 'max-w-44 opacity-100'
-            }`}
-          >
+          <span className="overflow-hidden whitespace-nowrap text-xl font-bold text-primary-600">
             Travel Builder
           </span>
         </div>
         <button
           type="button"
-          className="hidden lg:flex p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
+          className="ml-auto hidden p-2 rounded-lg text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700 lg:flex"
           onClick={onToggleCollapse}
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-expanded={!isCollapsed}
@@ -171,13 +171,13 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* User Info */}
       <Link
         to="/profile"
-        className={`border-t border-neutral-100 py-4 block hover:bg-neutral-50 transition-colors ${
-          isCollapsed ? 'px-3' : 'px-4'
+        className={`block border-t border-neutral-100 py-4 hover:bg-neutral-50 transition-[background-color,padding] duration-500 ease-in-out ${
+          isCollapsed ? 'pl-[1.375rem] pr-[1.375rem]' : 'px-4'
         }`}
         onClick={onClose}
         title={isCollapsed ? displayName : undefined}
       >
-        <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+        <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
             <span className="text-sm font-semibold text-primary-700">
               {initials}

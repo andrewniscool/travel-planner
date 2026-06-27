@@ -1,12 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { MapPin, Calendar, Users, DollarSign, FileText, ArrowRight, Plus, Trash2, ChevronDown } from 'lucide-react';
-import Card from '../components/ui/Card';
-import Input from '../components/ui/Input';
+import {
+  MapPin,
+  Users,
+  FileText,
+  ArrowRight,
+  Plus,
+  Trash2,
+  Lightbulb,
+  Star,
+} from 'lucide-react';
 import LocationInput from '../components/ui/LocationInput';
 import Button from '../components/ui/Button';
 import ImagePlaceholder from '../components/ui/ImagePlaceholder';
 import Badge from '../components/ui/Badge';
+import Select from '../components/ui/Select';
+import { DateRangePicker } from '../components/ui/DatePicker';
 import { LOCAL_TRIPS_STORAGE_KEY } from '../data/trips';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { getTripFromStorageOrMock } from '../hooks/useTrip';
@@ -488,213 +497,343 @@ const CreateTrip: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 animate-fade-in">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900">
-            {isEditing ? 'Edit Trip' : 'Create a New Trip'}
-          </h1>
-          <p className="mt-1 text-neutral-500">
-            {isEditing
-              ? isLoadingServiceTrip && !existingTrip
-                ? 'Loading your trip details'
-                : 'Update your trip details'
-              : 'Start planning your next adventure'}
-          </p>
-          {serviceTripError && (
-            <p className="mt-2 text-sm text-warning-700">
-              Supabase trip data could not be loaded. Editing local trip data instead.
-            </p>
-          )}
-        </div>
+    <div className="min-h-screen bg-white animate-fade-in">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
+        {serviceTripError && (
+          <div className="mb-8 rounded-xl border border-warning-100 bg-warning-50 px-4 py-3 text-sm text-warning-700">
+            Supabase trip data could not be loaded. Editing local trip data instead.
+          </div>
+        )}
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="w-full lg:w-[60%] space-y-6">
-            <Input
-              label="Trip Title"
-              placeholder="Japan Spring Trip"
-              icon={<MapPin className="w-4 h-4" />}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            {submitAttempted && !tripTitle && (
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
+          <div className="lg:col-span-7">
+            <div className="mb-10">
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder={isEditing ? 'Trip title' : 'Trip Title'}
+                className="w-full border-0 bg-transparent p-0 text-4xl font-extrabold tracking-normal text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-0 md:text-5xl"
+              />
+              <p className="mt-4 text-lg text-neutral-500">
+                {isEditing
+                  ? isLoadingServiceTrip && !existingTrip
+                    ? 'Loading your trip details'
+                    : 'Update your trip details'
+                  : 'Start planning your next adventure'}
+              </p>
+              {submitAttempted && !tripTitle && (
                 <p className="mt-2 text-sm text-error-500">Trip title is required.</p>
               )}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-neutral-700">Stops</label>
-                <Button variant="ghost" size="sm" onClick={addStop}>
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  Add Stop
-                </Button>
-              </div>
-              {stops.map((stop, index) => (
-                <Card key={index} hover={false} className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-neutral-800">Stop {index + 1}</h3>
-                    {stops.length > 1 && (
-                      <button onClick={() => removeStop(index)} className="text-neutral-400 hover:text-error-500">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <LocationInput
-                      label="City / Destination"
-                      value={stop.locationRef}
-                      onChange={(location) =>
-                        updateStop(index, {
-                          name: location?.name ?? '',
-                          locationRef: location,
-                        })
-                      }
-                      placeholder="Search for a city or destination"
-                      required
-                      error={getStopFieldError(index, 'name')}
-                    />
-                    <Input label="Country" value={stop.country} onChange={(e) => updateStop(index, { country: e.target.value })} />
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">Start Date</label>
-                      <input
-                        type="date"
-                        value={stop.startDate}
-                        onChange={(e) => updateStop(index, { startDate: e.target.value })}
-                        aria-invalid={Boolean(getStopFieldError(index, 'startDate'))}
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${getStopFieldError(index, 'startDate') ? 'border-error-400 text-error-500' : 'border-neutral-200'}`}
-                      />
-                      {getStopFieldError(index, 'startDate') && (
-                        <p className="mt-1.5 text-sm text-error-500">
-                          {getStopFieldError(index, 'startDate')}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">End Date</label>
-                      <input
-                        type="date"
-                        value={stop.endDate}
-                        onChange={(e) => updateStop(index, { endDate: e.target.value })}
-                        aria-invalid={Boolean(getStopFieldError(index, 'endDate'))}
-                        className={`w-full px-4 py-2.5 rounded-xl border bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${getStopFieldError(index, 'endDate') ? 'border-error-400 text-error-500' : 'border-neutral-200'}`}
-                      />
-                      {getStopFieldError(index, 'endDate') && (
-                        <p className="mt-1.5 text-sm text-error-500">
-                          {getStopFieldError(index, 'endDate')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <textarea rows={2} placeholder="Stop notes" value={stop.notes} onChange={(e) => updateStop(index, { notes: e.target.value })} className="mt-3 w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 resize-none" />
-                </Card>
-              ))}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input label="Number of Travelers" type="number" min={1} icon={<Users className="w-4 h-4" />} value={travelers} onChange={(e) => setTravelers(Math.max(1, parseInt(e.target.value) || 1))} />
+            <section className="space-y-10">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1.5">Budget</label>
-                <div className="flex h-[46px] rounded-xl border border-neutral-200 bg-white shadow-sm transition-colors focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
-                  <div className="relative shrink-0">
-                    <select
+                <div className="mb-6 flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-neutral-900">Stops</h2>
+                  <button
+                    type="button"
+                    onClick={addStop}
+                    className="inline-flex items-center gap-2 text-sm font-bold text-primary-600 underline underline-offset-4 transition-colors hover:text-primary-700"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Stop
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  {stops.map((stop, index) => (
+                    <div
+                      key={index}
+                      className="group relative rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:border-neutral-300 hover:shadow-lg sm:p-7"
+                    >
+                      <div className="absolute -left-3 top-7 flex h-7 w-7 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white shadow-sm">
+                        {index + 1}
+                      </div>
+
+                      {stops.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeStop(index)}
+                          className="absolute right-4 top-4 rounded-full p-2 text-neutral-300 opacity-100 transition-colors hover:bg-error-50 hover:text-error-500 sm:opacity-0 sm:group-hover:opacity-100"
+                          aria-label={`Remove stop ${index + 1}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="md:col-span-2">
+                          <LocationInput
+                            label="Where"
+                            value={stop.locationRef}
+                            onChange={(location) =>
+                              updateStop(index, {
+                                name: location?.name ?? '',
+                                locationRef: location,
+                              })
+                            }
+                            placeholder="Search destinations"
+                            required
+                            error={getStopFieldError(index, 'name')}
+                          />
+                        </div>
+
+                        <div className="relative rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600">
+                          <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
+                            Country
+                          </label>
+                          <input
+                            value={stop.country}
+                            onChange={(event) => updateStop(index, { country: event.target.value })}
+                            placeholder="Japan"
+                            className="w-full rounded-xl border-0 bg-transparent px-3 pb-2 pt-6 text-sm text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-0"
+                          />
+                        </div>
+
+                        <DateRangePicker
+                          startValue={stop.startDate}
+                          endValue={stop.endDate}
+                          onChange={(range) =>
+                            updateStop(index, {
+                              startDate: range.start,
+                              endDate: range.end,
+                            })
+                          }
+                          error={getStopFieldError(index, 'startDate') ?? getStopFieldError(index, 'endDate')}
+                        />
+
+                        <div className="relative rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600 md:col-span-2">
+                          <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
+                            Notes
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={stop.notes}
+                            onChange={(event) => updateStop(index, { notes: event.target.value })}
+                            placeholder="Optional stop notes"
+                            className="w-full resize-none rounded-xl border-0 bg-transparent px-3 pb-3 pt-7 text-sm text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addStop}
+                    className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-300 bg-white py-10 text-neutral-400 transition-all hover:border-primary-600 hover:text-primary-600"
+                  >
+                    <MapPin className="mb-2 h-8 w-8" />
+                    <span className="font-bold">Add another stop</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="relative rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600">
+                  <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
+                    Who
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={travelers}
+                    onChange={(event) => setTravelers(Math.max(1, parseInt(event.target.value) || 1))}
+                    className="w-full rounded-xl border-0 bg-transparent px-3 pb-2 pt-6 text-sm text-neutral-900 focus:outline-none focus:ring-0"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500">
+                    Travelers
+                  </span>
+                </div>
+
+                <div className="flex rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600">
+                  <div className="flex items-center border-r border-neutral-200 px-2">
+                    <Select
                       value={budgetCurrency}
-                      onChange={(event) => {
-                        const nextCurrency = event.target.value;
+                      onChange={(nextCurrency) => {
                         if (isBudgetCurrency(nextCurrency)) {
                           setBudgetCurrency(nextCurrency);
                         }
                       }}
                       aria-label="Budget currency"
-                      className="h-full w-24 appearance-none rounded-l-xl border-0 border-r border-neutral-200 bg-neutral-100/80 pl-3 pr-7 text-sm font-medium text-neutral-900 outline-none transition-colors hover:bg-neutral-50"
-                    >
-                      {BUDGET_CURRENCIES.map((currency) => (
-                        <option key={currency.code} value={currency.code}>
-                          {currency.symbol} {currency.code}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-500" />
+                      options={BUDGET_CURRENCIES.map((currency) => ({
+                        value: currency.code,
+                        label: currency.code,
+                        description: currency.symbol,
+                      }))}
+                      buttonClassName="border-0 bg-transparent px-2 py-2 shadow-none focus:ring-0"
+                    />
                   </div>
-                  <input
-                    type="number"
-                    min={0}
-                    value={budget}
-                    onChange={(event) => setBudget(event.target.value ? Number(event.target.value) : '')}
-                    className="min-w-0 flex-1 rounded-r-xl border-0 bg-white px-4 text-neutral-900 placeholder:text-neutral-400 outline-none"
-                  />
+                  <div className="relative min-w-0 flex-1">
+                    <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
+                      Budget
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={budget}
+                      onChange={(event) => setBudget(event.target.value ? Number(event.target.value) : '')}
+                      placeholder="5000"
+                      className="w-full rounded-r-xl border-0 bg-transparent px-3 pb-2 pt-6 text-sm text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-0"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-2.5">Trip Vibe</label>
-              <div className="flex flex-wrap gap-2">
-                {VIBE_OPTIONS.map((option) => (
-                  <button key={option} type="button" onClick={() => setVibe(vibe === option ? '' : option)} className={`px-4 py-2 rounded-full text-sm font-medium ${vibe === option ? 'bg-primary-600 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}>
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1.5">Notes</label>
-              <textarea rows={4} placeholder="Any special plans or ideas?" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 resize-none" />
-            </div>
-
-            {shouldShowValidation && (
-              <div className="rounded-lg border border-error-100 bg-error-50 px-4 py-3 text-sm text-error-600">
-                <p className="font-medium">Please complete the required fields:</p>
-                <ul className="mt-1 list-disc pl-5">
-                  {validationMessages.map((message) => (
-                    <li key={message}>{message}</li>
+              <div>
+                <h3 className="mb-4 text-lg font-bold text-neutral-900">Trip Vibe</h3>
+                <div className="flex flex-wrap gap-3">
+                  {VIBE_OPTIONS.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setVibe(vibe === option ? '' : option)}
+                      className={[
+                        'rounded-full border px-5 py-2 text-sm font-semibold transition-all',
+                        vibe === option
+                          ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
+                          : 'border-neutral-200 text-neutral-700 hover:border-primary-600 hover:text-primary-700',
+                      ].join(' ')}
+                    >
+                      {option}
+                    </button>
                   ))}
-                </ul>
+                </div>
               </div>
-            )}
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4 border-t border-neutral-200">
-              <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
-              <div className="flex-1" />
-              {saveMessage && (
-                <span className="text-sm text-neutral-500">{saveMessage}</span>
+              <div className="relative rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600">
+                <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
+                  General Plans
+                </label>
+                <textarea
+                  rows={5}
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  placeholder="Tell us more about your vision for this trip..."
+                  className="w-full resize-none rounded-xl border-0 bg-transparent px-3 pb-3 pt-7 text-sm text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-0"
+                />
+              </div>
+
+              {shouldShowValidation && (
+                <div className="rounded-xl border border-error-100 bg-error-50 px-4 py-3 text-sm text-error-600">
+                  <p className="font-medium">Please complete the required fields:</p>
+                  <ul className="mt-1 list-disc pl-5">
+                    {validationMessages.map((message) => (
+                      <li key={message}>{message}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
-              {saveError && (
-                <span className="text-sm text-error-500">{saveError}</span>
-              )}
-              <Button
-                variant="primary"
-                onClick={handleContinue}
-                disabled={isSaving}
-                className="inline-flex items-center gap-2"
-              >
-                {isSaving
-                  ? 'Saving...'
-                  : isEditing
-                    ? 'Save Changes'
-                    : 'Save Trip'}
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </div>
+
+              <div className="flex flex-col gap-4 border-t border-neutral-200 pt-8 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="text-sm font-bold text-neutral-700 underline underline-offset-4 transition-colors hover:text-neutral-500"
+                >
+                  Cancel
+                </button>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  {saveMessage && (
+                    <span className="text-sm text-neutral-500">{saveMessage}</span>
+                  )}
+                  {saveError && (
+                    <span className="max-w-md text-sm text-error-500">{saveError}</span>
+                  )}
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={handleContinue}
+                    disabled={isSaving}
+                    className="gap-2 px-8 shadow-lg shadow-primary-600/20 active:scale-[0.98]"
+                  >
+                    {isSaving
+                      ? 'Saving...'
+                      : isEditing
+                        ? 'Save Changes'
+                        : 'Save Trip'}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </section>
           </div>
 
-          <div className="w-full lg:w-[40%]">
-            <div className="lg:sticky lg:top-8">
-              <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">Live Preview</p>
-              <Card hover={false} className="overflow-hidden">
-                <div className="relative">
-                  <ImagePlaceholder src={PREVIEW_IMAGE} alt="Trip preview" aspectRatio="video" />
-                  {tripTitle && <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end p-5"><h3 className="text-xl font-bold text-white drop-shadow-md">{tripTitle}</h3></div>}
+          <div className="lg:col-span-5">
+            <div className="lg:sticky lg:top-24">
+              <p className="mb-4 text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
+                Trip Preview
+              </p>
+              <div className="group">
+                <div className="relative mb-4 overflow-hidden rounded-2xl bg-neutral-100 shadow-sm">
+                  <ImagePlaceholder
+                    src={PREVIEW_IMAGE}
+                    alt="Trip preview"
+                    aspectRatio="video"
+                    className="transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute bottom-4 left-4">
+                    <span className="rounded-full bg-white/90 px-3 py-1 text-[10px] font-extrabold uppercase tracking-tight text-neutral-900 backdrop-blur-sm">
+                      {existingTrip?.status ?? 'Planning'}
+                    </span>
+                  </div>
                 </div>
-                <div className="p-5 space-y-3">
-                  <h3 className="text-lg font-semibold text-neutral-900">{tripTitle || 'Your Trip'}</h3>
-                  <p className="text-sm text-neutral-500">{routeLabel || 'Add at least one stop'}</p>
-                  <div className="flex items-center gap-2 text-sm text-neutral-600"><Calendar className="w-4 h-4 text-neutral-400" /><span>{dateDisplay || 'Select stop dates'}</span></div>
-                  <div className="flex items-center gap-2 text-sm text-neutral-600"><Users className="w-4 h-4 text-neutral-400" /><span>{travelers} traveler{travelers !== 1 ? 's' : ''}</span></div>
-                  <div className="flex items-center gap-2 text-sm text-neutral-600"><DollarSign className="w-4 h-4 text-neutral-400" /><span>{formattedBudget || 'Set a budget'}</span></div>
+
+                <div className="mb-1 flex items-start justify-between gap-4">
+                  <h3 className="text-lg font-bold leading-tight text-neutral-900">
+                    {tripTitle || 'Your Trip'}
+                  </h3>
+                  <div className="flex shrink-0 items-center gap-1 text-sm text-neutral-800">
+                    <Star className="h-4 w-4 fill-primary-600 text-primary-600" />
+                    <span className="font-bold">{vibe ? '4.9' : '--'}</span>
+                    <span className="text-neutral-500">(vibe)</span>
+                  </div>
+                </div>
+
+                <p className="text-[15px] text-neutral-500">
+                  {routeLabel || 'Add at least one stop'}
+                </p>
+                <p className="text-[15px] text-neutral-500">
+                  {dateDisplay || 'Select stop dates'}
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <p className="font-bold text-neutral-900">{formattedBudget || 'Set budget'}</p>
+                  <p className="text-[15px] text-neutral-500">total budget</p>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-neutral-500">
+                  <span className="inline-flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    {travelers} traveler{travelers !== 1 ? 's' : ''}
+                  </span>
                   {vibe && <Badge variant="default">{vibe}</Badge>}
-                  {notesPreview && <div className="pt-2 border-t border-neutral-100"><p className="text-sm text-neutral-500 leading-relaxed"><FileText className="inline w-3.5 h-3.5 mr-1" />{notesPreview}</p></div>}
                 </div>
-              </Card>
+
+                {(notesPreview || validStops.some((stop) => stop.notes.trim())) && (
+                  <div className="mt-4 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
+                    <p className="text-xs italic leading-relaxed text-neutral-500">
+                      <FileText className="mr-1 inline h-3.5 w-3.5" />
+                      "
+                      {notesPreview ||
+                        validStops.find((stop) => stop.notes.trim())?.notes}
+                      "
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-8 rounded-2xl border border-neutral-200 bg-white p-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600">
+                    <Lightbulb className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-neutral-900">Planning Tip</p>
+                    <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+                      Add dates to each stop first. Hotels, budget, and map views become much easier to review once the route is anchored.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

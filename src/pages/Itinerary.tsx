@@ -29,8 +29,21 @@ import {
   budgetService,
   getAuthenticatedUserId,
   itineraryService,
+  locationRefService,
+  savedPlaceService,
 } from '../services/travelDataService';
+import LocationInput from '../components/ui/LocationInput';
 import Modal from '../components/ui/Modal';
+import Select from '../components/ui/Select';
+import {
+  getPersistedLocationRefId,
+  getPlaceItineraryTimeOfDay,
+  getPlaceItineraryType,
+} from '../services/locationDisplayMappers';
+import {
+  mapLocationRefRowToLocationRef,
+  mapSavedPlaceRowToPlace,
+} from '../services/tripMappers';
 import type {
   BudgetCategory,
   BudgetExpense,
@@ -40,6 +53,7 @@ import type {
   TimeOfDay,
   Place,
   TripStop,
+  LocationRef,
 } from '../types';
 import type {
   ItineraryItemInsert,
@@ -62,6 +76,7 @@ interface ItineraryItemFormState {
   estimatedCost: string;
   notes: string;
   budgetCategory: string;
+  locationRef: LocationRef | null;
 }
 
 interface ItineraryModalState {
@@ -90,6 +105,7 @@ const emptyItineraryForm = (): ItineraryItemFormState => ({
   estimatedCost: '',
   notes: '',
   budgetCategory: '',
+  locationRef: null,
 });
 
 const loadRemovedItems = (tripId: string) => {
@@ -292,7 +308,7 @@ const ItineraryItemRow: React.FC<{
   return (
     <div className="group flex items-start gap-3 p-3 rounded-xl bg-white border border-neutral-100 hover:border-neutral-200 hover:shadow-sm transition-all duration-150">
       {/* Grip Handle */}
-      <div className="flex items-center pt-1 text-neutral-300 cursor-grab">
+      <div className="flex items-center pt-1 text-neutral-300">
         <GripVertical className="w-4 h-4" />
       </div>
 
@@ -464,6 +480,7 @@ const ItineraryItemModal: React.FC<{
   isSaving: boolean;
   onClose: () => void;
   onChange: (field: keyof ItineraryItemFormState, value: string) => void;
+  onLocationChange: (location: LocationRef | null) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 }> = ({
   isOpen,
@@ -474,6 +491,7 @@ const ItineraryItemModal: React.FC<{
   isSaving,
   onClose,
   onChange,
+  onLocationChange,
   onSubmit,
 }) => {
   useEffect(() => {
@@ -531,22 +549,15 @@ const ItineraryItemModal: React.FC<{
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Type
-                </label>
-                <select
-                  value={form.type}
-                  onChange={(event) => onChange('type', event.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                >
-                  {itineraryItemTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Type"
+                value={form.type}
+                onChange={(value) => onChange('type', value)}
+                options={itineraryItemTypes.map((type) => ({
+                  value: type.value,
+                  label: type.label,
+                }))}
+              />
             </div>
 
             <div>
@@ -564,17 +575,16 @@ const ItineraryItemModal: React.FC<{
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Location
-              </label>
-              <input
-                value={form.location}
-                onChange={(event) => onChange('location', event.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              <LocationInput
+                label="Location"
+                value={form.locationRef}
+                onChange={(location) => {
+                  onLocationChange(location);
+                  onChange('location', location?.formattedAddress ?? location?.name ?? '');
+                }}
+                placeholder="Search for a place"
+                error={errors.location}
               />
-              {errors.location && (
-                <p className="text-xs text-error-500 mt-1">{errors.location}</p>
-              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -596,24 +606,18 @@ const ItineraryItemModal: React.FC<{
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Budget category
-                </label>
-                <select
+                <Select
+                  label="Budget category"
                   value={form.budgetCategory}
-                  onChange={(event) => onChange('budgetCategory', event.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                >
-                  <option value="">Optional</option>
-                  {budgetCategories.map((category) => (
-                    <option
-                      key={getBudgetCategoryKey(category)}
-                      value={getBudgetCategoryKey(category)}
-                    >
-                      {category.stopId ? `${category.name} (${category.stopId})` : category.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => onChange('budgetCategory', value)}
+                  options={[
+                    { value: '', label: 'Optional' },
+                    ...budgetCategories.map((category) => ({
+                      value: getBudgetCategoryKey(category),
+                      label: category.stopId ? `${category.name} (${category.stopId})` : category.name,
+                    })),
+                  ]}
+                />
                 {errors.budgetCategory && (
                   <p className="text-xs text-error-500 mt-1">{errors.budgetCategory}</p>
                 )}
@@ -678,6 +682,14 @@ const Itinerary: React.FC = () => {
     () => (trip ? getPlacesByTripId(trip.id).filter((p) => p.isSaved) : []),
     [trip]
   );
+  const [serviceSavedPlaces, setServiceSavedPlaces] = useState<Place[]>([]);
+  const availableSavedPlaces = useMemo(() => {
+    const placesById = new Map<string, Place>();
+    [...savedPlaces, ...serviceSavedPlaces].forEach((place) => {
+      placesById.set(place.id, place);
+    });
+    return [...placesById.values()];
+  }, [savedPlaces, serviceSavedPlaces]);
   const budgetCategories = useMemo(
     () => (trip ? getBudgetByTripId(trip.id)?.categories ?? [] : []),
     [trip],
@@ -713,6 +725,7 @@ const Itinerary: React.FC = () => {
     setItineraryData(storedItineraryData ?? fallbackItineraryData);
     setBudgetExpenses(loadStoredExpenses(trip.id));
     setBudgetExpenseLinks(loadItineraryBudgetLinks(trip.id));
+    setServiceSavedPlaces([]);
     setItinerarySource('fallback');
     setItineraryError(null);
 
@@ -731,9 +744,17 @@ const Itinerary: React.FC = () => {
           setItinerarySource('supabase');
         }
 
-        const expenses = await budgetService.listBudgetExpenses(trip.id);
+        const [expenses, savedPlaceRows] = await Promise.all([
+          budgetService.listBudgetExpenses(trip.id),
+          savedPlaceService.listSavedPlaces(trip.id),
+        ]);
         if (cancelled) return;
         setBudgetExpenses(expenses);
+        setServiceSavedPlaces(
+          savedPlaceRows
+            .filter((row) => row.is_saved)
+            .map((row) => mapSavedPlaceRowToPlace(row, trip.id)),
+        );
         persistStoredExpenses(trip.id, expenses);
       } catch {
         if (cancelled) return;
@@ -833,6 +854,7 @@ const Itinerary: React.FC = () => {
       estimatedCost: item.estimatedCost > 0 ? String(item.estimatedCost) : '',
       notes: item.notes,
       budgetCategory: linkedCategory ? getBudgetCategoryKey(linkedCategory) : '',
+      locationRef: item.locationRef ?? null,
     });
     setItemFormErrors({});
   };
@@ -854,6 +876,18 @@ const Itinerary: React.FC = () => {
     setItemFormErrors((currentErrors) => ({
       ...currentErrors,
       [field]: undefined,
+    }));
+  };
+
+  const handleItemLocationChange = (location: LocationRef | null) => {
+    setItemForm((currentForm) => ({
+      ...currentForm,
+      locationRef: location,
+      location: location?.formattedAddress ?? location?.name ?? '',
+    }));
+    setItemFormErrors((currentErrors) => ({
+      ...currentErrors,
+      location: undefined,
     }));
   };
 
@@ -888,28 +922,48 @@ const Itinerary: React.FC = () => {
   ) => {
     if (!trip) return item;
 
+    const userId = await getAuthenticatedUserId();
+    const locationRef =
+      userId && item.locationRef?.googlePlaceId
+        ? mapLocationRefRowToLocationRef(
+            await locationRefService.upsertGoogleLocationRef(
+              userId,
+              item.locationRef,
+            ),
+          )
+        : item.locationRef;
+
     const payload: ItineraryItemInsert | ItineraryItemUpdate = {
       trip_id: trip.id,
       stop_id: item.stopId ?? day.stopId ?? null,
+      location_ref_id: getPersistedLocationRefId(locationRef),
       title: item.name,
       item_type: item.type,
       date: day.date,
       start_time: item.time || null,
       time_of_day: timeOfDay,
-      location_text: item.location || null,
+      location_text: locationRef?.formattedAddress ?? item.location ?? null,
       estimated_cost: item.estimatedCost,
       notes: item.notes || null,
       order_index: orderIndex,
     };
 
     if (mode === 'edit' && itemModal?.itemId) {
-      return itineraryService.updateItineraryItem(
+      const savedItem = await itineraryService.updateItineraryItem(
         itemModal.itemId,
         payload as ItineraryItemUpdate,
       );
+      return {
+        ...savedItem,
+        locationRef: savedItem.locationRef ?? locationRef ?? undefined,
+      };
     }
 
-    return itineraryService.createItineraryItem(payload as ItineraryItemInsert);
+    const savedItem = await itineraryService.createItineraryItem(payload as ItineraryItemInsert);
+    return {
+      ...savedItem,
+      locationRef: savedItem.locationRef ?? locationRef ?? undefined,
+    };
   };
 
   const saveItineraryBudgetExpense = async (
@@ -1006,6 +1060,7 @@ const Itinerary: React.FC = () => {
       name: itemForm.name.trim(),
       type: itemForm.type,
       location: itemForm.location.trim(),
+      locationRef: itemForm.locationRef ?? undefined,
       estimatedCost: cost,
       notes: itemForm.notes.trim(),
     };
@@ -1111,9 +1166,60 @@ const Itinerary: React.FC = () => {
     }
   };
 
-  const handleAddSavedPlace = (place: Place) => {
-    // Placeholder: would add to itinerary
-    alert(`Added "${place.name}" to your itinerary!`);
+  const handleAddSavedPlace = async (place: Place) => {
+    if (!trip) return;
+
+    const targetDay =
+      itineraryData.find((day) => day.stopId && day.stopId === place.stopId) ??
+      itineraryData[0];
+    if (!targetDay) return;
+
+    const timeOfDay = getPlaceItineraryTimeOfDay(place);
+    const sectionItems = targetDay[timeOfDay];
+    const localItem: ItineraryItem = {
+      id: `itinerary-${trip.id}-${Date.now()}`,
+      stopId: place.stopId ?? targetDay.stopId ?? getStopForDay(targetDay)?.id,
+      time: '',
+      name: place.locationRef?.displayName || place.name,
+      type: getPlaceItineraryType(place),
+      location: place.locationRef?.formattedAddress ?? place.location,
+      locationRef: place.locationRef,
+      estimatedCost: 0,
+      notes: place.description || place.reviewSnippet || 'Added from saved places.',
+    };
+
+    const applyItem = (item: ItineraryItem) => {
+      updateLocalItineraryData(
+        itineraryData.map((day) =>
+          day.dayNumber === targetDay.dayNumber
+            ? { ...day, [timeOfDay]: [...day[timeOfDay], item] }
+            : day,
+        ),
+      );
+    };
+
+    try {
+      const userId = await getAuthenticatedUserId();
+      if (userId && itinerarySource === 'supabase') {
+        const savedItem = await saveItineraryItemToSupabase(
+          localItem,
+          targetDay,
+          timeOfDay,
+          sectionItems.length,
+          'add',
+        );
+        applyItem(savedItem);
+      } else {
+        applyItem(localItem);
+        setItineraryError('Saved locally. Sign-in is not connected yet.');
+      }
+      setShowSavedPlacesModal(false);
+    } catch {
+      applyItem(localItem);
+      setItinerarySource('fallback');
+      setItineraryError('Supabase itinerary save failed. Saved the item locally instead.');
+      setShowSavedPlacesModal(false);
+    }
   };
 
   if (itineraryData.length === 0) {
@@ -1159,7 +1265,7 @@ const Itinerary: React.FC = () => {
           )}
         </div>
 
-        {savedPlaces.length > 0 && (
+        {availableSavedPlaces.length > 0 && (
           <button
             onClick={() => setShowSavedPlacesModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors"
@@ -1219,6 +1325,7 @@ const Itinerary: React.FC = () => {
         isSaving={isSavingItem}
         onClose={closeItemModal}
         onChange={handleItemFormChange}
+        onLocationChange={handleItemLocationChange}
         onSubmit={handleSaveItem}
       />
 
@@ -1230,8 +1337,8 @@ const Itinerary: React.FC = () => {
         size="md"
       >
         <div className="space-y-3">
-          {savedPlaces.length > 0 ? (
-            savedPlaces.map((place) => (
+          {availableSavedPlaces.length > 0 ? (
+            availableSavedPlaces.map((place) => (
               <div
                 key={place.id}
                 className="flex items-center gap-3 p-3 rounded-xl border border-neutral-100 hover:border-neutral-200 hover:bg-neutral-50 transition-colors"

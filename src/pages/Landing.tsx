@@ -440,12 +440,9 @@ const Landing: React.FC = () => {
                   </li>
                 ))}
               </ul>
-              <button
-                disabled
-                className="inline-flex items-center justify-center w-full px-6 py-3 rounded-xl bg-primary-600 text-white font-semibold text-sm opacity-50 cursor-not-allowed"
-              >
-                Join Waitlist
-              </button>
+              <p className="inline-flex items-center justify-center w-full px-6 py-3 rounded-xl bg-primary-100 text-primary-700 font-semibold text-sm">
+                Waitlist coming soon
+              </p>
             </div>
           </div>
         </div>
@@ -472,10 +469,10 @@ const Landing: React.FC = () => {
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Product</h4>
               <ul className="space-y-2.5">
-                <li><a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">Features</a></li>
-                <li><a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">Demo</a></li>
-                <li><a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">Changelog</a></li>
+                <li><a href="#features" className="text-sm text-neutral-400 hover:text-white transition-colors">Features</a></li>
+                <li><a href="#pricing" className="text-sm text-neutral-400 hover:text-white transition-colors">Pricing</a></li>
+                <li><Link to="/trip/trip-1" className="text-sm text-neutral-400 hover:text-white transition-colors">Demo</Link></li>
+                <li><span className="text-sm text-neutral-500">Changelog</span></li>
               </ul>
             </div>
 
@@ -483,10 +480,10 @@ const Landing: React.FC = () => {
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Company</h4>
               <ul className="space-y-2.5">
-                <li><a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">About</a></li>
-                <li><a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">Blog</a></li>
-                <li><a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">Careers</a></li>
-                <li><a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">Contact</a></li>
+                <li><span className="text-sm text-neutral-500">About</span></li>
+                <li><span className="text-sm text-neutral-500">Blog</span></li>
+                <li><span className="text-sm text-neutral-500">Careers</span></li>
+                <li><span className="text-sm text-neutral-500">Contact</span></li>
               </ul>
             </div>
 
@@ -494,9 +491,9 @@ const Landing: React.FC = () => {
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Legal</h4>
               <ul className="space-y-2.5">
-                <li><a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">Privacy</a></li>
-                <li><a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">Terms</a></li>
-                <li><a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">Security</a></li>
+                <li><span className="text-sm text-neutral-500">Privacy</span></li>
+                <li><span className="text-sm text-neutral-500">Terms</span></li>
+                <li><span className="text-sm text-neutral-500">Security</span></li>
               </ul>
             </div>
           </div>

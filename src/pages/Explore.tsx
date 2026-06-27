@@ -15,6 +15,12 @@ import {
   mapLocationRefRowToLocationRef,
   mapSavedPlaceRowToPlace,
 } from '../services/tripMappers';
+import {
+  getPersistedLocationRefId,
+  getPlaceItineraryTimeOfDay,
+  getPlaceItineraryType,
+  mapLocationRefToPlace,
+} from '../services/locationDisplayMappers';
 import { placesService } from '../services/placesService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import FilterTabs from '../components/ui/FilterTabs';
@@ -24,11 +30,8 @@ import PlaceCard from '../components/explore/PlaceCard';
 import PlaceDetailModal from '../components/explore/PlaceDetailModal';
 import StopSelector from '../components/trips/StopSelector';
 import type {
-  ItineraryItemType,
-  LocationRef,
   Place,
   PlaceCategory,
-  TimeOfDay,
 } from '../types';
 import type { ItineraryItemInsert } from '../services/supabaseTypes';
 
@@ -46,10 +49,6 @@ const CATEGORIES: (PlaceCategory | 'All')[] = [
 ];
 
 const LOCAL_SAVED_PLACES_KEY = 'travel-builder:saved-places';
-const GOOGLE_PLACE_IMAGE =
-  'https://images.pexels.com/photos/2422461/pexels-photo-2422461.jpeg?auto=compress&cs=tinysrgb&w=600';
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const loadSavedPlaces = (tripId: string, initialSavedPlaceIds: string[]) => {
   try {
@@ -78,75 +77,6 @@ const persistSavedPlaces = (tripId: string, placeIds: Set<string>) => {
     );
   }
 };
-
-const getCategoryFromGoogleTypes = (
-  location: LocationRef,
-  activeCategory: string,
-): PlaceCategory => {
-  if (activeCategory !== 'All') return activeCategory as PlaceCategory;
-
-  const types = location.placeTypes ?? [];
-  if (types.some((type) => ['restaurant', 'meal_takeaway', 'food'].includes(type))) {
-    return 'Restaurants';
-  }
-  if (types.some((type) => ['cafe', 'bakery'].includes(type))) return 'Cafes';
-  if (types.some((type) => ['museum', 'art_gallery'].includes(type))) return 'Museums';
-  if (types.some((type) => ['park', 'campground', 'tourist_attraction'].includes(type))) {
-    return 'Outdoor';
-  }
-  if (types.some((type) => ['bar', 'night_club'].includes(type))) return 'Nightlife';
-  if (types.some((type) => ['shopping_mall', 'store'].includes(type))) return 'Shopping';
-  if (types.some((type) => ['travel_agency'].includes(type))) return 'Tours';
-
-  return 'Landmarks';
-};
-
-const mapLocationRefToPlace = (
-  tripId: string,
-  stopId: string | undefined,
-  location: LocationRef,
-  activeCategory: string,
-): Place => {
-  const category = getCategoryFromGoogleTypes(location, activeCategory);
-  const tags = location.placeTypes?.slice(0, 3).map((type) => type.replace(/_/g, ' ')) ?? [];
-
-  return {
-    id: location.googlePlaceId ? `google-${location.googlePlaceId}` : location.id,
-    tripId,
-    stopId,
-    name: location.displayName ?? location.name,
-    image: location.photoUrls?.[0] ?? GOOGLE_PLACE_IMAGE,
-    category,
-    rating: location.rating ?? 0,
-    reviewCount: location.reviewCount ?? 0,
-    priceRange: location.priceRange ?? location.priceLevel ?? 'Not listed',
-    location: location.formattedAddress ?? location.name,
-    locationRef: location,
-    reviewSnippet: location.formattedAddress
-      ? `Found near ${location.formattedAddress}.`
-      : 'Found through Google Places.',
-    tags,
-    description: location.formattedAddress,
-    hours: location.regularOpeningHours?.[0],
-  };
-};
-
-const getPlaceItineraryType = (place: Place): ItineraryItemType => {
-  if (place.category === 'Restaurants' || place.category === 'Cafes') {
-    return 'restaurant';
-  }
-
-  return 'activity';
-};
-
-const getPlaceItineraryTimeOfDay = (place: Place): TimeOfDay => {
-  if (place.category === 'Restaurants') return 'evening';
-  if (place.category === 'Cafes') return 'morning';
-  return 'afternoon';
-};
-
-const getPersistedLocationRefId = (location?: LocationRef) =>
-  location?.id && UUID_PATTERN.test(location.id) ? location.id : null;
 
 const Explore: React.FC = () => {
   const { tripId: routeTripId } = useParams<{ tripId: string }>();
@@ -522,7 +452,7 @@ const Explore: React.FC = () => {
         value={searchQuery}
         onChange={setSearchQuery}
         placeholder="Search places by name, location, or tag..."
-        className="max-w-md"
+            className="max-w-md"
       />
 
       {/* Results Count */}

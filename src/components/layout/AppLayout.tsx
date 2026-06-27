@@ -18,7 +18,7 @@ const AppLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-neutral-50">
+    <div className="flex h-screen bg-neutral-50 dark:bg-[var(--app-bg)]">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div

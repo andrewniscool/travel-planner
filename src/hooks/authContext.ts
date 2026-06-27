@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { Session, User } from '@supabase/supabase-js';
+import type { Provider, Session, User } from '@supabase/supabase-js';
 
 export interface AuthContextValue {
   user: User | null;
@@ -12,6 +12,7 @@ export interface AuthContextValue {
     password: string,
     fullName?: string,
   ) => Promise<void>;
+  signInWithOAuth: (provider: Extract<Provider, 'google' | 'apple'>, redirectTo?: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }

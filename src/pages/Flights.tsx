@@ -11,7 +11,7 @@ import {
   Pencil,
   Trash2,
   ExternalLink,
-  ChevronDown,
+  AlertCircle,
 } from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
 import { getTripDisplayName } from '../data/trips';
@@ -33,6 +33,8 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Input from '../components/ui/Input';
 import LocationInput from '../components/ui/LocationInput';
+import Select from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 
 const LOCAL_TRAVEL_SEGMENTS_KEY = 'travel-builder:travel-segments';
 const transportModes: TransportMode[] = ['flight', 'train', 'car', 'bus', 'ferry', 'walk', 'other'];
@@ -103,6 +105,16 @@ const formatMode = (mode: TransportMode) =>
 const formatRole = (role?: TransportSegment['role']) =>
   role ? role.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') : 'Travel';
 
+const transportModeOptions = transportModes.map((mode) => ({
+  value: mode,
+  label: formatMode(mode),
+}));
+
+const transportRoleOptions = transportRoles.map((role) => ({
+  value: role,
+  label: formatRole(role),
+}));
+
 const splitDateTime = (dateTime?: string) => {
   if (!dateTime) return { date: '', time: '' };
   const [date, time = ''] = dateTime.split('T');
@@ -147,8 +159,43 @@ const getSegmentSortValue = (segment: TransportSegment) => {
 const sortSegmentsByTime = (segments: TransportSegment[]) =>
   [...segments].sort((a, b) => getSegmentSortValue(a) - getSegmentSortValue(b));
 
+type TravelFilter = 'all' | 'flight' | 'train' | 'transfer' | 'local' | 'missing';
+
 const getLocationName = (location?: LocationRef | null, fallback = '') =>
   location?.name || fallback;
+
+const isTransferSegment = (segment: TransportSegment) =>
+  segment.mode !== 'flight' &&
+  (segment.role === 'arrival' ||
+    segment.role === 'departure' ||
+    segment.role === 'between-stops' ||
+    Boolean(segment.fromStopId && segment.toStopId));
+
+const getMissingDetails = (segment: TransportSegment) => {
+  const missing: string[] = [];
+
+  if (!getLocationName(segment.fromLocation, segment.departureLocation)) missing.push('From');
+  if (!getLocationName(segment.toLocation, segment.arrivalLocation)) missing.push('To');
+  if (!segment.departureDateTime) missing.push('Departure');
+  if (!segment.arrivalDateTime) missing.push('Arrival');
+  if (!segment.provider && segment.mode === 'flight') missing.push('Airline');
+  if (!segment.confirmationCode && (segment.mode === 'flight' || segment.bookingUrl)) missing.push('Confirmation');
+  if (!segment.bookingUrl) missing.push('Booking link');
+
+  return missing;
+};
+
+const matchesTravelFilter = (segment: TransportSegment, filter: TravelFilter) => {
+  if (filter === 'all') return true;
+  if (filter === 'missing') return getMissingDetails(segment).length > 0;
+  if (filter === 'transfer') return isTransferSegment(segment);
+  if (filter === 'local') return segment.mode !== 'flight' && segment.role === 'local';
+  if (filter === 'train') return segment.mode === 'train' || segment.mode === 'bus' || segment.mode === 'ferry';
+  return segment.mode === filter;
+};
+
+const formatCurrency = (value?: number, currency = 'USD') =>
+  typeof value === 'number' ? `${currency} ${value.toLocaleString()}` : null;
 
 const makeManualLocationRef = (name: string): LocationRef | null => {
   const trimmedName = name.trim();
@@ -199,155 +246,120 @@ const TransportCard: React.FC<{
   getStopName: (stopId?: string) => string;
   onEdit: (segment: TransportSegment) => void;
   onDelete: (segmentId: string) => void;
-}> = ({ segment, getStopName, onEdit, onDelete }) => (
-  <Card hover={false} className="p-4">
-    <div className="flex items-start gap-4">
-      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-50 text-primary-600">
-        {modeIconMap[segment.mode]}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm font-semibold text-neutral-900">
-              {segment.fromStopId || segment.toStopId
-                ? `${getStopName(segment.fromStopId)} → ${getStopName(segment.toStopId)}`
-                : `${getLocationName(segment.fromLocation, segment.departureLocation) || 'From'} → ${getLocationName(segment.toLocation, segment.arrivalLocation) || 'To'}`}
+}> = ({ segment, getStopName, onEdit, onDelete }) => {
+  const fromLabel = segment.fromStopId
+    ? getStopName(segment.fromStopId)
+    : getLocationName(segment.fromLocation, segment.departureLocation) || 'From';
+  const toLabel = segment.toStopId
+    ? getStopName(segment.toStopId)
+    : getLocationName(segment.toLocation, segment.arrivalLocation) || 'To';
+  const departureLabel = formatDateTime(segment.departureDateTime) || 'Departure not set';
+  const arrivalLabel = formatDateTime(segment.arrivalDateTime) || 'Arrival not set';
+  const priceLabel = formatCurrency(segment.price, segment.currency);
+  const missingDetails = getMissingDetails(segment);
+
+  return (
+    <Card hover={false} className="p-4 sm:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        <div className="flex items-start gap-4 min-w-0 flex-1">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-600">
+            {modeIconMap[segment.mode]}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="default">{formatMode(segment.mode)}</Badge>
+              <Badge variant="warning">{formatRole(segment.role)}</Badge>
+              {segment.isPrimary && <Badge variant="success">Primary</Badge>}
+            </div>
+
+            <h3 className="mt-2 text-lg font-semibold text-neutral-900">
+              {fromLabel} <span className="text-neutral-300">→</span> {toLabel}
             </h3>
-            <Badge variant="default">{formatMode(segment.mode)}</Badge>
-            <Badge variant="warning">{formatRole(segment.role)}</Badge>
-            {segment.isPrimary && <Badge variant="success">Primary</Badge>}
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => onEdit(segment)}
-              className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100"
-              aria-label="Edit travel segment"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete(segment.id)}
-              className="p-1.5 rounded-lg text-neutral-400 hover:text-error-600 hover:bg-error-50"
-              aria-label="Delete travel segment"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-        <p className="text-sm text-neutral-600 mt-1">
-          {segment.provider || formatMode(segment.mode)}
-          {segment.confirmationCode ? ` · ${segment.confirmationCode}` : ''}
-        </p>
-        <p className="text-sm text-neutral-500 mt-1">
-          {getLocationName(segment.fromLocation, segment.departureLocation)} to{' '}
-          {getLocationName(segment.toLocation, segment.arrivalLocation)}
-        </p>
-        <p className="text-xs text-neutral-400 mt-1">
-          {[
-            formatDateTime(segment.departureDateTime),
-            formatDateTime(segment.arrivalDateTime),
-            segment.duration,
-            typeof segment.price === 'number'
-              ? `${segment.currency || 'USD'} ${segment.price.toLocaleString()}`
-              : undefined,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </p>
-        {segment.notes && <p className="text-sm text-neutral-600 mt-3">{segment.notes}</p>}
-        {segment.bookingUrl && (
-          <a
-            href={segment.bookingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 mt-3"
-          >
-            Booking details
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        )}
-      </div>
-    </div>
-  </Card>
-);
 
-const CollapsibleSection: React.FC<{
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  count: number;
-  isCollapsed: boolean;
-  actionLabel?: string;
-  onToggle: () => void;
-  onAction?: () => void;
-  children: React.ReactNode;
-}> = ({
-  title,
-  description,
-  icon,
-  count,
-  isCollapsed,
-  actionLabel,
-  onToggle,
-  onAction,
-  children,
-}) => (
-  <Card hover={false} className="overflow-hidden">
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex items-center gap-3 text-left min-w-0"
-        aria-expanded={!isCollapsed}
-      >
-        <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
-            <Badge variant="default">{count}</Badge>
-          </div>
-          <p className="text-sm text-neutral-500 mt-0.5">{description}</p>
-        </div>
-      </button>
+            <p className="mt-1 text-sm text-neutral-500">
+              {[
+                segment.provider || formatMode(segment.mode),
+                segment.confirmationCode ? `Confirmation ${segment.confirmationCode}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
 
-      <div className="flex items-center gap-2 self-start sm:self-center">
-        {actionLabel && onAction && (
+            {missingDetails.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {missingDetails.slice(0, 4).map((field) => (
+                  <Badge key={field} variant="warning" className="gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {field}
+                  </Badge>
+                ))}
+                {missingDetails.length > 4 && (
+                  <Badge variant="warning">+{missingDetails.length - 4} more</Badge>
+                )}
+              </div>
+            )}
+
+            {segment.notes && (
+              <p className="mt-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
+                {segment.notes}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 rounded-2xl bg-neutral-50 p-3 text-sm lg:w-72">
+          <div>
+            <p className="text-xs font-medium uppercase text-neutral-400">Depart</p>
+            <p className="mt-1 font-semibold text-neutral-900">{departureLabel}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase text-neutral-400">Arrive</p>
+            <p className="mt-1 font-semibold text-neutral-900">{arrivalLabel}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase text-neutral-400">Duration</p>
+            <p className="mt-1 font-semibold text-neutral-900">{segment.duration || 'Not set'}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase text-neutral-400">Cost</p>
+            <p className="mt-1 font-semibold text-neutral-900">{priceLabel || 'Not set'}</p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 lg:w-36">
+          {segment.bookingUrl && (
+            <a
+              href={segment.bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-primary-600 transition-colors hover:bg-primary-50"
+              aria-label="Open booking details"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          )}
           <button
             type="button"
-            onClick={onAction}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-800 transition-colors duration-700 hover:bg-neutral-100 hover:text-neutral-700"
-            aria-label={actionLabel}
+            onClick={() => onEdit(segment)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
+            aria-label="Edit travel segment"
           >
-            <Plus className="w-4 h-4" />
+            <Pencil className="h-4 w-4" />
           </button>
-        )}
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 transition-colors duration-700 hover:bg-neutral-100 hover:text-neutral-700"
-          aria-label={isCollapsed ? `Expand ${title}` : `Collapse ${title}`}
-          aria-expanded={!isCollapsed}
-        >
-          <ChevronDown
-            className={`w-5 h-5 transition-transform duration-200 ${
-              isCollapsed ? '-rotate-90' : 'rotate-0'
-            }`}
-          />
-        </button>
+          <button
+            type="button"
+            onClick={() => onDelete(segment.id)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-error-50 hover:text-error-600"
+            aria-label="Delete travel segment"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
-    </div>
-
-    {!isCollapsed && (
-      <div className="border-t border-neutral-100 p-5 pt-4">
-        {children}
-      </div>
-    )}
-  </Card>
-);
+    </Card>
+  );
+};
 
 const fieldLabelClass = 'block text-sm font-medium text-neutral-700 mb-1.5';
 const selectClass =
@@ -371,30 +383,18 @@ const TravelSegmentForm: React.FC<{
     }}
   >
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <label>
-        <span className={fieldLabelClass}>Travel type</span>
-        <select
-          value={form.mode}
-          onChange={(event) => onChange({ ...form, mode: event.target.value as TransportMode })}
-          className={selectClass}
-        >
-          {transportModes.map((mode) => (
-            <option key={mode} value={mode}>{formatMode(mode)}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span className={fieldLabelClass}>Role</span>
-        <select
-          value={form.role}
-          onChange={(event) => onChange({ ...form, role: event.target.value as SegmentFormState['role'] })}
-          className={selectClass}
-        >
-          {transportRoles.map((role) => (
-            <option key={role} value={role}>{formatRole(role)}</option>
-          ))}
-        </select>
-      </label>
+      <Select
+        label="Travel type"
+        value={form.mode}
+        onChange={(value) => onChange({ ...form, mode: value as TransportMode })}
+        options={transportModeOptions}
+      />
+      <Select
+        label="Trip purpose"
+        value={form.role}
+        onChange={(value) => onChange({ ...form, role: value as SegmentFormState['role'] })}
+        options={transportRoleOptions}
+      />
     </div>
 
     <label className="flex items-center gap-3 text-sm font-medium text-neutral-700">
@@ -449,11 +449,10 @@ const TravelSegmentForm: React.FC<{
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <Input
+      <DatePicker
         label="Departure date"
-        type="date"
         value={form.departureDate}
-        onChange={(event) => onChange({ ...form, departureDate: event.target.value })}
+        onChange={(value) => onChange({ ...form, departureDate: value })}
       />
       <Input
         label="Departure time"
@@ -461,11 +460,10 @@ const TravelSegmentForm: React.FC<{
         value={form.departureTime}
         onChange={(event) => onChange({ ...form, departureTime: event.target.value })}
       />
-      <Input
+      <DatePicker
         label="Arrival date"
-        type="date"
         value={form.arrivalDate}
-        onChange={(event) => onChange({ ...form, arrivalDate: event.target.value })}
+        onChange={(value) => onChange({ ...form, arrivalDate: value })}
       />
       <Input
         label="Arrival time"
@@ -502,32 +500,24 @@ const TravelSegmentForm: React.FC<{
 
     {isMultiStop && (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <label>
-          <span className={fieldLabelClass}>From stop</span>
-          <select
-            value={form.fromStopId}
-            onChange={(event) => onChange({ ...form, fromStopId: event.target.value })}
-            className={selectClass}
-          >
-            <option value="">Optional</option>
-            {orderedStops.map((stop) => (
-              <option key={stop.id} value={stop.id}>{stop.name}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className={fieldLabelClass}>To stop</span>
-          <select
-            value={form.toStopId}
-            onChange={(event) => onChange({ ...form, toStopId: event.target.value })}
-            className={selectClass}
-          >
-            <option value="">Optional</option>
-            {orderedStops.map((stop) => (
-              <option key={stop.id} value={stop.id}>{stop.name}</option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="From stop"
+          value={form.fromStopId}
+          onChange={(value) => onChange({ ...form, fromStopId: value })}
+          options={[
+            { value: '', label: 'Optional' },
+            ...orderedStops.map((stop) => ({ value: stop.id, label: stop.name })),
+          ]}
+        />
+        <Select
+          label="To stop"
+          value={form.toStopId}
+          onChange={(value) => onChange({ ...form, toStopId: value })}
+          options={[
+            { value: '', label: 'Optional' },
+            ...orderedStops.map((stop) => ({ value: stop.id, label: stop.name })),
+          ]}
+        />
       </div>
     )}
 
@@ -571,14 +561,7 @@ const Flights: React.FC = () => {
   const [segmentModalOpen, setSegmentModalOpen] = useState(false);
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
   const [segmentForm, setSegmentForm] = useState<SegmentFormState>(emptyForm);
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
-    timeline: false,
-    flights: true,
-    'between-stops': true,
-    'arrival-departure': true,
-    local: true,
-    other: true,
-  });
+  const [activeFilter, setActiveFilter] = useState<TravelFilter>('all');
   const loadedTripIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -626,13 +609,6 @@ const Flights: React.FC = () => {
     if (!trip) return;
     setTravelSegments(segments);
     persistStoredSegments(trip.id, segments);
-  };
-
-  const toggleSection = (sectionKey: string) => {
-    setCollapsedSections((current) => ({
-      ...current,
-      [sectionKey]: !current[sectionKey],
-    }));
   };
 
   const openCreateModal = (defaults: Partial<SegmentFormState> = {}) => {
@@ -778,122 +754,48 @@ const Flights: React.FC = () => {
     }
   };
 
-  const flightSegments = useMemo(
-    () => sortSegmentsByTime(travelSegments.filter((segment) => segment.mode === 'flight')),
-    [travelSegments]
-  );
-
-  const betweenStopSegments = useMemo(
-    () => sortSegmentsByTime(
-      travelSegments.filter(
-        (segment) =>
-          segment.mode !== 'flight' &&
-          (segment.role === 'between-stops' || (segment.fromStopId && segment.toStopId)),
-      ),
-    ),
-    [travelSegments]
-  );
-
-  const arrivalDepartureSegments = useMemo(
-    () => sortSegmentsByTime(
-      travelSegments.filter(
-        (segment) =>
-          segment.mode !== 'flight' &&
-          (segment.role === 'arrival' || segment.role === 'departure') &&
-          !(segment.fromStopId && segment.toStopId),
-      ),
-    ),
-    [travelSegments]
-  );
-
-  const localSegments = useMemo(
-    () => sortSegmentsByTime(
-      travelSegments.filter(
-        (segment) => segment.mode !== 'flight' && segment.role === 'local',
-      ),
-    ),
-    [travelSegments]
-  );
-
-  const otherSegments = useMemo(
-    () => sortSegmentsByTime(
-      travelSegments.filter(
-        (segment) =>
-          segment.mode !== 'flight' &&
-          segment.role !== 'local' &&
-          segment.role !== 'between-stops' &&
-          segment.role !== 'arrival' &&
-          segment.role !== 'departure' &&
-          !(segment.fromStopId && segment.toStopId),
-      ),
-    ),
-    [travelSegments]
-  );
-
   const timelineSegments = useMemo(
     () => sortSegmentsByTime(travelSegments),
     [travelSegments]
   );
 
-  const travelSections = useMemo(
+  const filteredTimelineSegments = useMemo(
+    () => timelineSegments.filter((segment) => matchesTravelFilter(segment, activeFilter)),
+    [activeFilter, timelineSegments],
+  );
+
+  const travelStats = useMemo(
+    () => {
+      const totalCost = travelSegments.reduce(
+        (sum, segment) => sum + (typeof segment.price === 'number' ? segment.price : 0),
+        0,
+      );
+
+      return {
+        flights: travelSegments.filter((segment) => segment.mode === 'flight').length,
+        ground: travelSegments.filter((segment) => matchesTravelFilter(segment, 'train')).length,
+        transfers: travelSegments.filter((segment) => isTransferSegment(segment)).length,
+        missing: travelSegments.filter((segment) => getMissingDetails(segment).length > 0).length,
+        totalCost,
+      };
+    },
+    [travelSegments],
+  );
+
+  const filterOptions = useMemo(
     () => [
+      { key: 'all' as TravelFilter, label: 'All', count: travelSegments.length },
+      { key: 'flight' as TravelFilter, label: 'Flights', count: travelStats.flights },
+      { key: 'train' as TravelFilter, label: 'Train/Bus', count: travelStats.ground },
+      { key: 'transfer' as TravelFilter, label: 'Transfers', count: travelStats.transfers },
       {
-        key: 'flights',
-        title: 'Flights',
-        description: 'Long-haul and regional air travel.',
-        icon: <Plane className="w-5 h-5" />,
-        segments: flightSegments,
-        actionLabel: 'Add Flight',
-        emptyTitle: 'No flights added yet',
-        emptyDescription: 'Track airline, airports, schedule, confirmation, cost, and booking link.',
-        defaults: { mode: 'flight' as TransportMode, role: 'arrival' as SegmentFormState['role'], isPrimary: true },
+        key: 'local' as TravelFilter,
+        label: 'Local',
+        count: travelSegments.filter((segment) => matchesTravelFilter(segment, 'local')).length,
       },
-      {
-        key: 'between-stops',
-        title: 'Between Stops',
-        description: 'Trains, buses, ferries, drives, and transfers from one trip stop to another.',
-        icon: <Train className="w-5 h-5" />,
-        segments: betweenStopSegments,
-        actionLabel: 'Add Between-Stop Travel',
-        emptyTitle: 'No between-stop travel yet',
-        emptyDescription: 'Add trains, buses, rental cars, ferries, or private transfers between cities.',
-        defaults: { mode: 'train' as TransportMode, role: 'between-stops' as SegmentFormState['role'], isPrimary: true },
-      },
-      {
-        key: 'arrival-departure',
-        title: 'Arrival & Departure Transfers',
-        description: 'Airport, station, hotel, and lodging transfers at the edges of the trip.',
-        icon: <Car className="w-5 h-5" />,
-        segments: arrivalDepartureSegments,
-        actionLabel: 'Add Transfer',
-        emptyTitle: 'No arrival or departure transfers yet',
-        emptyDescription: 'Add airport pickups, station transfers, rental car pickup, or hotel drop-off details.',
-        defaults: { mode: 'car' as TransportMode, role: 'arrival' as SegmentFormState['role'], isPrimary: false },
-      },
-      {
-        key: 'local',
-        title: 'Local Transportation',
-        description: 'Rideshares, taxis, metros, local buses, day rentals, and short hops.',
-        icon: <Bus className="w-5 h-5" />,
-        segments: localSegments,
-        actionLabel: 'Add Local Transport',
-        emptyTitle: 'No local transportation yet',
-        emptyDescription: 'Add Uber, taxi, metro pass, shuttle, scooter, or local bus details when they matter.',
-        defaults: { mode: 'car' as TransportMode, role: 'local' as SegmentFormState['role'], isPrimary: false },
-      },
-      {
-        key: 'other',
-        title: 'Other Travel',
-        description: 'Anything that does not fit the main buckets.',
-        icon: <MapPin className="w-5 h-5" />,
-        segments: otherSegments,
-        actionLabel: 'Add Other Travel',
-        emptyTitle: 'No other travel segments',
-        emptyDescription: 'Use this for unusual travel logistics, notes, or backup routes.',
-        defaults: { mode: 'other' as TransportMode, role: 'local' as SegmentFormState['role'], isPrimary: false },
-      },
+      { key: 'missing' as TravelFilter, label: 'Missing info', count: travelStats.missing },
     ],
-    [arrivalDepartureSegments, betweenStopSegments, flightSegments, localSegments, otherSegments],
+    [travelSegments, travelStats],
   );
 
   const getStopName = (stopId?: string) =>
@@ -914,7 +816,7 @@ const Flights: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Flights & Transportation</h1>
           <p className="text-sm text-neutral-500 mt-0.5">
@@ -927,37 +829,93 @@ const Flights: React.FC = () => {
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => openCreateModal({ mode: 'flight', role: 'arrival', isPrimary: true })}>
+            <Plane className="w-4 h-4 mr-1.5" />
+            Flight
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => openCreateModal({ mode: 'train', role: 'between-stops', isPrimary: true })}>
+            <Train className="w-4 h-4 mr-1.5" />
+            Train/Bus
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => openCreateModal({ mode: 'car', role: 'local', isPrimary: false })}>
+            <Car className="w-4 h-4 mr-1.5" />
+            Local
+          </Button>
           <Button size="sm" onClick={() => openCreateModal()}>
             <Plus className="w-4 h-4 mr-1.5" />
-            Add Travel Segment
+            Add
           </Button>
         </div>
       </div>
 
-      <CollapsibleSection
-        title="Full Travel Timeline"
-        description="Every segment sorted by departure time."
-        icon={<Plane className="w-5 h-5" />}
-        count={timelineSegments.length}
-        isCollapsed={!!collapsedSections.timeline}
-        actionLabel="Add Segment"
-        onToggle={() => toggleSection('timeline')}
-        onAction={() => openCreateModal()}
-      >
-        {timelineSegments.length > 0 ? (
-          <div className="space-y-3">
-            {timelineSegments.map((segment) => (
-              <TransportCard
-                key={segment.id}
-                segment={segment}
-                getStopName={getStopName}
-                onEdit={openEditModal}
-                onDelete={handleDeleteSegment}
-              />
-            ))}
+      <Card hover={false} className="p-5">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+              Travel plan
+            </p>
+            <p className="mt-1 text-lg font-semibold text-neutral-900">
+              {orderedStops.length > 0
+                ? orderedStops.map((stop) => stop.name).join(' → ')
+                : getTripDisplayName(trip)}
+            </p>
           </div>
-        ) : (
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl bg-neutral-50 px-4 py-3">
+              <p className="text-xs text-neutral-400">Flights</p>
+              <p className="mt-1 text-xl font-bold text-neutral-900">{travelStats.flights}</p>
+            </div>
+            <div className="rounded-xl bg-neutral-50 px-4 py-3">
+              <p className="text-xs text-neutral-400">Train/Bus</p>
+              <p className="mt-1 text-xl font-bold text-neutral-900">{travelStats.ground}</p>
+            </div>
+            <div className="rounded-xl bg-neutral-50 px-4 py-3">
+              <p className="text-xs text-neutral-400">Missing</p>
+              <p className="mt-1 text-xl font-bold text-neutral-900">{travelStats.missing}</p>
+            </div>
+            <div className="rounded-xl bg-neutral-50 px-4 py-3">
+              <p className="text-xs text-neutral-400">Cost</p>
+              <p className="mt-1 text-xl font-bold text-neutral-900">
+                {travelStats.totalCost > 0 ? `$${travelStats.totalCost.toLocaleString()}` : '$0'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {filterOptions.map((option) => {
+          const isActive = activeFilter === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => setActiveFilter(option.key)}
+              className={[
+                'inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors',
+                isActive
+                  ? 'border-primary-600 bg-primary-600 text-white'
+                  : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50',
+              ].join(' ')}
+            >
+              {option.label}
+              <span
+                className={[
+                  'rounded-full px-2 py-0.5 text-xs',
+                  isActive ? 'bg-white/20 text-white' : 'bg-neutral-100 text-neutral-500',
+                ].join(' ')}
+              >
+                {option.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="space-y-3">
+        {timelineSegments.length === 0 ? (
           <EmptyState
             icon={<Plane className="w-8 h-8" />}
             title="No travel segments yet"
@@ -965,60 +923,25 @@ const Flights: React.FC = () => {
             actionLabel="Add travel segment"
             onAction={() => openCreateModal()}
           />
+        ) : filteredTimelineSegments.length > 0 ? (
+          filteredTimelineSegments.map((segment) => (
+            <TransportCard
+              key={segment.id}
+              segment={segment}
+              getStopName={getStopName}
+              onEdit={openEditModal}
+              onDelete={handleDeleteSegment}
+            />
+          ))
+        ) : (
+          <EmptyState
+            icon={<Plane className="w-8 h-8" />}
+            title="No matching travel"
+            description="Try another filter or add a new travel segment."
+            actionLabel="Add travel segment"
+            onAction={() => openCreateModal()}
+          />
         )}
-      </CollapsibleSection>
-
-      {travelSections
-        .filter((section) => section.key !== 'other' || section.segments.length > 0)
-        .map((section) => (
-          <CollapsibleSection
-            key={section.key}
-            title={section.title}
-            description={section.description}
-            icon={section.icon}
-            count={section.segments.length}
-            isCollapsed={!!collapsedSections[section.key]}
-            actionLabel={section.actionLabel}
-            onToggle={() => toggleSection(section.key)}
-            onAction={() => openCreateModal(section.defaults)}
-          >
-            {section.segments.length > 0 ? (
-              <div className="space-y-3">
-                {section.segments.map((segment) => (
-                  <TransportCard
-                    key={segment.id}
-                    segment={segment}
-                    getStopName={getStopName}
-                    onEdit={openEditModal}
-                    onDelete={handleDeleteSegment}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                icon={section.icon}
-                title={section.emptyTitle}
-                description={section.emptyDescription}
-                actionLabel={section.actionLabel}
-                onAction={() => openCreateModal(section.defaults)}
-              />
-            )}
-          </CollapsibleSection>
-        ))}
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Button variant="outline" onClick={() => openCreateModal({ mode: 'flight', role: 'arrival', isPrimary: true })}>
-          <Plane className="w-4 h-4 mr-1.5" />
-          Add Flight
-        </Button>
-        <Button variant="outline" onClick={() => openCreateModal({ mode: 'train', role: 'between-stops', isPrimary: true })}>
-          <Train className="w-4 h-4 mr-1.5" />
-          Add Train or Bus
-        </Button>
-        <Button variant="outline" onClick={() => openCreateModal({ mode: 'car', role: 'local', isPrimary: false })}>
-          <Car className="w-4 h-4 mr-1.5" />
-          Add Uber or Local
-        </Button>
       </div>
 
       <Modal

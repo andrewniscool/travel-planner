@@ -27,7 +27,7 @@ const FilterTabs: React.FC<FilterTabsProps> = ({
             'inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
             activeTab === tab
               ? 'bg-primary-600 text-white'
-              : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200',
+              : 'bg-app-surface-muted text-app-text-muted hover:bg-neutral-200 hover:text-app-text',
           ]
             .filter(Boolean)
             .join(' ')}

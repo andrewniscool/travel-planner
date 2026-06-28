@@ -61,12 +61,12 @@ const CalendarMonth: React.FC<{
   onSelect: (date: Date) => void;
 }> = ({ monthDate, selectedStart, selectedEnd = null, onSelect }) => (
   <div className="space-y-3">
-    <h3 className="text-center text-sm font-bold text-neutral-900">
+    <h3 className="text-center text-sm font-bold text-app-text">
       {monthDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
     </h3>
     <div className="grid grid-cols-7 gap-y-1">
       {weekdays.map((day) => (
-        <div key={day} className="py-1 text-center text-[10px] font-bold text-neutral-400">
+        <div key={day} className="py-1 text-center text-[10px] font-bold text-app-text-subtle">
           {day}
         </div>
       ))}
@@ -85,11 +85,11 @@ const CalendarMonth: React.FC<{
             onClick={() => onSelect(date)}
             className={[
               'relative flex aspect-square items-center justify-center text-sm font-semibold transition-colors',
-              isMiddle ? 'bg-primary-50 text-neutral-900' : 'text-neutral-700',
+              isMiddle ? 'bg-primary-50 text-app-text' : 'text-app-text-muted',
               isStart && selectedEnd ? 'rounded-l-full bg-primary-600 text-white' : '',
               isEnd && selectedStart ? 'rounded-r-full bg-primary-600 text-white' : '',
               isSingleSelected ? 'rounded-full bg-primary-600 text-white' : '',
-              !isStart && !isEnd ? 'hover:rounded-full hover:bg-neutral-50 hover:ring-1 hover:ring-neutral-900' : '',
+              !isStart && !isEnd ? 'hover:rounded-full hover:bg-app-surface-muted hover:ring-1 hover:ring-app-text' : '',
             ]
               .filter(Boolean)
               .join(' ')}
@@ -128,7 +128,7 @@ const CalendarPopover: React.FC<{
   return (
     <div
       ref={panelRef}
-      className="absolute left-0 z-50 mt-2 w-[min(42rem,calc(100vw-2rem))] rounded-2xl border border-neutral-200 bg-white shadow-2xl"
+      className="absolute left-0 z-50 mt-2 w-[min(42rem,calc(100vw-2rem))] rounded-2xl border border-app-border bg-app-surface shadow-2xl"
     >
       {children}
     </div>
@@ -174,37 +174,37 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   return (
     <div className={['relative', className].filter(Boolean).join(' ')}>
       {label && (
-        <label className="mb-1.5 block text-sm font-medium text-neutral-700">
+        <label className="mb-1.5 block text-sm font-medium text-app-text-muted">
           {label}
         </label>
       )}
       <button
         type="button"
         onClick={openCalendar}
-        className="flex w-full items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-left text-sm text-neutral-900 shadow-sm transition-all hover:border-neutral-300 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        className="flex w-full items-center justify-between gap-3 rounded-xl border border-app-border bg-app-surface px-4 py-2.5 text-left text-sm text-app-text shadow-sm transition-all hover:border-neutral-300 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
       >
-        <span className={value ? 'font-medium' : 'text-neutral-400'}>
+        <span className={value ? 'font-medium' : 'text-app-text-subtle'}>
           {formatDateLabel(value, placeholder)}
         </span>
-        <Calendar className="h-4 w-4 text-neutral-400" />
+        <Calendar className="h-4 w-4 text-app-text-subtle" />
       </button>
 
       {isOpen && (
         <CalendarPopover onClose={() => setIsOpen(false)}>
-          <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
+          <div className="flex items-center justify-between border-b border-app-border-muted px-5 py-4">
             <button
               type="button"
               onClick={() => setVisibleMonth((current) => addMonths(current, -1))}
-              className="rounded-full p-2 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
+              className="rounded-full p-2 text-app-text-muted hover:bg-app-surface-muted hover:text-app-text"
               aria-label="Previous month"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <p className="text-sm font-bold text-neutral-900">Select date</p>
+            <p className="text-sm font-bold text-app-text">Select date</p>
             <button
               type="button"
               onClick={() => setVisibleMonth((current) => addMonths(current, 1))}
-              className="rounded-full p-2 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
+              className="rounded-full p-2 text-app-text-muted hover:bg-app-surface-muted hover:text-app-text"
               aria-label="Next month"
             >
               <ChevronRight className="h-4 w-4" />
@@ -220,11 +220,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               />
             ))}
           </div>
-          <div className="flex items-center justify-between border-t border-neutral-100 px-5 py-4">
+          <div className="flex items-center justify-between border-t border-app-border-muted px-5 py-4">
             <button
               type="button"
               onClick={() => setDraftValue('')}
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-neutral-700 underline hover:bg-neutral-50"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-app-text-muted underline hover:bg-app-surface-muted"
             >
               Clear
             </button>
@@ -232,7 +232,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="rounded-xl px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-neutral-50"
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-app-text-muted hover:bg-app-surface-muted"
               >
                 Cancel
               </button>
@@ -259,6 +259,8 @@ interface DateRangePickerProps {
   endLabel?: string;
   className?: string;
   error?: string;
+  controlClassName?: string;
+  buttonClassName?: string;
 }
 
 export const DateRangePicker: React.FC<DateRangePickerProps> = ({
@@ -269,6 +271,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   endLabel = 'Check-out',
   className = '',
   error,
+  controlClassName = '',
+  buttonClassName = '',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selecting, setSelecting] = useState<'start' | 'end'>('start');
@@ -291,6 +295,10 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     setIsOpen(true);
   };
 
+  const closeCalendar = () => {
+    setIsOpen(false);
+  };
+
   const selectDate = (date: Date) => {
     const nextValue = toDateString(date);
 
@@ -303,7 +311,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
     if (draftStartDate && date < draftStartDate) {
       setDraftStartValue(nextValue);
-      setDraftEndValue(draftStartValue);
+      setDraftEndValue('');
       setSelecting('end');
       return;
     }
@@ -316,22 +324,35 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     onChange({ start: draftStartValue, end: draftEndValue });
     setIsOpen(false);
   };
+  const datePrompt = draftEndValue
+    ? 'Confirm your dates'
+    : draftStartValue
+      ? 'Select an end date'
+      : 'Select a start date';
 
   return (
     <div className={['relative', className].filter(Boolean).join(' ')}>
-      <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600">
+      <div
+        className={[
+          'grid grid-cols-2 overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-sm transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600',
+          controlClassName,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
         <button
           type="button"
           onClick={() => openCalendar('start')}
           className={[
-            'border-r border-neutral-200 px-3 pb-2 pt-2 text-left transition-colors hover:bg-neutral-50',
+            'border-r border-app-border px-3 pb-2 pt-2 text-left transition-colors hover:bg-app-surface-muted',
             selecting === 'start' && isOpen ? 'bg-primary-50' : '',
+            buttonClassName,
           ].join(' ')}
         >
-          <span className="block text-[10px] font-extrabold uppercase text-neutral-900">
+          <span className="block text-[10px] font-extrabold uppercase text-app-text">
             {startLabel}
           </span>
-          <span className={startValue ? 'mt-1 block truncate text-sm font-semibold text-neutral-900' : 'mt-1 block text-sm text-neutral-400'}>
+          <span className={startValue ? 'mt-1 block truncate text-sm font-semibold text-app-text' : 'mt-1 block text-sm text-app-text-subtle'}>
             {formatDateLabel(startValue, 'Add date')}
           </span>
         </button>
@@ -339,14 +360,15 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           type="button"
           onClick={() => openCalendar('end')}
           className={[
-            'px-3 pb-2 pt-2 text-left transition-colors hover:bg-neutral-50',
+            'px-3 pb-2 pt-2 text-left transition-colors hover:bg-app-surface-muted',
             selecting === 'end' && isOpen ? 'bg-primary-50' : '',
+            buttonClassName,
           ].join(' ')}
         >
-          <span className="block text-[10px] font-extrabold uppercase text-neutral-900">
+          <span className="block text-[10px] font-extrabold uppercase text-app-text">
             {endLabel}
           </span>
-          <span className={endValue ? 'mt-1 block truncate text-sm font-semibold text-neutral-900' : 'mt-1 block text-sm text-neutral-400'}>
+          <span className={endValue ? 'mt-1 block truncate text-sm font-semibold text-app-text' : 'mt-1 block text-sm text-app-text-subtle'}>
             {formatDateLabel(endValue, 'Add date')}
           </span>
         </button>
@@ -354,21 +376,18 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
       {error && <p className="mt-1.5 text-sm text-error-500">{error}</p>}
 
       {isOpen && (
-        <CalendarPopover onClose={() => setIsOpen(false)}>
-          <div className="flex flex-col gap-4 border-b border-neutral-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <CalendarPopover onClose={closeCalendar}>
+          <div className="flex flex-col gap-4 border-b border-app-border-muted px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={() => setVisibleMonth((current) => addMonths(current, -1))}
-              className="hidden rounded-full p-2 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 sm:inline-flex"
+              className="hidden rounded-full p-2 text-app-text-muted hover:bg-app-surface-muted hover:text-app-text sm:inline-flex"
               aria-label="Previous month"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <div>
-              <p className="text-sm font-bold text-neutral-900">Select dates</p>
-              <p className="text-xs text-neutral-500">
-                {selecting === 'start' ? 'Choose your start date' : 'Choose your end date'}
-              </p>
+              <p className="text-sm font-bold text-app-text">{datePrompt}</p>
             </div>
             <div className="flex gap-2">
               <button
@@ -378,14 +397,14 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                   setDraftEndValue('');
                   setSelecting('start');
                 }}
-                className="rounded-lg px-3 py-2 text-sm font-semibold text-neutral-700 underline hover:bg-neutral-50"
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-app-text-muted underline hover:bg-app-surface-muted"
               >
                 Clear
               </button>
               <button
                 type="button"
                 onClick={() => setVisibleMonth((current) => addMonths(current, 1))}
-                className="rounded-full p-2 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
+                className="rounded-full p-2 text-app-text-muted hover:bg-app-surface-muted hover:text-app-text"
                 aria-label="Next month"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -403,21 +422,21 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
               />
             ))}
           </div>
-          <div className="flex flex-col gap-3 border-t border-neutral-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t border-app-border-muted px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="grid grid-cols-2 gap-2 text-sm sm:w-80">
               <div className="rounded-xl border border-primary-100 bg-primary-50 px-3 py-2">
                 <span className="block text-[10px] font-bold uppercase text-primary-700">
                   {startLabel}
                 </span>
-                <span className="mt-0.5 block truncate font-semibold text-neutral-900">
+                <span className="mt-0.5 block truncate font-semibold text-app-text">
                   {formatDateLabel(draftStartValue, 'Add date')}
                 </span>
               </div>
-              <div className="rounded-xl border border-neutral-200 bg-white px-3 py-2">
-                <span className="block text-[10px] font-bold uppercase text-neutral-500">
+              <div className="rounded-xl border border-app-border bg-app-surface px-3 py-2">
+                <span className="block text-[10px] font-bold uppercase text-app-text-muted">
                   {endLabel}
                 </span>
-                <span className="mt-0.5 block truncate font-semibold text-neutral-900">
+                <span className="mt-0.5 block truncate font-semibold text-app-text">
                   {formatDateLabel(draftEndValue, 'Add date')}
                 </span>
               </div>
@@ -425,8 +444,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
-                className="rounded-xl px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-neutral-50"
+                onClick={closeCalendar}
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-app-text-muted hover:bg-app-surface-muted"
               >
                 Cancel
               </button>

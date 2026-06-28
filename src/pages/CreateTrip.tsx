@@ -15,6 +15,7 @@ import Button from '../components/ui/Button';
 import ImagePlaceholder from '../components/ui/ImagePlaceholder';
 import Badge from '../components/ui/Badge';
 import Select from '../components/ui/Select';
+import TravelerPicker from '../components/ui/TravelerPicker';
 import { DateRangePicker } from '../components/ui/DatePicker';
 import { LOCAL_TRIPS_STORAGE_KEY } from '../data/trips';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -70,6 +71,8 @@ interface StopForm {
   locationRef: LocationRef | null;
 }
 
+type RouteMode = 'single' | 'multi';
+
 const emptyStop = (): StopForm => ({
   name: '',
   country: '',
@@ -92,6 +95,13 @@ const makeManualStopLocation = (name: string): LocationRef | null => {
 
 const getStopFormLocationRef = (stop: TripStop) =>
   stop.locationRef ?? makeManualStopLocation(stop.name);
+
+const getRouteStepLabel = (index: number, stopCount: number) => {
+  if (stopCount <= 1) return 'Destination';
+  if (index === 0) return 'Start';
+  if (index === stopCount - 1) return 'Final destination';
+  return `Stop ${index + 1}`;
+};
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return '';
@@ -186,6 +196,8 @@ const CreateTrip: React.FC = () => {
   } = useServiceTrip(tripId);
   const existingTrip = serviceExistingTrip ?? fallbackExistingTrip;
   const isEditing = Boolean(tripId);
+  const initialRouteMode: RouteMode =
+    existingTrip && existingTrip.stops.length > 1 ? 'multi' : 'single';
 
   const [title, setTitle] = useState(existingTrip?.title ?? '');
   const [stops, setStops] = useState<StopForm[]>(
@@ -202,6 +214,7 @@ const CreateTrip: React.FC = () => {
           }))
       : [emptyStop()]
   );
+  const [routeMode, setRouteMode] = useState<RouteMode>(initialRouteMode);
   const [travelers, setTravelers] = useState(existingTrip?.travelers ?? 1);
   const [budget, setBudget] = useState<number | ''>(existingTrip?.budget ?? '');
   const [budgetCurrency, setBudgetCurrency] = useState<BudgetCurrency>(
@@ -240,6 +253,7 @@ const CreateTrip: React.FC = () => {
           }))
         : [emptyStop()],
     );
+    setRouteMode(orderedStops.length > 1 ? 'multi' : 'single');
     setTravelers(existingTrip.travelers);
     setBudget(existingTrip.budget || '');
     setBudgetCurrency(existingTrip.budgetCurrency ?? loadStoredCurrency(existingTrip.id));
@@ -278,7 +292,7 @@ const CreateTrip: React.FC = () => {
     }
 
     if (validStops.length === 0) {
-      messages.push('Stop 1 city / destination is required.');
+      messages.push('Destination is required.');
     }
 
     stops.forEach((stop, index) => {
@@ -293,15 +307,15 @@ const CreateTrip: React.FC = () => {
       if (!hasAnyStopDetails && stops.length > 1) return;
 
       if (!stop.name.trim()) {
-        messages.push(`Stop ${index + 1} city / destination is required.`);
+        messages.push(`${getRouteStepLabel(index, stops.length)} is required.`);
       }
 
       if (stop.name.trim() && !stop.startDate) {
-        messages.push(`Stop ${index + 1} start date is required.`);
+        messages.push(`${getRouteStepLabel(index, stops.length)} start date is required.`);
       }
 
       if (stop.name.trim() && !stop.endDate) {
-        messages.push(`Stop ${index + 1} end date is required.`);
+        messages.push(`${getRouteStepLabel(index, stops.length)} end date is required.`);
       }
     });
 
@@ -350,10 +364,32 @@ const CreateTrip: React.FC = () => {
     );
   };
 
-  const addStop = () => setStops((current) => [...current, emptyStop()]);
+  const setSingleDestinationMode = () => {
+    setRouteMode('single');
+    setStops((current) => [current[0] ?? emptyStop()]);
+  };
+
+  const setMultiStopMode = () => {
+    setRouteMode('multi');
+    setStops((current) =>
+      current.length > 1 ? current : [...current, emptyStop()],
+    );
+  };
+
+  const addStop = () => {
+    setRouteMode('multi');
+    setStops((current) => [...current, emptyStop()]);
+  };
 
   const removeStop = (index: number) => {
-    setStops((current) => current.length === 1 ? current : current.filter((_, stopIndex) => stopIndex !== index));
+    setStops((current) => {
+      if (current.length === 1) return current;
+      const nextStops = current.filter((_, stopIndex) => stopIndex !== index);
+      if (nextStops.length <= 1) {
+        setRouteMode('single');
+      }
+      return nextStops.length ? nextStops : [emptyStop()];
+    });
   };
 
   const buildTrip = (): Trip | undefined => {
@@ -497,17 +533,17 @@ const CreateTrip: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white animate-fade-in">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
+    <div className="-m-4 min-h-full bg-white animate-fade-in sm:-m-6 lg:-m-8">
+      <div className="mx-auto max-w-[96rem] px-5 py-8 sm:px-8 lg:px-12 lg:py-10">
         {serviceTripError && (
           <div className="mb-8 rounded-xl border border-warning-100 bg-warning-50 px-4 py-3 text-sm text-warning-700">
             Supabase trip data could not be loaded. Editing local trip data instead.
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
-          <div className="lg:col-span-7">
-            <div className="mb-10">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(21rem,28rem)] lg:gap-12">
+          <div>
+            <div className="mb-10 rounded-3xl bg-neutral-50 px-5 py-6 sm:px-7">
               <input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
@@ -528,29 +564,70 @@ const CreateTrip: React.FC = () => {
 
             <section className="space-y-10">
               <div>
-                <div className="mb-6 flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-neutral-900">Stops</h2>
-                  <button
-                    type="button"
-                    onClick={addStop}
-                    className="inline-flex items-center gap-2 text-sm font-bold text-primary-600 underline underline-offset-4 transition-colors hover:text-primary-700"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Stop
-                  </button>
+                <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-neutral-900">Route</h2>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="inline-grid rounded-full border border-neutral-200 bg-neutral-50 p-1 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={setSingleDestinationMode}
+                        className={[
+                          'rounded-full px-4 py-2 text-sm font-bold transition-all',
+                          routeMode === 'single'
+                            ? 'bg-white text-neutral-900 shadow-sm'
+                            : 'text-neutral-500 hover:text-neutral-900',
+                        ].join(' ')}
+                      >
+                        One destination
+                      </button>
+                      <button
+                        type="button"
+                        onClick={setMultiStopMode}
+                        className={[
+                          'rounded-full px-4 py-2 text-sm font-bold transition-all',
+                          routeMode === 'multi'
+                            ? 'bg-white text-neutral-900 shadow-sm'
+                            : 'text-neutral-500 hover:text-neutral-900',
+                        ].join(' ')}
+                      >
+                        Multi-stop
+                      </button>
+                    </div>
+                    {routeMode === 'multi' ? (
+                      <button
+                        type="button"
+                        onClick={addStop}
+                        className="inline-flex items-center gap-2 text-sm font-bold text-primary-600 underline underline-offset-4 transition-colors hover:text-primary-700"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Stop
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={setMultiStopMode}
+                        className="inline-flex items-center gap-2 text-sm font-bold text-primary-600 underline underline-offset-4 transition-colors hover:text-primary-700"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Stop
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-6">
                   {stops.map((stop, index) => (
                     <div
                       key={index}
-                      className="group relative rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:border-neutral-300 hover:shadow-lg sm:p-7"
+                      className="group relative rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:border-neutral-300 hover:shadow-lg sm:p-8"
                     >
                       <div className="absolute -left-3 top-7 flex h-7 w-7 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white shadow-sm">
                         {index + 1}
                       </div>
 
-                      {stops.length > 1 && (
+                      {routeMode === 'multi' && stops.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeStop(index)}
@@ -561,10 +638,16 @@ const CreateTrip: React.FC = () => {
                         </button>
                       )}
 
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className="mb-5 flex flex-col gap-1 pr-10">
+                        <p className="text-xs font-extrabold uppercase text-primary-700">
+                          {getRouteStepLabel(index, stops.length)}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                         <div className="md:col-span-2">
                           <LocationInput
-                            label="Where"
+                            label="Location"
                             value={stop.locationRef}
                             onChange={(location) =>
                               updateStop(index, {
@@ -618,64 +701,59 @@ const CreateTrip: React.FC = () => {
                     </div>
                   ))}
 
-                  <button
-                    type="button"
-                    onClick={addStop}
-                    className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-300 bg-white py-10 text-neutral-400 transition-all hover:border-primary-600 hover:text-primary-600"
-                  >
-                    <MapPin className="mb-2 h-8 w-8" />
-                    <span className="font-bold">Add another stop</span>
-                  </button>
+                  {routeMode === 'multi' && (
+                    <button
+                      type="button"
+                      onClick={addStop}
+                      className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-300 bg-white py-12 text-neutral-400 transition-all hover:border-primary-600 hover:text-primary-600"
+                    >
+                      <MapPin className="mb-2 h-8 w-8" />
+                      <span className="font-bold">Add another stop</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <div className="relative rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600">
-                  <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
-                    Who
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
+              <div>
+                <h3 className="mb-4 text-lg font-bold text-neutral-900">Trip Details</h3>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <TravelerPicker
                     value={travelers}
-                    onChange={(event) => setTravelers(Math.max(1, parseInt(event.target.value) || 1))}
-                    className="w-full rounded-xl border-0 bg-transparent px-3 pb-2 pt-6 text-sm text-neutral-900 focus:outline-none focus:ring-0"
+                    onChange={setTravelers}
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500">
-                    Travelers
-                  </span>
-                </div>
 
-                <div className="flex rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600">
-                  <div className="flex items-center border-r border-neutral-200 px-2">
-                    <Select
-                      value={budgetCurrency}
-                      onChange={(nextCurrency) => {
-                        if (isBudgetCurrency(nextCurrency)) {
-                          setBudgetCurrency(nextCurrency);
-                        }
-                      }}
-                      aria-label="Budget currency"
-                      options={BUDGET_CURRENCIES.map((currency) => ({
-                        value: currency.code,
-                        label: currency.code,
-                        description: currency.symbol,
-                      }))}
-                      buttonClassName="border-0 bg-transparent px-2 py-2 shadow-none focus:ring-0"
-                    />
-                  </div>
-                  <div className="relative min-w-0 flex-1">
-                    <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
-                      Budget
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={budget}
-                      onChange={(event) => setBudget(event.target.value ? Number(event.target.value) : '')}
-                      placeholder="5000"
-                      className="w-full rounded-r-xl border-0 bg-transparent px-3 pb-2 pt-6 text-sm text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-0"
-                    />
+                  <div className="flex min-h-[64px] rounded-xl border border-neutral-200 bg-white shadow-sm transition-all focus-within:border-primary-600 focus-within:ring-2 focus-within:ring-primary-500">
+                    <div className="flex w-20 shrink-0 items-center border-r border-neutral-200 px-1">
+                      <Select
+                        value={budgetCurrency}
+                        onChange={(nextCurrency) => {
+                          if (isBudgetCurrency(nextCurrency)) {
+                            setBudgetCurrency(nextCurrency);
+                          }
+                        }}
+                        aria-label="Budget currency"
+                        options={BUDGET_CURRENCIES.map((currency) => ({
+                          value: currency.code,
+                          label: `${currency.code} ${currency.symbol}`,
+                          selectedLabel: currency.symbol,
+                        }))}
+                        buttonClassName="border-0 bg-transparent px-3 py-2 text-lg shadow-none focus:ring-0"
+                        dropdownClassName="right-auto w-36"
+                      />
+                    </div>
+                    <div className="relative min-w-0 flex-1">
+                      <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
+                        Budget
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={budget}
+                        onChange={(event) => setBudget(event.target.value ? Number(event.target.value) : '')}
+                        placeholder="5000"
+                        className="w-full rounded-r-xl border-0 bg-transparent px-3 pb-2 pt-6 text-sm text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-0"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -759,7 +837,7 @@ const CreateTrip: React.FC = () => {
             </section>
           </div>
 
-          <div className="lg:col-span-5">
+          <div>
             <div className="lg:sticky lg:top-24">
               <p className="mb-4 text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
                 Trip Preview

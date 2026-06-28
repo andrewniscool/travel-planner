@@ -4,6 +4,7 @@ import { Check, ChevronDown } from 'lucide-react';
 export type SelectOption = {
   value: string;
   label: string;
+  selectedLabel?: string;
   description?: string;
 };
 
@@ -15,6 +16,7 @@ interface SelectProps {
   placeholder?: string;
   className?: string;
   buttonClassName?: string;
+  dropdownClassName?: string;
   disabled?: boolean;
   'aria-label'?: string;
 }
@@ -27,6 +29,7 @@ const Select: React.FC<SelectProps> = ({
   placeholder = 'Select',
   className = '',
   buttonClassName = '',
+  dropdownClassName = '',
   disabled = false,
   'aria-label': ariaLabel,
 }) => {
@@ -81,7 +84,7 @@ const Select: React.FC<SelectProps> = ({
       >
         <span className="min-w-0">
           <span className={selectedOption ? 'block truncate font-medium' : 'block truncate text-neutral-400'}>
-            {selectedOption?.label ?? placeholder}
+            {selectedOption?.selectedLabel ?? selectedOption?.label ?? placeholder}
           </span>
           {selectedOption?.description && (
             <span className="mt-0.5 block truncate text-xs text-neutral-500">
@@ -98,7 +101,14 @@ const Select: React.FC<SelectProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl">
+        <div
+          className={[
+            'absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl',
+            dropdownClassName,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
           <div
             id={listboxId}
             role="listbox"

@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Link, Outlet } from 'react-router-dom';
-import { Compass, Menu, X } from 'lucide-react';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
 import Button from '../ui/Button';
+import AuthModal, { type AuthModalMode } from '../auth/AuthModal';
+import { useAuth } from '../../hooks/useAuth';
 
 const NAV_LINKS = [
-  { label: 'Features', href: '#features' },
-  { label: 'Pricing', href: '#pricing' },
-  { label: 'Testimonials', href: '#testimonials' },
+  { label: 'Discover', href: '#discover' },
+  { label: 'Destinations', href: '#destinations' },
+  { label: 'Journeys', href: '#journeys' },
 ];
 
 const LandingLayout: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthModalMode>('sign-in');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,6 +26,17 @@ const LandingLayout: React.FC = () => {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenAuth = (event: Event) => {
+      const customEvent = event as CustomEvent<{ mode?: AuthModalMode }>;
+      setAuthMode(customEvent.detail?.mode ?? 'sign-in');
+      setAuthModalOpen(true);
+    };
+
+    window.addEventListener('refine:open-auth', handleOpenAuth);
+    return () => window.removeEventListener('refine:open-auth', handleOpenAuth);
   }, []);
 
   const handleScrollTo = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -32,13 +49,25 @@ const LandingLayout: React.FC = () => {
     setMobileMenuOpen(false);
   };
 
+  const handleAuthAction = (mode: AuthModalMode) => {
+    setMobileMenuOpen(false);
+
+    if (user) {
+      navigate('/create-trip');
+      return;
+    }
+
+    setAuthMode(mode);
+    setAuthModalOpen(true);
+  };
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-app-bg">
       {/* Top Navigation */}
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'bg-white shadow-md'
+            ? 'bg-app-bg shadow-sm backdrop-blur'
             : 'bg-transparent'
         }`}
       >
@@ -46,17 +75,12 @@ const LandingLayout: React.FC = () => {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <Compass
-                className={`w-8 h-8 transition-colors duration-300 ${
-                  scrolled ? 'text-primary-600' : 'text-white'
-                }`}
-              />
               <span
-                className={`text-xl font-bold transition-colors duration-300 ${
-                  scrolled ? 'text-neutral-900' : 'text-white'
+                className={`text-xl font-extrabold tracking-normal transition-colors duration-300 ${
+                  scrolled ? 'text-primary-700' : 'text-white'
                 }`}
               >
-                Travel Builder
+                REFINE
               </span>
             </Link>
 
@@ -69,7 +93,7 @@ const LandingLayout: React.FC = () => {
                   onClick={(e) => handleScrollTo(e, link.href)}
                   className={`text-sm font-medium transition-colors duration-300 hover:opacity-80 ${
                     scrolled
-                      ? 'text-neutral-600 hover:text-neutral-900'
+                      ? 'text-app-text-muted hover:text-app-text'
                       : 'text-white/90 hover:text-white'
                   }`}
                 >
@@ -80,24 +104,25 @@ const LandingLayout: React.FC = () => {
 
             {/* Desktop Auth Buttons */}
             <div className="hidden md:flex items-center gap-3">
-              <Link to="/sign-in">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`transition-colors duration-300 ${
-                    scrolled
-                      ? 'text-neutral-600 hover:bg-neutral-100'
-                      : 'text-white hover:bg-white/10'
-                  }`}
-                >
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/dashboard">
-                <Button variant="primary" size="sm">
-                  Get Started
-                </Button>
-              </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleAuthAction('sign-in')}
+                className={`transition-colors duration-300 ${
+                  scrolled
+                    ? 'text-app-text-muted hover:bg-app-surface-muted'
+                    : 'text-white hover:bg-white/10'
+                }`}
+              >
+                Log in
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleAuthAction('sign-up')}
+                className="bg-primary-600 text-white hover:bg-primary-700"
+              >
+                Sign up
+              </Button>
             </div>
 
             {/* Mobile Hamburger */}
@@ -140,22 +165,20 @@ const LandingLayout: React.FC = () => {
                 </a>
               ))}
               <div className="pt-2 border-t border-neutral-100 space-y-2">
-                <Link
-                  to="/sign-in"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2 text-sm font-medium text-neutral-700 rounded-lg hover:bg-neutral-50 transition-colors"
+                <button
+                  type="button"
+                  onClick={() => handleAuthAction('sign-in')}
+                  className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
                 >
-                  Sign In
-                </Link>
-                <Link
-                  to="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block"
+                  Log in
+                </button>
+                <Button
+                  size="sm"
+                  onClick={() => handleAuthAction('sign-up')}
+                  className="w-full bg-primary-600 text-white hover:bg-primary-700"
                 >
-                  <Button variant="primary" size="sm" className="w-full">
-                    Get Started
-                  </Button>
-                </Link>
+                  Sign up
+                </Button>
               </div>
             </div>
           </div>
@@ -164,6 +187,12 @@ const LandingLayout: React.FC = () => {
 
       {/* Page Content */}
       <main><Outlet /></main>
+      <AuthModal
+        isOpen={authModalOpen}
+        initialMode={authMode}
+        onClose={() => setAuthModalOpen(false)}
+        returnTo="/create-trip"
+      />
     </div>
   );
 };

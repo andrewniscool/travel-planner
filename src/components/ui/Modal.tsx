@@ -52,7 +52,7 @@ const Modal: React.FC<ModalProps> = ({
       <div className="flex items-center justify-center min-h-screen p-4">
         <div
           className={[
-            'w-full bg-white rounded-2xl shadow-xl animate-slide-up',
+            'w-full bg-app-surface rounded-2xl shadow-xl animate-slide-up',
             sizeClasses[size],
             className,
           ]
@@ -60,11 +60,11 @@ const Modal: React.FC<ModalProps> = ({
             .join(' ')}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between p-6 border-b border-neutral-100">
-            <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
+          <div className="flex items-center justify-between p-6 border-b border-app-border-muted">
+            <h2 className="text-lg font-semibold text-app-text">{title}</h2>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors"
+              className="p-1 rounded-lg text-app-text-subtle hover:text-app-text-muted hover:bg-app-surface-muted transition-colors"
             >
               <X className="w-5 h-5" />
             </button>

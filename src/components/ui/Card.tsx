@@ -17,7 +17,7 @@ const Card: React.FC<CardProps> = ({
     <div
       onClick={onClick}
       className={[
-        'bg-white rounded-2xl shadow-card border border-neutral-100 overflow-hidden dark:bg-[var(--app-surface)] dark:border-[var(--app-border)]',
+        'bg-app-surface rounded-2xl shadow-card border border-app-border-muted overflow-hidden',
         hover ? 'card-hover' : '',
         onClick ? 'cursor-pointer' : '',
         className,

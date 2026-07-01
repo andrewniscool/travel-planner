@@ -36,6 +36,8 @@ import LocationInput from '../components/ui/LocationInput';
 import Modal from '../components/ui/Modal';
 import Select from '../components/ui/Select';
 import {
+  GOOGLE_HOTEL_IMAGE,
+  GOOGLE_PLACE_IMAGE,
   getPersistedLocationRefId,
   getPlaceItineraryTimeOfDay,
   getPlaceItineraryType,
@@ -270,6 +272,13 @@ const typeColorMap: Record<ItineraryItemType, string> = {
   transport: 'bg-cyan-100 text-cyan-600',
 };
 
+const getItineraryItemImage = (item: ItineraryItem) => {
+  const googlePhoto = item.locationRef?.photoUrls?.[0];
+  if (googlePhoto) return googlePhoto;
+  if (item.locationRef?.source !== 'google') return undefined;
+  return item.type === 'hotel' ? GOOGLE_HOTEL_IMAGE : GOOGLE_PLACE_IMAGE;
+};
+
 const timeOfDayConfig: Record<TimeOfDay, { label: string; icon: React.ReactNode; color: string }> = {
   morning: {
     label: 'Morning',
@@ -304,6 +313,7 @@ const ItineraryItemRow: React.FC<{
   onRemove: (id: string) => void;
 }> = ({ item, onEdit, onRemove }) => {
   const iconBg = typeColorMap[item.type] || 'bg-neutral-100 text-neutral-600';
+  const image = getItineraryItemImage(item);
 
   return (
     <div className="group flex items-start gap-3 p-3 rounded-xl bg-white border border-neutral-100 hover:border-neutral-200 hover:shadow-sm transition-all duration-150">
@@ -312,10 +322,28 @@ const ItineraryItemRow: React.FC<{
         <GripVertical className="w-4 h-4" />
       </div>
 
-      {/* Type Icon */}
-      <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${iconBg}`}>
-        {typeIconMap[item.type] || <MapPin className="w-4 h-4" />}
-      </div>
+      {image ? (
+        <img
+          src={image}
+          alt={item.name}
+          loading="lazy"
+          decoding="async"
+          width={40}
+          height={40}
+          className="h-10 w-10 rounded-lg object-cover flex-shrink-0"
+          onError={(event) => {
+            const fallbackImage =
+              item.type === 'hotel' ? GOOGLE_HOTEL_IMAGE : GOOGLE_PLACE_IMAGE;
+            if (event.currentTarget.src !== fallbackImage) {
+              event.currentTarget.src = fallbackImage;
+            }
+          }}
+        />
+      ) : (
+        <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${iconBg}`}>
+          {typeIconMap[item.type] || <MapPin className="w-4 h-4" />}
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 min-w-0">
@@ -1346,7 +1374,16 @@ const Itinerary: React.FC = () => {
                 <img
                   src={place.image}
                   alt={place.name}
+                  loading="lazy"
+                  decoding="async"
+                  width={48}
+                  height={48}
                   className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                  onError={(event) => {
+                    if (event.currentTarget.src !== GOOGLE_PLACE_IMAGE) {
+                      event.currentTarget.src = GOOGLE_PLACE_IMAGE;
+                    }
+                  }}
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-neutral-900 truncate">

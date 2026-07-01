@@ -4,6 +4,8 @@ import Modal from '../ui/Modal';
 import Badge from '../ui/Badge';
 import RatingStars from '../ui/RatingStars';
 import type { Place } from '../../types';
+import { GOOGLE_PLACE_IMAGE } from '../../services/locationDisplayMappers';
+import PhotoGallery from '../ui/PhotoGallery';
 
 interface PlaceDetailModalProps {
   place: Place | null;
@@ -43,7 +45,11 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
   if (!place) return null;
 
   const displayName = place.locationRef?.displayName || place.name;
-  const displayImage = place.locationRef?.photoUrls?.[0] || place.image;
+  const displayImages = place.locationRef?.photoUrls?.length
+    ? place.locationRef.photoUrls
+    : place.image
+      ? [place.image]
+      : [];
   const displayRating = place.locationRef?.rating ?? place.rating;
   const displayReviewCount = place.locationRef?.reviewCount ?? place.reviewCount;
   const displayLocation = place.locationRef?.formattedAddress || place.location;
@@ -58,10 +64,10 @@ const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({
       <div className="space-y-5">
         {/* Large Image */}
         <div className="relative rounded-xl overflow-hidden -mx-6 -mt-6">
-          <img
-            src={displayImage}
+          <PhotoGallery
+            photos={displayImages}
+            fallbackPhoto={GOOGLE_PLACE_IMAGE}
             alt={displayName}
-            className="w-full aspect-video object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
           <div className="absolute bottom-4 left-4 right-4">

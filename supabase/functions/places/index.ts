@@ -19,9 +19,10 @@ type LocationBias = {
 };
 
 type PlacesRequestBody = {
-  action?: 'autocomplete' | 'details' | 'textSearch';
+  action?: 'autocomplete' | 'details' | 'textSearch' | 'photo';
   input?: string;
   placeId?: string;
+  photoName?: string;
   textQuery?: string;
   sessionToken?: string;
   languageCode?: string;
@@ -29,6 +30,8 @@ type PlacesRequestBody = {
   includedPrimaryTypes?: string[];
   locationBias?: LocationBias;
   maxResultCount?: number;
+  maxWidthPx?: number;
+  maxHeightPx?: number;
 };
 
 type AuthUser = {
@@ -46,6 +49,7 @@ const GOOGLE_PLACES_BASE_URL = 'https://places.googleapis.com/v1';
 const RATE_LIMIT_PER_MINUTE = 60;
 const MAX_QUERY_LENGTH = 200;
 const MAX_PLACE_ID_LENGTH = 200;
+const MAX_PHOTO_NAME_LENGTH = 500;
 const MAX_SESSION_TOKEN_LENGTH = 128;
 const MAX_LANGUAGE_CODE_LENGTH = 16;
 const MAX_REGION_CODE_LENGTH = 8;
@@ -53,10 +57,12 @@ const MAX_INCLUDED_PRIMARY_TYPES = 5;
 const MAX_INCLUDED_PRIMARY_TYPE_LENGTH = 80;
 const MAX_TEXT_SEARCH_RESULTS = 10;
 const MAX_LOCATION_BIAS_RADIUS_METERS = 50000;
+const MAX_PHOTO_DIMENSION_PX = 4800;
 const ACTION_COSTS: Record<NonNullable<PlacesRequestBody['action']>, number> = {
   autocomplete: 1,
   details: 5,
   textSearch: 5,
+  photo: 1,
 };
 
 const AUTOCOMPLETE_FIELD_MASK = [
@@ -274,6 +280,18 @@ function optionalTextSearchResultCount(value: unknown) {
   return value;
 }
 
+function optionalPhotoDimension(value: unknown, fieldName: string) {
+  if (value === undefined || value === null) return undefined;
+  if (!Number.isInteger(value)) {
+    throw new Error(`${fieldName} must be an integer.`);
+  }
+  if (value < 1 || value > MAX_PHOTO_DIMENSION_PX) {
+    throw new Error(`${fieldName} is out of range.`);
+  }
+
+  return value;
+}
+
 function getBearerToken(request: Request) {
   const authorization = request.headers.get('Authorization');
   if (!authorization?.startsWith('Bearer ')) return null;
@@ -366,6 +384,42 @@ async function callGooglePlaces(
   return jsonResponse(responseBody);
 }
 
+async function callGooglePlacePhoto(
+  photoName: string,
+  options: {
+    apiKey: string;
+    maxWidthPx?: number;
+    maxHeightPx?: number;
+  },
+) {
+  const searchParams = new URLSearchParams({
+    key: options.apiKey,
+    skipHttpRedirect: 'true',
+  });
+  if (options.maxWidthPx) searchParams.set('maxWidthPx', String(options.maxWidthPx));
+  if (options.maxHeightPx) searchParams.set('maxHeightPx', String(options.maxHeightPx));
+
+  const response = await fetch(
+    `${GOOGLE_PLACES_BASE_URL}/${photoName}/media?${searchParams.toString()}`,
+    {
+      method: 'GET',
+    },
+  );
+
+  if (!response.ok) {
+    return jsonResponse(
+      {
+        error: 'Google Places photo request failed.',
+        status: response.status,
+      },
+      response.status,
+    );
+  }
+
+  const responseBody = await response.json().catch(() => ({}));
+  return jsonResponse(responseBody);
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -402,7 +456,7 @@ Deno.serve(async (request) => {
     const action = body.action;
     if (!action || !(action in ACTION_COSTS)) {
       return jsonResponse(
-        { error: 'action must be autocomplete, details, or textSearch.' },
+        { error: 'action must be autocomplete, details, textSearch, or photo.' },
         400,
       );
     }
@@ -427,6 +481,8 @@ Deno.serve(async (request) => {
     );
     const locationBias = optionalLocationBias(body.locationBias);
     const maxResultCount = optionalTextSearchResultCount(body.maxResultCount);
+    const maxWidthPx = optionalPhotoDimension(body.maxWidthPx, 'maxWidthPx');
+    const maxHeightPx = optionalPhotoDimension(body.maxHeightPx, 'maxHeightPx');
 
     const withinRateLimit = await consumeRateLimit(
       supabaseUrl,
@@ -499,6 +555,23 @@ Deno.serve(async (request) => {
           ...(locationBias ? { locationBias } : {}),
           ...(maxResultCount ? { maxResultCount } : {}),
         },
+      });
+    }
+
+    if (body.action === 'photo') {
+      const photoName = requireBoundedString(
+        body.photoName,
+        'photoName',
+        MAX_PHOTO_NAME_LENGTH,
+      );
+      if (!/^places\/[^/]+\/photos\/[^/]+$/.test(photoName)) {
+        return jsonResponse({ error: 'photoName is invalid.' }, 400);
+      }
+
+      return callGooglePlacePhoto(photoName, {
+        apiKey,
+        maxWidthPx,
+        maxHeightPx,
       });
     }
   } catch (error) {

@@ -7,9 +7,9 @@ import type {
   TimeOfDay,
 } from '../types';
 
-const GOOGLE_PLACE_IMAGE =
+export const GOOGLE_PLACE_IMAGE =
   'https://images.pexels.com/photos/2422461/pexels-photo-2422461.jpeg?auto=compress&cs=tinysrgb&w=600';
-const GOOGLE_HOTEL_IMAGE =
+export const GOOGLE_HOTEL_IMAGE =
   'https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg?auto=compress&cs=tinysrgb&w=600';
 
 export const UUID_PATTERN =

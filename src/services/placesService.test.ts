@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  clearPlacesServiceCacheForTesting,
   mapGooglePlaceToLocationRef,
   placesService,
   type GooglePlace,
@@ -19,6 +20,7 @@ vi.mock('./supabaseClient', () => ({
 
 beforeEach(() => {
   invokeMock.mockReset();
+  clearPlacesServiceCacheForTesting();
 });
 
 describe('mapGooglePlaceToLocationRef', () => {
@@ -156,5 +158,160 @@ describe('placesService', () => {
         sessionToken: 'session-123',
       },
     });
+  });
+
+  it('resolves the first Google Places photo for details requests', async () => {
+    invokeMock
+      .mockResolvedValueOnce({
+        data: {
+          id: 'restaurant-place-id',
+          displayName: {
+            text: 'Photo Restaurant',
+            languageCode: 'en',
+          },
+          photos: [
+            {
+              name: 'places/restaurant-place-id/photos/photo-1',
+              widthPx: 1200,
+              heightPx: 800,
+            },
+          ],
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          photoUri: 'https://lh3.googleusercontent.com/photo-1',
+        },
+        error: null,
+      });
+
+    await expect(placesService.getDetails('restaurant-place-id')).resolves.toEqual(
+      expect.objectContaining({
+        googlePlaceId: 'restaurant-place-id',
+        photoUrls: ['https://lh3.googleusercontent.com/photo-1'],
+      }),
+    );
+
+    expect(invokeMock).toHaveBeenNthCalledWith(2, 'places', {
+      body: {
+        action: 'photo',
+        photoName: 'places/restaurant-place-id/photos/photo-1',
+        maxWidthPx: 800,
+        maxHeightPx: 600,
+        languageCode: undefined,
+        regionCode: undefined,
+      },
+    });
+  });
+
+  it('reuses cached default text search results', async () => {
+    invokeMock.mockResolvedValue({
+      data: {
+        places: [
+          {
+            id: 'hotel-place-id',
+            displayName: {
+              text: 'Cached Hotel',
+              languageCode: 'en',
+            },
+            types: ['lodging'],
+          },
+        ],
+      },
+      error: null,
+    });
+
+    const options = {
+      cacheQuery: '',
+      cacheLocationName: 'Kyoto',
+      category: 'lodging',
+      includedPrimaryTypes: ['lodging'],
+      maxResultCount: 9,
+    };
+
+    await expect(placesService.textSearch('hotels in Kyoto', options)).resolves.toEqual([
+      expect.objectContaining({
+        googlePlaceId: 'hotel-place-id',
+        name: 'Cached Hotel',
+      }),
+    ]);
+    await expect(placesService.textSearch('hotels in Kyoto', options)).resolves.toEqual([
+      expect.objectContaining({
+        googlePlaceId: 'hotel-place-id',
+        name: 'Cached Hotel',
+      }),
+    ]);
+
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('bypasses cached Google text search results when photos are required but missing', async () => {
+    invokeMock
+      .mockResolvedValueOnce({
+        data: {
+          places: [
+            {
+              id: 'photo-less-place-id',
+              displayName: {
+                text: 'Photo-less Hotel',
+                languageCode: 'en',
+              },
+              types: ['lodging'],
+            },
+          ],
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          places: [
+            {
+              id: 'hotel-place-id',
+              displayName: {
+                text: 'Photo Hotel',
+                languageCode: 'en',
+              },
+              types: ['lodging'],
+              photos: [
+                {
+                  name: 'places/hotel-place-id/photos/photo-1',
+                },
+              ],
+            },
+          ],
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          photoUri: 'https://lh3.googleusercontent.com/hotel-photo',
+        },
+        error: null,
+      });
+
+    const options = {
+      cacheQuery: '',
+      cacheLocationName: 'Kyoto',
+      category: 'lodging',
+      includedPrimaryTypes: ['lodging'],
+      maxResultCount: 9,
+      requirePhotoUrls: true,
+    };
+
+    await expect(placesService.textSearch('hotels in Kyoto', options)).resolves.toEqual([
+      expect.objectContaining({
+        googlePlaceId: 'photo-less-place-id',
+        photoUrls: [],
+      }),
+    ]);
+    await expect(placesService.textSearch('hotels in Kyoto', options)).resolves.toEqual([
+      expect.objectContaining({
+        googlePlaceId: 'hotel-place-id',
+        photoUrls: ['https://lh3.googleusercontent.com/hotel-photo'],
+      }),
+    ]);
+
+    expect(invokeMock).toHaveBeenCalledTimes(3);
   });
 });

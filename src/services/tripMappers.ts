@@ -57,6 +57,10 @@ import type {
   TripStopWithLocationRef,
   TripWithRelations,
 } from './travelDataService';
+import {
+  GOOGLE_HOTEL_IMAGE,
+  GOOGLE_PLACE_IMAGE,
+} from './locationDisplayMappers';
 
 const DEFAULT_TRIP_VIBE: TripVibe = 'Cultural';
 const DEFAULT_TRIP_STATUS: TripStatus = 'planning';
@@ -516,7 +520,7 @@ export function mapLodgingOptionRowToHotel(
     tripId,
     stopId: row.stop_id ?? undefined,
     name: locationRef?.displayName ?? locationRef?.name ?? row.name,
-    image: locationRef?.photoUrls?.[0] ?? '',
+    image: locationRef?.photoUrls?.[0] ?? GOOGLE_HOTEL_IMAGE,
     rating: locationRef?.rating ?? 0,
     reviewCount: locationRef?.reviewCount ?? 0,
     pricePerNight,
@@ -601,7 +605,7 @@ export function mapSavedPlaceRowToPlace(
     tripId,
     stopId: row.stop_id ?? undefined,
     name: locationRef?.displayName ?? locationRef?.name ?? row.name,
-    image: locationRef?.photoUrls?.[0] ?? '',
+    image: locationRef?.photoUrls?.[0] ?? GOOGLE_PLACE_IMAGE,
     category,
     rating: locationRef?.rating ?? 0,
     reviewCount: locationRef?.reviewCount ?? 0,

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Compass } from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { getPlacesByTripId } from '../data/places';
 import { useServiceTrip } from '../hooks/useServiceTrips';
 import {
@@ -118,6 +119,7 @@ const Explore: React.FC = () => {
 
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 400);
   const [savedPlaces, setSavedPlaces] = useState<Set<string>>(() =>
     trip ? loadSavedPlaces(trip.id, initialSavedPlaceIds) : new Set(),
   );
@@ -187,15 +189,7 @@ const Explore: React.FC = () => {
       return;
     }
 
-    const trimmedSearch = searchQuery.trim();
-    const shouldSearchGoogle = trimmedSearch.length >= 2 || activeCategory !== 'All';
-    if (!shouldSearchGoogle) {
-      setGooglePlaces([]);
-      setIsSearchingGoogle(false);
-      setGooglePlacesError(null);
-      return;
-    }
-
+    const trimmedSearch = debouncedSearchQuery.trim();
     const searchLabel = activeCategory === 'All' ? 'places' : activeCategory.toLowerCase();
     const textQuery = `${trimmedSearch || searchLabel} in ${selectedStop.name}`;
     const locationBias =
@@ -210,49 +204,81 @@ const Explore: React.FC = () => {
             },
           }
         : undefined;
-    let cancelled = false;
+    const searchOptions = {
+      cacheQuery: trimmedSearch,
+      cacheLocationName: selectedStop.name,
+      category: activeCategory,
+      locationBias,
+      maxResultCount: 9,
+      requirePhotoUrls: true,
+    };
 
-    setIsSearchingGoogle(true);
-    setGooglePlacesError(null);
-
-    const timeoutId = window.setTimeout(() => {
-      getAuthenticatedUserId()
-        .then((userId) => {
-          if (!userId) return [];
-          return placesService.textSearch(textQuery, {
-            locationBias,
-            maxResultCount: 9,
-          });
-        })
-        .then((locations) => {
-          if (cancelled) return;
-          setGooglePlaces(
-            locations.map((location) =>
+    if (!trimmedSearch) {
+      const cachedLocations =
+        activeCategory === 'All'
+          ? undefined
+          : placesService.getCachedTextSearch(textQuery, searchOptions);
+      setGooglePlaces(
+        cachedLocations
+          ? cachedLocations.map((location) =>
               mapLocationRefToPlace(
                 trip.id,
                 selectedStop.id,
                 location,
                 activeCategory,
               ),
+            )
+          : [],
+      );
+      setIsSearchingGoogle(false);
+      setGooglePlacesError(null);
+      return;
+    }
+
+    if (trimmedSearch.length < 2) {
+      setGooglePlaces([]);
+      setIsSearchingGoogle(false);
+      setGooglePlacesError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    setIsSearchingGoogle(true);
+    setGooglePlacesError(null);
+
+    getAuthenticatedUserId()
+      .then((userId) => {
+        if (!userId) return [];
+        return placesService.textSearch(textQuery, searchOptions);
+      })
+      .then((locations) => {
+        if (cancelled) return;
+        setGooglePlaces(
+          locations.map((location) =>
+            mapLocationRefToPlace(
+              trip.id,
+              selectedStop.id,
+              location,
+              activeCategory,
             ),
-          );
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setGooglePlaces([]);
-          setGooglePlacesError('Google Places search is unavailable. Showing saved and local places instead.');
-        })
-        .finally(() => {
-          if (cancelled) return;
-          setIsSearchingGoogle(false);
-        });
-    }, 400);
+          ),
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setGooglePlaces([]);
+        setGooglePlacesError('Google Places search is unavailable. Showing saved and local places instead.');
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsSearchingGoogle(false);
+      });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timeoutId);
     };
-  }, [activeCategory, searchQuery, selectedStop, trip, tripSource]);
+  }, [activeCategory, debouncedSearchQuery, selectedStop, trip, tripSource]);
 
   const serviceStopPlaces = useMemo(() => {
     if (!selectedStop) return serviceSavedPlaces;
@@ -408,6 +434,24 @@ const Explore: React.FC = () => {
     const place = availablePlaces.find((p) => p.id === placeId);
     if (place) {
       setSelectedPlace({ ...place, isSaved: savedPlaces.has(placeId) });
+      if (place.locationRef?.googlePlaceId) {
+        placesService
+          .getDetails(place.locationRef.googlePlaceId, { photoLimit: 5 })
+          .then((locationRef) => {
+            setSelectedPlace((currentPlace) =>
+              currentPlace?.id === place.id
+                ? {
+                    ...currentPlace,
+                    image: locationRef.photoUrls?.[0] ?? currentPlace.image,
+                    locationRef,
+                  }
+                : currentPlace,
+            );
+          })
+          .catch(() => {
+            setGooglePlacesError('Google place photos could not be loaded. Showing the available photo instead.');
+          });
+      }
     }
   };
 

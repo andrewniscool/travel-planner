@@ -4,6 +4,7 @@ import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import RatingStars from '../ui/RatingStars';
 import type { Place } from '../../types';
+import { GOOGLE_PLACE_IMAGE } from '../../services/locationDisplayMappers';
 
 interface PlaceCardProps {
   place: Place;
@@ -35,7 +36,16 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
         <img
           src={displayImage}
           alt={displayName}
+          loading="lazy"
+          decoding="async"
+          width={600}
+          height={338}
           className="w-full aspect-video object-cover rounded-t-xl"
+          onError={(event) => {
+            if (event.currentTarget.src !== GOOGLE_PLACE_IMAGE) {
+              event.currentTarget.src = GOOGLE_PLACE_IMAGE;
+            }
+          }}
         />
 
         {/* Category Badge - top left */}

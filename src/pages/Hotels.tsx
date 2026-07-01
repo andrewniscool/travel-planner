@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Bookmark,
@@ -19,6 +19,7 @@ import {
   Wine,
 } from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { getHotelsByTripId } from '../data/hotels';
 import { useServiceTrip } from '../hooks/useServiceTrips';
 import {
@@ -31,7 +32,10 @@ import {
   mapLocationRefRowToLocationRef,
   mapLodgingOptionRowToHotel,
 } from '../services/tripMappers';
-import { mapLocationRefToHotel } from '../services/locationDisplayMappers';
+import {
+  GOOGLE_HOTEL_IMAGE,
+  mapLocationRefToHotel,
+} from '../services/locationDisplayMappers';
 import { placesService } from '../services/placesService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import type { Hotel, LocationRef } from '../types';
@@ -40,6 +44,7 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
+import PhotoGallery from '../components/ui/PhotoGallery';
 import RatingStars from '../components/ui/RatingStars';
 import SearchBar from '../components/ui/SearchBar';
 import Select from '../components/ui/Select';
@@ -114,9 +119,15 @@ const HotelCard: React.FC<HotelCardProps> = ({
         <img
           src={getGooglePhoto(hotel)}
           alt={hotel.name}
+          loading="lazy"
+          decoding="async"
+          width={320}
+          height={192}
           className="w-full h-48 sm:h-full object-cover sm:rounded-l-xl"
           onError={(event) => {
-            (event.target as HTMLImageElement).style.display = 'none';
+            if (event.currentTarget.src !== GOOGLE_HOTEL_IMAGE) {
+              event.currentTarget.src = GOOGLE_HOTEL_IMAGE;
+            }
           }}
         />
       </div>
@@ -283,18 +294,18 @@ const HotelDetailModal: React.FC<HotelDetailModalProps> = ({
   onSelect,
 }) => {
   if (!hotel) return null;
+  const hotelPhotos = hotel.locationRef?.photoUrls?.length
+    ? hotel.locationRef.photoUrls
+    : [hotel.image];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={hotel.locationRef?.displayName || hotel.name} size="lg">
       <div className="space-y-6">
         <div className="rounded-xl overflow-hidden">
-          <img
-            src={getGooglePhoto(hotel)}
+          <PhotoGallery
+            photos={hotelPhotos}
+            fallbackPhoto={GOOGLE_HOTEL_IMAGE}
             alt={hotel.name}
-            className="w-full h-56 object-cover"
-            onError={(event) => {
-              (event.target as HTMLImageElement).style.display = 'none';
-            }}
           />
         </div>
 
@@ -422,6 +433,8 @@ const Hotels: React.FC = () => {
   const [serviceHotels, setServiceHotels] = useState<Hotel[]>([]);
   const [googleHotels, setGoogleHotels] = useState<Hotel[]>([]);
   const [hotelSearchQuery, setHotelSearchQuery] = useState('');
+  const debouncedHotelSearchQuery = useDebouncedValue(hotelSearchQuery, 400);
+  const hasEditedHotelSearchRef = useRef(false);
   const [isSearchingGoogleHotels, setIsSearchingGoogleHotels] = useState(false);
   const [lodgingSource, setLodgingSource] = useState<'supabase' | 'fallback'>('fallback');
   const [lodgingError, setLodgingError] = useState<string | null>(null);
@@ -494,7 +507,7 @@ const Hotels: React.FC = () => {
       return;
     }
 
-    const trimmedSearch = hotelSearchQuery.trim();
+    const trimmedSearch = debouncedHotelSearchQuery.trim();
     if (trimmedSearch.length > 0 && trimmedSearch.length < 2) {
       setGoogleHotels([]);
       setIsSearchingGoogleHotels(false);
@@ -514,40 +527,62 @@ const Hotels: React.FC = () => {
             },
           }
         : undefined;
+    const searchOptions = {
+      cacheQuery: trimmedSearch,
+      cacheLocationName: selectedStop.name,
+      category: 'lodging',
+      includedPrimaryTypes: ['lodging'],
+      locationBias,
+      maxResultCount: 9,
+      requirePhotoUrls: true,
+    };
+    const cachedDefaultLocations = !trimmedSearch
+      ? placesService.getCachedTextSearch(textQuery, searchOptions)
+      : undefined;
+
+    if (cachedDefaultLocations) {
+      setGoogleHotels(
+        cachedDefaultLocations.map((location) =>
+          mapLocationRefToHotel(trip.id, selectedStop.id, location),
+        ),
+      );
+      setIsSearchingGoogleHotels(false);
+      return;
+    }
+
+    if (!trimmedSearch && hasEditedHotelSearchRef.current) {
+      setGoogleHotels([]);
+      setIsSearchingGoogleHotels(false);
+      return;
+    }
+
     let cancelled = false;
 
     setIsSearchingGoogleHotels(true);
 
-    const timeoutId = window.setTimeout(() => {
-      placesService.textSearch(textQuery, {
-        includedPrimaryTypes: ['lodging'],
-        locationBias,
-        maxResultCount: 9,
+    placesService.textSearch(textQuery, searchOptions)
+      .then((locations) => {
+        if (cancelled) return;
+        setGoogleHotels(
+          locations.map((location) =>
+            mapLocationRefToHotel(trip.id, selectedStop.id, location),
+          ),
+        );
       })
-        .then((locations) => {
-          if (cancelled) return;
-          setGoogleHotels(
-            locations.map((location) =>
-              mapLocationRefToHotel(trip.id, selectedStop.id, location),
-            ),
-          );
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setGoogleHotels([]);
-          setLodgingError('Google lodging search is unavailable. Showing saved and local hotels instead.');
-        })
-        .finally(() => {
-          if (cancelled) return;
-          setIsSearchingGoogleHotels(false);
-        });
-    }, 400);
+      .catch(() => {
+        if (cancelled) return;
+        setGoogleHotels([]);
+        setLodgingError('Google lodging search is unavailable. Showing saved and local hotels instead.');
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsSearchingGoogleHotels(false);
+      });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timeoutId);
     };
-  }, [hotelSearchQuery, selectedStop, trip, tripSource]);
+  }, [debouncedHotelSearchQuery, selectedStop, trip, tripSource]);
 
   const availableHotels = useMemo(() => {
     const hotelsById = new Map<string, Hotel>();
@@ -662,6 +697,30 @@ const Hotels: React.FC = () => {
     }
   };
 
+  const openHotelDetails = (hotel: Hotel) => {
+    setDetailHotel(hotel);
+    setDetailModalOpen(true);
+
+    if (!hotel.locationRef?.googlePlaceId) return;
+
+    placesService
+      .getDetails(hotel.locationRef.googlePlaceId, { photoLimit: 5 })
+      .then((locationRef) => {
+        setDetailHotel((currentHotel) =>
+          currentHotel?.id === hotel.id
+            ? {
+                ...currentHotel,
+                image: locationRef.photoUrls?.[0] ?? currentHotel.image,
+                locationRef,
+              }
+            : currentHotel,
+        );
+      })
+      .catch(() => {
+        setLodgingError('Google hotel photos could not be loaded. Showing the available photo instead.');
+      });
+  };
+
   if (!trip) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -715,12 +774,12 @@ const Hotels: React.FC = () => {
       <div className="flex flex-col gap-2 sm:max-w-md">
         <SearchBar
           value={hotelSearchQuery}
-          onChange={setHotelSearchQuery}
+          onChange={(value) => {
+            hasEditedHotelSearchRef.current = true;
+            setHotelSearchQuery(value);
+          }}
           placeholder={`Search hotels${selectedStop ? ` in ${selectedStop.name}` : ''}...`}
         />
-        {isSearchingGoogleHotels && (
-          <p className="text-xs text-neutral-400">Searching Google lodging results...</p>
-        )}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -735,7 +794,17 @@ const Hotels: React.FC = () => {
         </aside>
 
         <div className="flex-1 space-y-3">
-          {stopHotels.length === 0 ? (
+          {isSearchingGoogleHotels ? (
+            <EmptyState
+              icon={<HotelIcon className="w-8 h-8 animate-pulse" />}
+              title="Searching Google hotels"
+              description={
+                selectedStop
+                  ? `Looking for lodging candidates in ${selectedStop.name}.`
+                  : 'Looking for lodging candidates.'
+              }
+            />
+          ) : stopHotels.length === 0 ? (
             <EmptyState
               icon={<HotelIcon className="w-8 h-8" />}
               title={selectedStop ? `No hotels in ${selectedStop.name} yet` : 'No hotels yet'}
@@ -760,10 +829,7 @@ const Hotels: React.FC = () => {
                 isSelected={savedHotels.has(hotel.id)}
                 onSelect={() => void toggleHotelSelection(hotel.id)}
                 onSave={() => void toggleHotelSelection(hotel.id)}
-                onViewDetails={() => {
-                  setDetailHotel(hotel);
-                  setDetailModalOpen(true);
-                }}
+                onViewDetails={() => openHotelDetails(hotel)}
               />
             ))
           )}

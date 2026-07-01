@@ -61,6 +61,8 @@ const ImagePlaceholder: React.FC<ImagePlaceholderProps> = ({
       <img
         src={src}
         alt={alt}
+        loading="lazy"
+        decoding="async"
         onError={() => setHasError(true)}
         className="w-full h-full object-cover"
       />

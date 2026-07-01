@@ -91,6 +91,21 @@ export interface TransportSegmentWithLocationRefs extends TransportSegmentRow {
   to_location_ref: LocationRefRow | null;
 }
 
+const TRIP_WITH_RELATIONS_SELECT =
+  '*, trip_stops(*, location_refs(*)), transport_segments(*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*))';
+const TRANSPORT_SEGMENT_WITH_LOCATION_REFS_SELECT =
+  '*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*)';
+const WITH_LOCATION_REF_SELECT = '*, location_refs(*)';
+
+function getSupabaseData<T>(result: { data: T | null; error: unknown }): T {
+  if (result.error) throw result.error;
+  return result.data as T;
+}
+
+function throwSupabaseError(error: unknown) {
+  if (error) throw error;
+}
+
 export async function getAuthenticatedUserId(): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
 
@@ -111,8 +126,7 @@ export const profileService = {
       .eq('id', userId)
       .maybeSingle();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async upsertProfile(profile: ProfileInsert): Promise<ProfileRow> {
@@ -122,8 +136,7 @@ export const profileService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async updateProfile(
@@ -137,8 +150,7 @@ export const profileService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 };
 
@@ -150,14 +162,13 @@ export const tripService = {
       .eq('user_id', userId)
       .order('start_date', { ascending: true, nullsFirst: false });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async listTripsWithRelations(userId: string): Promise<TripWithRelations[]> {
     const { data, error } = await getSupabaseClient()
       .from('trips')
-      .select('*, trip_stops(*, location_refs(*)), transport_segments(*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*))')
+      .select(TRIP_WITH_RELATIONS_SELECT)
       .eq('user_id', userId)
       .order('start_date', { ascending: true, nullsFirst: false })
       .order('order_index', {
@@ -170,19 +181,17 @@ export const tripService = {
         referencedTable: 'transport_segments',
       });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async getTrip(tripId: string): Promise<TripWithRelations | null> {
     const { data, error } = await getSupabaseClient()
       .from('trips')
-      .select('*, trip_stops(*, location_refs(*)), transport_segments(*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*))')
+      .select(TRIP_WITH_RELATIONS_SELECT)
       .eq('id', tripId)
       .maybeSingle();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async createTrip(trip: TripInsert): Promise<TripRow> {
@@ -192,8 +201,7 @@ export const tripService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async createTripWithStops(userId: string, trip: Trip): Promise<TripWithRelations> {
@@ -207,7 +215,7 @@ export const tripService = {
         .from('trip_stops')
         .insert(stopInserts);
 
-      if (error) throw error;
+      throwSupabaseError(error);
     }
 
     const createdTripWithRelations = await this.getTrip(createdTrip.id);
@@ -226,8 +234,7 @@ export const tripService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async updateTripWithStops(trip: Trip): Promise<TripWithRelations> {
@@ -270,7 +277,7 @@ export const tripService = {
       .delete()
       .eq('id', tripId);
 
-    if (error) throw error;
+    throwSupabaseError(error);
   },
 };
 
@@ -282,8 +289,7 @@ export const tripStopService = {
       .eq('trip_id', tripId)
       .order('order_index', { ascending: true });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async createTripStop(stop: TripStopInsert): Promise<TripStopRow> {
@@ -293,8 +299,7 @@ export const tripStopService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async updateTripStop(
@@ -308,8 +313,7 @@ export const tripStopService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async deleteTripStop(stopId: string): Promise<void> {
@@ -318,7 +322,7 @@ export const tripStopService = {
       .delete()
       .eq('id', stopId);
 
-    if (error) throw error;
+    throwSupabaseError(error);
   },
 };
 
@@ -330,8 +334,7 @@ export const locationRefService = {
       .eq('user_id', userId)
       .order('name', { ascending: true });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async createLocationRef(
@@ -343,8 +346,7 @@ export const locationRefService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async upsertGoogleLocationRef(
@@ -387,7 +389,7 @@ export const locationRefService = {
       .eq('google_place_id', location.googlePlaceId)
       .maybeSingle();
 
-    if (lookupError) throw lookupError;
+    throwSupabaseError(lookupError);
 
     if (existing) {
       return this.updateLocationRef(existing.id, payload);
@@ -407,8 +409,7 @@ export const locationRefService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async deleteLocationRef(locationId: string): Promise<void> {
@@ -417,7 +418,7 @@ export const locationRefService = {
       .delete()
       .eq('id', locationId);
 
-    if (error) throw error;
+    throwSupabaseError(error);
   },
 };
 
@@ -425,12 +426,11 @@ export const transportSegmentService = {
   async listTransportSegments(tripId: string): Promise<TransportSegmentWithLocationRefs[]> {
     const { data, error } = await getSupabaseClient()
       .from('transport_segments')
-      .select('*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*)')
+      .select(TRANSPORT_SEGMENT_WITH_LOCATION_REFS_SELECT)
       .eq('trip_id', tripId)
       .order('departure_time', { ascending: true, nullsFirst: false });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async createTransportSegment(
@@ -439,11 +439,10 @@ export const transportSegmentService = {
     const { data, error } = await getSupabaseClient()
       .from('transport_segments')
       .insert(segment)
-      .select('*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*)')
+      .select(TRANSPORT_SEGMENT_WITH_LOCATION_REFS_SELECT)
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async createTravelSegment(
@@ -463,11 +462,10 @@ export const transportSegmentService = {
       .from('transport_segments')
       .update(updates)
       .eq('id', segmentId)
-      .select('*, from_location_ref:location_refs!transport_segments_from_location_ref_id_fkey(*), to_location_ref:location_refs!transport_segments_to_location_ref_id_fkey(*)')
+      .select(TRANSPORT_SEGMENT_WITH_LOCATION_REFS_SELECT)
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async updateTravelSegment(
@@ -485,7 +483,7 @@ export const transportSegmentService = {
       .delete()
       .eq('id', segmentId);
 
-    if (error) throw error;
+    throwSupabaseError(error);
   },
 };
 
@@ -495,12 +493,11 @@ export const lodgingService = {
   async listLodgingOptions(tripId: string): Promise<LodgingOptionWithLocationRef[]> {
     const { data, error } = await getSupabaseClient()
       .from('lodging_options')
-      .select('*, location_refs(*)')
+      .select(WITH_LOCATION_REF_SELECT)
       .eq('trip_id', tripId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async upsertHotelSelection(
@@ -524,11 +521,10 @@ export const lodgingService = {
         },
         { onConflict: 'trip_id,source,source_id' },
       )
-      .select('*, location_refs(*)')
+      .select(WITH_LOCATION_REF_SELECT)
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 };
 
@@ -536,12 +532,11 @@ export const savedPlaceService = {
   async listSavedPlaces(tripId: string): Promise<SavedPlaceWithLocationRef[]> {
     const { data, error } = await getSupabaseClient()
       .from('saved_places')
-      .select('*, location_refs(*)')
+      .select(WITH_LOCATION_REF_SELECT)
       .eq('trip_id', tripId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async upsertSavedPlace(
@@ -564,8 +559,7 @@ export const savedPlaceService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 };
 
@@ -573,13 +567,12 @@ export const itineraryService = {
   async listItineraryItems(tripId: string): Promise<ItineraryItemWithLocationRef[]> {
     const { data, error } = await getSupabaseClient()
       .from('itinerary_items')
-      .select('*, location_refs(*)')
+      .select(WITH_LOCATION_REF_SELECT)
       .eq('trip_id', tripId)
       .order('date', { ascending: true })
       .order('order_index', { ascending: true });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async listItineraryDays(tripId: string): Promise<ItineraryDay[]> {
@@ -593,11 +586,12 @@ export const itineraryService = {
     const { data, error } = await getSupabaseClient()
       .from('itinerary_items')
       .insert(item)
-      .select('*, location_refs(*)')
+      .select(WITH_LOCATION_REF_SELECT)
       .single();
 
-    if (error) throw error;
-    return mapItineraryItemRowToItineraryItem(data);
+    return mapItineraryItemRowToItineraryItem(
+      getSupabaseData({ data, error }),
+    );
   },
 
   async updateItineraryItem(
@@ -608,11 +602,12 @@ export const itineraryService = {
       .from('itinerary_items')
       .update(updates)
       .eq('id', itemId)
-      .select('*, location_refs(*)')
+      .select(WITH_LOCATION_REF_SELECT)
       .single();
 
-    if (error) throw error;
-    return mapItineraryItemRowToItineraryItem(data);
+    return mapItineraryItemRowToItineraryItem(
+      getSupabaseData({ data, error }),
+    );
   },
 
   async deleteItineraryItem(itemId: string): Promise<void> {
@@ -621,7 +616,7 @@ export const itineraryService = {
       .delete()
       .eq('id', itemId);
 
-    if (error) throw error;
+    throwSupabaseError(error);
   },
 };
 
@@ -634,8 +629,7 @@ export const budgetService = {
       .order('order_index', { ascending: true })
       .order('name', { ascending: true });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async listBudgetCategories(tripId: string): Promise<BudgetCategory[]> {
@@ -667,8 +661,9 @@ export const budgetService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return mapBudgetCategoryRowToBudgetCategory(data);
+    return mapBudgetCategoryRowToBudgetCategory(
+      getSupabaseData({ data, error }),
+    );
   },
 
   async deleteBudgetCategory(categoryId: string): Promise<void> {
@@ -677,7 +672,7 @@ export const budgetService = {
       .delete()
       .eq('id', categoryId);
 
-    if (error) throw error;
+    throwSupabaseError(error);
   },
 
   async listBudgetExpenseRows(tripId: string): Promise<BudgetExpenseRow[]> {
@@ -688,8 +683,7 @@ export const budgetService = {
       .order('expense_date', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async listBudgetExpenses(tripId: string): Promise<BudgetExpense[]> {
@@ -706,8 +700,9 @@ export const budgetService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return mapBudgetExpenseRowToBudgetExpense(data);
+    return mapBudgetExpenseRowToBudgetExpense(
+      getSupabaseData({ data, error }),
+    );
   },
 
   async updateBudgetExpense(
@@ -720,8 +715,9 @@ export const budgetService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return mapBudgetExpenseRowToBudgetExpense(data);
+    return mapBudgetExpenseRowToBudgetExpense(
+      getSupabaseData({ data, error }),
+    );
   },
 
   async deleteBudgetExpense(expenseId: string): Promise<void> {
@@ -730,7 +726,7 @@ export const budgetService = {
       .delete()
       .eq('id', expenseId);
 
-    if (error) throw error;
+    throwSupabaseError(error);
   },
 };
 
@@ -742,8 +738,7 @@ export const notesService = {
       .eq('trip_id', tripId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async listNotes(tripId: string): Promise<Note[]> {
@@ -758,8 +753,7 @@ export const notesService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return mapTripNoteRowToNote(data);
+    return mapTripNoteRowToNote(getSupabaseData({ data, error }));
   },
 
   async updateNote(note: Note): Promise<Note> {
@@ -770,8 +764,7 @@ export const notesService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return mapTripNoteRowToNote(data);
+    return mapTripNoteRowToNote(getSupabaseData({ data, error }));
   },
 
   async deleteNote(noteId: string): Promise<void> {
@@ -780,7 +773,7 @@ export const notesService = {
       .delete()
       .eq('id', noteId);
 
-    if (error) throw error;
+    throwSupabaseError(error);
   },
 
   async listChecklistItemRows(tripId: string): Promise<ChecklistItemRow[]> {
@@ -791,8 +784,7 @@ export const notesService = {
       .order('order_index', { ascending: true })
       .order('created_at', { ascending: true });
 
-    if (error) throw error;
-    return data;
+    return getSupabaseData({ data, error });
   },
 
   async listChecklistItems(tripId: string): Promise<ChecklistItem[]> {
@@ -810,8 +802,9 @@ export const notesService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return mapChecklistItemRowToChecklistItem(data);
+    return mapChecklistItemRowToChecklistItem(
+      getSupabaseData({ data, error }),
+    );
   },
 
   async updateChecklistItem(item: ChecklistItem): Promise<ChecklistItem> {
@@ -822,8 +815,9 @@ export const notesService = {
       .select()
       .single();
 
-    if (error) throw error;
-    return mapChecklistItemRowToChecklistItem(data);
+    return mapChecklistItemRowToChecklistItem(
+      getSupabaseData({ data, error }),
+    );
   },
 
   async deleteChecklistItem(itemId: string): Promise<void> {
@@ -832,6 +826,6 @@ export const notesService = {
       .delete()
       .eq('id', itemId);
 
-    if (error) throw error;
+    throwSupabaseError(error);
   },
 };

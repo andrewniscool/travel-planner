@@ -1,21 +1,7 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import {
-  Sun,
-  Sunrise,
-  Moon,
   MapPin,
-  DollarSign,
-  GripVertical,
-  X,
-  Pencil,
-  Plus,
-  Plane,
-  Building2,
-  UtensilsCrossed,
-  Coffee,
-  Car,
   Calendar,
   Bookmark,
 } from 'lucide-react';
@@ -32,12 +18,7 @@ import {
   locationRefService,
   savedPlaceService,
 } from '../services/travelDataService';
-import LocationInput from '../components/ui/LocationInput';
-import Modal from '../components/ui/Modal';
-import Select from '../components/ui/Select';
 import {
-  GOOGLE_HOTEL_IMAGE,
-  GOOGLE_PLACE_IMAGE,
   getPersistedLocationRefId,
   getPlaceItineraryTimeOfDay,
   getPlaceItineraryType,
@@ -46,15 +27,24 @@ import {
   mapLocationRefRowToLocationRef,
   mapSavedPlaceRowToPlace,
 } from '../services/tripMappers';
+import {
+  loadTripScopedValue,
+  persistTripScopedValue,
+} from '../utils/tripStorage';
+import { getBudgetCategoryKey } from '../utils/budget';
+import DaySection from '../components/itinerary/DaySection';
+import ItineraryItemModal, {
+  type ItineraryFormErrors,
+  type ItineraryItemFormState,
+  type ItineraryModalMode,
+} from '../components/itinerary/ItineraryItemModal';
+import SavedPlacesModal from '../components/itinerary/SavedPlacesModal';
 import type {
-  BudgetCategory,
   BudgetExpense,
   ItineraryDay,
   ItineraryItem,
-  ItineraryItemType,
   TimeOfDay,
   Place,
-  TripStop,
   LocationRef,
 } from '../types';
 import type {
@@ -68,36 +58,12 @@ const LOCAL_BUDGET_EXPENSES_KEY = 'travel-builder:budget-expenses';
 const LOCAL_ITINERARY_BUDGET_LINKS_KEY = 'travel-builder:itinerary-budget-expense-links';
 const ITINERARY_EXPENSE_PREFIX = 'itinerary-expense';
 
-type ItineraryModalMode = 'add' | 'edit';
-
-interface ItineraryItemFormState {
-  time: string;
-  name: string;
-  type: ItineraryItemType;
-  location: string;
-  estimatedCost: string;
-  notes: string;
-  budgetCategory: string;
-  locationRef: LocationRef | null;
-}
-
 interface ItineraryModalState {
   mode: ItineraryModalMode;
   dayNumber: number;
   timeOfDay: TimeOfDay;
   itemId?: string;
 }
-
-type ItineraryFormErrors = Partial<Record<keyof ItineraryItemFormState, string>>;
-
-const itineraryItemTypes: { value: ItineraryItemType; label: string }[] = [
-  { value: 'flight', label: 'Flight' },
-  { value: 'hotel', label: 'Hotel' },
-  { value: 'restaurant', label: 'Restaurant' },
-  { value: 'activity', label: 'Activity' },
-  { value: 'free-time', label: 'Free time' },
-  { value: 'transport', label: 'Transport' },
-];
 
 const emptyItineraryForm = (): ItineraryItemFormState => ({
   time: '',
@@ -111,125 +77,52 @@ const emptyItineraryForm = (): ItineraryItemFormState => ({
 });
 
 const loadRemovedItems = (tripId: string) => {
-  try {
-    const stored = JSON.parse(
-      window.localStorage.getItem(LOCAL_REMOVED_ITINERARY_ITEMS_KEY) ?? '{}',
-    ) as Record<string, string[]>;
-    return new Set(stored[tripId] ?? []);
-  } catch {
-    return new Set<string>();
-  }
+  return new Set(
+    loadTripScopedValue(LOCAL_REMOVED_ITINERARY_ITEMS_KEY, tripId, []),
+  );
 };
 
 const persistRemovedItems = (tripId: string, itemIds: Set<string>) => {
-  try {
-    const stored = JSON.parse(
-      window.localStorage.getItem(LOCAL_REMOVED_ITINERARY_ITEMS_KEY) ?? '{}',
-    ) as Record<string, string[]>;
-    window.localStorage.setItem(
-      LOCAL_REMOVED_ITINERARY_ITEMS_KEY,
-      JSON.stringify({ ...stored, [tripId]: [...itemIds] }),
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_REMOVED_ITINERARY_ITEMS_KEY,
-      JSON.stringify({ [tripId]: [...itemIds] }),
-    );
-  }
+  persistTripScopedValue(
+    LOCAL_REMOVED_ITINERARY_ITEMS_KEY,
+    tripId,
+    [...itemIds],
+  );
 };
 
 const loadStoredItineraryDays = (tripId: string): ItineraryDay[] | null => {
-  try {
-    const stored = JSON.parse(
-      window.localStorage.getItem(LOCAL_ITINERARY_DAYS_KEY) ?? '{}',
-    ) as Record<string, ItineraryDay[]>;
-    return stored[tripId] ?? null;
-  } catch {
-    return null;
-  }
+  return loadTripScopedValue<ItineraryDay[] | null>(
+    LOCAL_ITINERARY_DAYS_KEY,
+    tripId,
+    null,
+  );
 };
 
 const persistStoredItineraryDays = (tripId: string, days: ItineraryDay[]) => {
-  try {
-    const stored = JSON.parse(
-      window.localStorage.getItem(LOCAL_ITINERARY_DAYS_KEY) ?? '{}',
-    ) as Record<string, ItineraryDay[]>;
-    window.localStorage.setItem(
-      LOCAL_ITINERARY_DAYS_KEY,
-      JSON.stringify({ ...stored, [tripId]: days }),
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_ITINERARY_DAYS_KEY,
-      JSON.stringify({ [tripId]: days }),
-    );
-  }
+  persistTripScopedValue(LOCAL_ITINERARY_DAYS_KEY, tripId, days);
 };
 
 const loadStoredExpenses = (tripId: string): BudgetExpense[] => {
-  try {
-    const stored = JSON.parse(
-      window.localStorage.getItem(LOCAL_BUDGET_EXPENSES_KEY) ?? '{}',
-    ) as Record<string, BudgetExpense[]>;
-    return stored[tripId] ?? [];
-  } catch {
-    return [];
-  }
+  return loadTripScopedValue(LOCAL_BUDGET_EXPENSES_KEY, tripId, []);
 };
 
 const persistStoredExpenses = (tripId: string, expenses: BudgetExpense[]) => {
-  try {
-    const stored = JSON.parse(
-      window.localStorage.getItem(LOCAL_BUDGET_EXPENSES_KEY) ?? '{}',
-    ) as Record<string, BudgetExpense[]>;
-    window.localStorage.setItem(
-      LOCAL_BUDGET_EXPENSES_KEY,
-      JSON.stringify({ ...stored, [tripId]: expenses }),
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_BUDGET_EXPENSES_KEY,
-      JSON.stringify({ [tripId]: expenses }),
-    );
-  }
+  persistTripScopedValue(LOCAL_BUDGET_EXPENSES_KEY, tripId, expenses);
 };
 
 const loadItineraryBudgetLinks = (tripId: string): Record<string, string> => {
-  try {
-    const stored = JSON.parse(
-      window.localStorage.getItem(LOCAL_ITINERARY_BUDGET_LINKS_KEY) ?? '{}',
-    ) as Record<string, Record<string, string>>;
-    return stored[tripId] ?? {};
-  } catch {
-    return {};
-  }
+  return loadTripScopedValue(LOCAL_ITINERARY_BUDGET_LINKS_KEY, tripId, {});
 };
 
 const persistItineraryBudgetLinks = (
   tripId: string,
   links: Record<string, string>,
 ) => {
-  try {
-    const stored = JSON.parse(
-      window.localStorage.getItem(LOCAL_ITINERARY_BUDGET_LINKS_KEY) ?? '{}',
-    ) as Record<string, Record<string, string>>;
-    window.localStorage.setItem(
-      LOCAL_ITINERARY_BUDGET_LINKS_KEY,
-      JSON.stringify({ ...stored, [tripId]: links }),
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_ITINERARY_BUDGET_LINKS_KEY,
-      JSON.stringify({ [tripId]: links }),
-    );
-  }
+  persistTripScopedValue(LOCAL_ITINERARY_BUDGET_LINKS_KEY, tripId, links);
 };
 
 const getItineraryExpenseId = (itemId: string) =>
   `${ITINERARY_EXPENSE_PREFIX}-${itemId}`;
-
-const getBudgetCategoryKey = (category: Pick<BudgetCategory, 'name' | 'stopId'>) =>
-  `${category.stopId ?? 'trip'}:${category.name}`;
 
 const findItineraryExpense = (
   expenses: BudgetExpense[],
@@ -252,440 +145,6 @@ const getDaySection = (
   }
 
   return null;
-};
-
-const typeIconMap: Record<ItineraryItemType, React.ReactNode> = {
-  flight: <Plane className="w-4 h-4" />,
-  hotel: <Building2 className="w-4 h-4" />,
-  restaurant: <UtensilsCrossed className="w-4 h-4" />,
-  activity: <MapPin className="w-4 h-4" />,
-  'free-time': <Coffee className="w-4 h-4" />,
-  transport: <Car className="w-4 h-4" />,
-};
-
-const typeColorMap: Record<ItineraryItemType, string> = {
-  flight: 'bg-blue-100 text-blue-600',
-  hotel: 'bg-purple-100 text-purple-600',
-  restaurant: 'bg-orange-100 text-orange-600',
-  activity: 'bg-emerald-100 text-emerald-600',
-  'free-time': 'bg-amber-100 text-amber-600',
-  transport: 'bg-cyan-100 text-cyan-600',
-};
-
-const getItineraryItemImage = (item: ItineraryItem) => {
-  const googlePhoto = item.locationRef?.photoUrls?.[0];
-  if (googlePhoto) return googlePhoto;
-  if (item.locationRef?.source !== 'google') return undefined;
-  return item.type === 'hotel' ? GOOGLE_HOTEL_IMAGE : GOOGLE_PLACE_IMAGE;
-};
-
-const timeOfDayConfig: Record<TimeOfDay, { label: string; icon: React.ReactNode; color: string }> = {
-  morning: {
-    label: 'Morning',
-    icon: <Sunrise className="w-4 h-4" />,
-    color: 'text-amber-500',
-  },
-  afternoon: {
-    label: 'Afternoon',
-    icon: <Sun className="w-4 h-4" />,
-    color: 'text-orange-500',
-  },
-  evening: {
-    label: 'Evening',
-    icon: <Moon className="w-4 h-4" />,
-    color: 'text-indigo-500',
-  },
-};
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-// Inline ItineraryItem component
-const ItineraryItemRow: React.FC<{
-  item: ItineraryItem;
-  onEdit: (item: ItineraryItem) => void;
-  onRemove: (id: string) => void;
-}> = ({ item, onEdit, onRemove }) => {
-  const iconBg = typeColorMap[item.type] || 'bg-neutral-100 text-neutral-600';
-  const image = getItineraryItemImage(item);
-
-  return (
-    <div className="group flex items-start gap-3 p-3 rounded-xl bg-white border border-neutral-100 hover:border-neutral-200 hover:shadow-sm transition-all duration-150">
-      {/* Grip Handle */}
-      <div className="flex items-center pt-1 text-neutral-300">
-        <GripVertical className="w-4 h-4" />
-      </div>
-
-      {image ? (
-        <img
-          src={image}
-          alt={item.name}
-          loading="lazy"
-          decoding="async"
-          width={40}
-          height={40}
-          className="h-10 w-10 rounded-lg object-cover flex-shrink-0"
-          onError={(event) => {
-            const fallbackImage =
-              item.type === 'hotel' ? GOOGLE_HOTEL_IMAGE : GOOGLE_PLACE_IMAGE;
-            if (event.currentTarget.src !== fallbackImage) {
-              event.currentTarget.src = fallbackImage;
-            }
-          }}
-        />
-      ) : (
-        <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${iconBg}`}>
-          {typeIconMap[item.type] || <MapPin className="w-4 h-4" />}
-        </div>
-      )}
-
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-sm font-bold text-primary-600">{item.time}</span>
-          <span className="text-sm font-semibold text-neutral-900 truncate">
-            {item.name}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3 text-xs text-neutral-500">
-          <span className="flex items-center gap-1">
-            <MapPin className="w-3 h-3" />
-            {item.location}
-          </span>
-          {item.estimatedCost > 0 && (
-            <span className="flex items-center gap-1">
-              <DollarSign className="w-3 h-3" />${item.estimatedCost}
-            </span>
-          )}
-        </div>
-
-        {item.notes && (
-          <p className="text-xs text-neutral-400 mt-1 line-clamp-1">{item.notes}</p>
-        )}
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={() => onEdit(item)}
-          className="p-1.5 rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 transition-colors"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={() => onRemove(item.id)}
-          className="p-1.5 rounded-lg text-neutral-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// Inline DaySection component
-const DaySection: React.FC<{
-  day: ItineraryDay;
-  stop?: TripStop;
-  showStopLabel: boolean;
-  isTravelDay: boolean;
-  itemsMap: Record<string, ItineraryItem[]>;
-  onAddItem: (dayNumber: number, timeOfDay: TimeOfDay) => void;
-  onEditItem: (item: ItineraryItem) => void;
-  onRemoveItem: (itemId: string) => void;
-}> = ({
-  day,
-  stop,
-  showStopLabel,
-  isTravelDay,
-  itemsMap,
-  onAddItem,
-  onEditItem,
-  onRemoveItem,
-}) => {
-  const timeSections: TimeOfDay[] = ['morning', 'afternoon', 'evening'];
-
-  return (
-    <div className="space-y-4">
-      {/* Day Header */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-600 text-white font-bold text-lg shadow-md">
-          {day.dayNumber}
-        </div>
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-lg font-semibold text-neutral-900">Day {day.dayNumber}</h3>
-            {showStopLabel && stop && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-600">
-                <MapPin className="w-3 h-3" />
-                {stop.name}
-              </span>
-            )}
-            {isTravelDay && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-50 text-cyan-600">
-                <Car className="w-3 h-3" />
-                Travel day
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-neutral-500">
-            {formatDate(day.date)}
-            {showStopLabel && stop?.country ? ` · ${stop.country}` : ''}
-          </p>
-        </div>
-      </div>
-
-      {/* Time Sections */}
-      <div className="ml-6 pl-6 border-l-2 border-neutral-100 space-y-5">
-        {timeSections.map((timeOfDay) => {
-          const config = timeOfDayConfig[timeOfDay];
-          const sectionKey = `${day.dayNumber}-${timeOfDay}`;
-          const items = itemsMap[sectionKey] || [];
-
-          return (
-            <div key={timeOfDay} className="space-y-2.5">
-              {/* Section Header */}
-              <div className="flex items-center gap-2">
-                <span className={config.color}>{config.icon}</span>
-                <h4 className="text-sm font-semibold text-neutral-700">{config.label}</h4>
-                {items.length > 0 && (
-                  <span className="text-xs text-neutral-400">{items.length} item{items.length !== 1 ? 's' : ''}</span>
-                )}
-              </div>
-
-              {/* Items */}
-              {items.length > 0 ? (
-                <div className="space-y-2">
-                  {items.map((item) => (
-                    <ItineraryItemRow
-                      key={item.id}
-                      item={item}
-                      onEdit={onEditItem}
-                      onRemove={onRemoveItem}
-                    />
-                  ))}
-                  <button
-                    onClick={() => onAddItem(day.dayNumber, timeOfDay)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add Item
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3 p-4 rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50">
-                  <p className="text-sm text-neutral-400">No activities planned</p>
-                  <button
-                    onClick={() => onAddItem(day.dayNumber, timeOfDay)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-const ItineraryItemModal: React.FC<{
-  isOpen: boolean;
-  mode: ItineraryModalMode;
-  form: ItineraryItemFormState;
-  errors: ItineraryFormErrors;
-  budgetCategories: BudgetCategory[];
-  isSaving: boolean;
-  onClose: () => void;
-  onChange: (field: keyof ItineraryItemFormState, value: string) => void;
-  onLocationChange: (location: LocationRef | null) => void;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
-}> = ({
-  isOpen,
-  mode,
-  form,
-  errors,
-  budgetCategories,
-  isSaving,
-  onClose,
-  onChange,
-  onLocationChange,
-  onSubmit,
-}) => {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  const title = mode === 'add' ? 'Add itinerary item' : 'Edit itinerary item';
-  const buttonText = mode === 'add' ? 'Add item' : 'Save changes';
-
-  return createPortal(
-    <div
-      className="fixed -inset-px z-[100] bg-black/65 animate-fade-in"
-      onClick={onClose}
-    >
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <form
-          onSubmit={onSubmit}
-          className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-neutral-100 animate-slide-up"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className="flex items-center justify-between p-6 border-b border-neutral-100">
-            <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="p-6 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Time
-                </label>
-                <input
-                  type="time"
-                  value={form.time}
-                  onChange={(event) => onChange('time', event.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-                {errors.time && (
-                  <p className="text-xs text-error-500 mt-1">{errors.time}</p>
-                )}
-              </div>
-
-              <Select
-                label="Type"
-                value={form.type}
-                onChange={(value) => onChange('type', value)}
-                options={itineraryItemTypes.map((type) => ({
-                  value: type.value,
-                  label: type.label,
-                }))}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Name
-              </label>
-              <input
-                value={form.name}
-                onChange={(event) => onChange('name', event.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-              {errors.name && (
-                <p className="text-xs text-error-500 mt-1">{errors.name}</p>
-              )}
-            </div>
-
-            <div>
-              <LocationInput
-                label="Location"
-                value={form.locationRef}
-                onChange={(location) => {
-                  onLocationChange(location);
-                  onChange('location', location?.formattedAddress ?? location?.name ?? '');
-                }}
-                placeholder="Search for a place"
-                error={errors.location}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Estimated cost
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={form.estimatedCost}
-                  onChange={(event) => onChange('estimatedCost', event.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-                {errors.estimatedCost && (
-                  <p className="text-xs text-error-500 mt-1">{errors.estimatedCost}</p>
-                )}
-              </div>
-
-              <div>
-                <Select
-                  label="Budget category"
-                  value={form.budgetCategory}
-                  onChange={(value) => onChange('budgetCategory', value)}
-                  options={[
-                    { value: '', label: 'Optional' },
-                    ...budgetCategories.map((category) => ({
-                      value: getBudgetCategoryKey(category),
-                      label: category.stopId ? `${category.name} (${category.stopId})` : category.name,
-                    })),
-                  ]}
-                />
-                {errors.budgetCategory && (
-                  <p className="text-xs text-error-500 mt-1">{errors.budgetCategory}</p>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Notes
-              </label>
-              <textarea
-                value={form.notes}
-                onChange={(event) => onChange('notes', event.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-neutral-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-600 hover:bg-neutral-100 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-4 py-2 rounded-xl text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-            >
-              {isSaving ? 'Saving...' : buttonText}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
-  );
 };
 
 const Itinerary: React.FC = () => {
@@ -1357,60 +816,12 @@ const Itinerary: React.FC = () => {
         onSubmit={handleSaveItem}
       />
 
-      {/* Saved Places Modal */}
-      <Modal
+      <SavedPlacesModal
         isOpen={showSavedPlacesModal}
+        places={availableSavedPlaces}
         onClose={() => setShowSavedPlacesModal(false)}
-        title="Add from Saved Places"
-        size="md"
-      >
-        <div className="space-y-3">
-          {availableSavedPlaces.length > 0 ? (
-            availableSavedPlaces.map((place) => (
-              <div
-                key={place.id}
-                className="flex items-center gap-3 p-3 rounded-xl border border-neutral-100 hover:border-neutral-200 hover:bg-neutral-50 transition-colors"
-              >
-                <img
-                  src={place.image}
-                  alt={place.name}
-                  loading="lazy"
-                  decoding="async"
-                  width={48}
-                  height={48}
-                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                  onError={(event) => {
-                    if (event.currentTarget.src !== GOOGLE_PLACE_IMAGE) {
-                      event.currentTarget.src = GOOGLE_PLACE_IMAGE;
-                    }
-                  }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-neutral-900 truncate">
-                    {place.name}
-                  </p>
-                  <p className="text-xs text-neutral-500">{place.category} - {place.location}</p>
-                </div>
-                <button
-                  onClick={() => handleAddSavedPlace(place)}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors flex-shrink-0"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add
-                </button>
-              </div>
-            ))
-          ) : (
-            <div className="flex flex-col items-center py-8 text-center">
-              <Bookmark className="w-8 h-8 text-neutral-300 mb-2" />
-              <p className="text-sm text-neutral-500">No saved places yet</p>
-              <p className="text-xs text-neutral-400 mt-1">
-                Save places from the Explore page to add them here
-              </p>
-            </div>
-          )}
-        </div>
-      </Modal>
+        onAddPlace={handleAddSavedPlace}
+      />
     </div>
   );
 };

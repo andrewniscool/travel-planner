@@ -1,21 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  Wallet,
-  Receipt,
-  PiggyBank,
-  User,
-  Plane,
-  Building2,
-  UtensilsCrossed,
-  MapPin,
-  Car,
-  MoreHorizontal,
-  Plus,
-  Pencil,
-  Trash2,
-  Eye,
-} from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
 import { getBudgetByTripId } from '../data/budget';
 import type { TripBudget } from '../data/budget';
@@ -26,13 +10,25 @@ import {
   getAuthenticatedUserId,
   tripService,
 } from '../services/travelDataService';
+import {
+  loadTripScopedValue,
+  persistTripScopedValue,
+} from '../utils/tripStorage';
+import {
+  DEFAULT_BUDGET_CATEGORIES,
+  DEFAULT_BUDGET_CURRENCY,
+  getBudgetCategoryKey as getCategoryAllocationKey,
+  isBudgetCurrency,
+} from '../utils/budget';
 import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
-import ProgressBar from '../components/ui/ProgressBar';
-import Modal from '../components/ui/Modal';
-import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
-import { DatePicker } from '../components/ui/DatePicker';
+import BudgetOverview from '../components/budget/BudgetOverview';
+import BudgetCategoryGrid from '../components/budget/BudgetCategoryGrid';
+import StopBudgetBreakdown from '../components/budget/StopBudgetBreakdown';
+import BudgetBreakdownCard from '../components/budget/BudgetBreakdownCard';
+import ExpenseManagerModal, {
+  type ExpenseFormState,
+} from '../components/budget/ExpenseManagerModal';
+import BudgetAllocationModal from '../components/budget/BudgetAllocationModal';
 import type {
   BudgetCategory,
   BudgetCurrency,
@@ -44,32 +40,6 @@ const LOCAL_BUDGET_EXPENSES_KEY = 'travel-builder:budget-expenses';
 const LOCAL_BUDGET_ALLOCATIONS_KEY = 'travel-builder:budget-allocations';
 const LOCAL_BUDGET_CURRENCIES_KEY = 'travel-builder:budget-currencies';
 const LOCAL_TRAVEL_SEGMENTS_KEY = 'travel-builder:travel-segments';
-const DEFAULT_BUDGET_CATEGORIES = [
-  { name: 'Flights', icon: '✈️', share: 0.35 },
-  { name: 'Hotel', icon: '🏨', share: 0.3 },
-  { name: 'Food', icon: '🍽️', share: 0.15 },
-  { name: 'Activities', icon: '🎟️', share: 0.1 },
-  { name: 'Transportation', icon: '🚕', share: 0.07 },
-  { name: 'Miscellaneous', icon: '🛍️', share: 0.03 },
-] as const;
-const BUDGET_CURRENCIES = [
-  { code: 'USD', label: 'USD - US Dollar' },
-  { code: 'EUR', label: 'EUR - Euro' },
-  { code: 'GBP', label: 'GBP - British Pound' },
-  { code: 'JPY', label: 'JPY - Japanese Yen' },
-  { code: 'CAD', label: 'CAD - Canadian Dollar' },
-  { code: 'AUD', label: 'AUD - Australian Dollar' },
-] as const;
-const DEFAULT_BUDGET_CURRENCY: BudgetCurrency = 'USD';
-
-interface ExpenseFormState {
-  title: string;
-  amount: string;
-  category: string;
-  stopId: string;
-  date: string;
-  notes: string;
-}
 
 const emptyExpenseForm = (category = '', stopId = ''): ExpenseFormState => ({
   title: '',
@@ -79,33 +49,6 @@ const emptyExpenseForm = (category = '', stopId = ''): ExpenseFormState => ({
   date: '',
   notes: '',
 });
-
-const categoryIconMap: Record<string, React.ReactNode> = {
-  Flights: <Plane className="w-5 h-5" />,
-  Hotel: <Building2 className="w-5 h-5" />,
-  Food: <UtensilsCrossed className="w-5 h-5" />,
-  Activities: <MapPin className="w-5 h-5" />,
-  Transportation: <Car className="w-5 h-5" />,
-  Miscellaneous: <MoreHorizontal className="w-5 h-5" />,
-};
-
-const categoryColorMap: Record<string, string> = {
-  Flights: 'text-primary-600 bg-primary-50',
-  Hotel: 'text-accent-600 bg-accent-50',
-  Food: 'text-warning-600 bg-warning-50',
-  Activities: 'text-success-600 bg-success-50',
-  Transportation: 'text-error-500 bg-error-50',
-  Miscellaneous: 'text-neutral-500 bg-neutral-100',
-};
-
-const categoryBarColorMap: Record<string, string> = {
-  Flights: 'bg-primary-500',
-  Hotel: 'bg-accent-500',
-  Food: 'bg-warning-500',
-  Activities: 'bg-success-500',
-  Transportation: 'bg-error-500',
-  Miscellaneous: 'bg-neutral-400',
-};
 
 function getBudgetStatus(
   spent: number,
@@ -135,88 +78,38 @@ const sumAllocated = (categories: BudgetCategory[]) =>
 const sumSpent = (categories: BudgetCategory[]) =>
   categories.reduce((sum, category) => sum + category.spent, 0);
 
-const getCategoryAllocationKey = (category: Pick<BudgetCategory, 'name' | 'stopId'>) =>
-  `${category.stopId ?? 'trip'}:${category.name}`;
-
 const loadStoredAllocations = (tripId: string): Record<string, number> => {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_ALLOCATIONS_KEY) ?? '{}') as Record<string, Record<string, number>>;
-    return stored[tripId] ?? {};
-  } catch {
-    return {};
-  }
+  return loadTripScopedValue(LOCAL_BUDGET_ALLOCATIONS_KEY, tripId, {});
 };
 
 const persistStoredAllocations = (
   tripId: string,
   allocations: Record<string, number>,
 ) => {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_ALLOCATIONS_KEY) ?? '{}') as Record<string, Record<string, number>>;
-    window.localStorage.setItem(
-      LOCAL_BUDGET_ALLOCATIONS_KEY,
-      JSON.stringify({ ...stored, [tripId]: allocations })
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_BUDGET_ALLOCATIONS_KEY,
-      JSON.stringify({ [tripId]: allocations })
-    );
-  }
+  persistTripScopedValue(LOCAL_BUDGET_ALLOCATIONS_KEY, tripId, allocations);
 };
 
-const isBudgetCurrency = (currency: string): currency is BudgetCurrency =>
-  BUDGET_CURRENCIES.some((option) => option.code === currency);
-
 const loadStoredCurrency = (tripId: string): BudgetCurrency => {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_CURRENCIES_KEY) ?? '{}') as Record<string, string>;
-    const currency = stored[tripId];
-    return currency && isBudgetCurrency(currency)
+  const currency = loadTripScopedValue<string | undefined>(
+    LOCAL_BUDGET_CURRENCIES_KEY,
+    tripId,
+    undefined,
+  );
+  return currency && isBudgetCurrency(currency)
       ? currency
       : DEFAULT_BUDGET_CURRENCY;
-  } catch {
-    return DEFAULT_BUDGET_CURRENCY;
-  }
 };
 
 const persistStoredCurrency = (tripId: string, currency: BudgetCurrency) => {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_CURRENCIES_KEY) ?? '{}') as Record<string, string>;
-    window.localStorage.setItem(
-      LOCAL_BUDGET_CURRENCIES_KEY,
-      JSON.stringify({ ...stored, [tripId]: currency })
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_BUDGET_CURRENCIES_KEY,
-      JSON.stringify({ [tripId]: currency })
-    );
-  }
+  persistTripScopedValue(LOCAL_BUDGET_CURRENCIES_KEY, tripId, currency);
 };
 
 const loadStoredExpenses = (tripId: string): BudgetExpense[] => {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_EXPENSES_KEY) ?? '{}') as Record<string, BudgetExpense[]>;
-    return stored[tripId] ?? [];
-  } catch {
-    return [];
-  }
+  return loadTripScopedValue(LOCAL_BUDGET_EXPENSES_KEY, tripId, []);
 };
 
 const persistStoredExpenses = (tripId: string, expenses: BudgetExpense[]) => {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_EXPENSES_KEY) ?? '{}') as Record<string, BudgetExpense[]>;
-    window.localStorage.setItem(
-      LOCAL_BUDGET_EXPENSES_KEY,
-      JSON.stringify({ ...stored, [tripId]: expenses })
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_BUDGET_EXPENSES_KEY,
-      JSON.stringify({ [tripId]: expenses })
-    );
-  }
+  persistTripScopedValue(LOCAL_BUDGET_EXPENSES_KEY, tripId, expenses);
 };
 
 const buildFallbackBudget = (tripId: string, totalBudget: number): TripBudget => ({
@@ -233,12 +126,11 @@ const loadStoredTravelSegments = (
   tripId: string,
   fallbackSegments: TransportSegment[],
 ): TransportSegment[] => {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_TRAVEL_SEGMENTS_KEY) ?? '{}') as Record<string, TransportSegment[]>;
-    return stored[tripId] ?? fallbackSegments;
-  } catch {
-    return fallbackSegments;
-  }
+  return loadTripScopedValue(
+    LOCAL_TRAVEL_SEGMENTS_KEY,
+    tripId,
+    fallbackSegments,
+  );
 };
 
 const getTravelSegmentCategoryName = (segment: TransportSegment) =>
@@ -710,509 +602,90 @@ const Budget: React.FC = () => {
         </Card>
       )}
 
-      {/* Overall budget progress */}
-      <Card hover={false} className="p-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-neutral-800">
-            Overall Budget
-          </h2>
-          <span className="text-sm text-neutral-500">
-            {formatMoney(totalSpent)} of {formatMoney(totalAllocated)}
-          </span>
-        </div>
-        <ProgressBar
-          value={overallProgress}
-          color={getBudgetProgressBarColor(totalSpent, totalAllocated)}
-          showLabel
-          size="md"
-        />
-      </Card>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card hover={false} className="p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-primary-50 text-primary-600">
-              <Wallet className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-neutral-900">
-                {formatMoney(totalAllocated)}
-              </p>
-              <p className="text-xs text-neutral-500 mt-0.5">Total Budget</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card hover={false} className="p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-accent-50 text-accent-600">
-              <Receipt className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-neutral-900">
-                {formatMoney(totalSpent)}
-              </p>
-              <p className="text-xs text-neutral-500 mt-0.5">Estimated Cost</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card hover={false} className="p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-success-50 text-success-600">
-              <PiggyBank className="w-5 h-5" />
-            </div>
-            <div>
-              <p
-                className={`text-xl font-bold ${remaining >= 0 ? 'text-success-600' : 'text-error-500'}`}
-              >
-                {formatMoney(Math.abs(remaining))}
-              </p>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                {remaining >= 0 ? 'Remaining' : 'Over Budget'}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card hover={false} className="p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-neutral-100 text-neutral-600">
-              <User className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-neutral-900">
-                {formatMoney(Math.round(costPerTraveler))}
-              </p>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                Per Traveler
-              </p>
-            </div>
-          </div>
-        </Card>
-      </div>
+      <BudgetOverview
+        totalSpent={totalSpent}
+        totalAllocated={totalAllocated}
+        remaining={remaining}
+        costPerTraveler={costPerTraveler}
+        overallProgress={overallProgress}
+        formatMoney={formatMoney}
+        getProgressColor={getBudgetProgressBarColor}
+      />
 
       {/* Budget category cards */}
       {budget && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {categoriesWithExpenses.map((category) => {
-            const status = getBudgetStatus(category.spent, category.allocated);
-            const progressColor = getBudgetProgressBarColor(
-              category.spent,
-              category.allocated
-            );
-            const progressValue =
-              category.allocated > 0
-                ? (category.spent / category.allocated) * 100
-                : 0;
-            const iconClass = categoryColorMap[category.name] || 'text-neutral-500 bg-neutral-100';
-            const icon = categoryIconMap[category.name] || (
-              <MoreHorizontal className="w-5 h-5" />
-            );
-            const detailsPath = getCategoryDetailsPath(trip.id, category.name);
-
-            const statusColors = {
-              green: 'text-success-600',
-              yellow: 'text-warning-500',
-              red: 'text-error-500',
-            };
-
-            return (
-              <Card hover={false} key={`${category.stopId ?? 'trip'}-${category.name}`} className="p-5">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`flex items-center justify-center w-10 h-10 rounded-xl ${iconClass}`}
-                    >
-                      {icon}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-neutral-800">
-                        {category.name}
-                      </h3>
-                      {isMultiStop && category.stopId && (
-                        <p className="text-xs text-neutral-400 mt-0.5">
-                          {orderedStops.find((stop) => stop.id === category.stopId)?.name}
-                        </p>
-                      )}
-                      <p className="text-xs text-neutral-400 mt-0.5">
-                        Allocated: {formatMoney(category.allocated)}
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    className={`text-sm font-semibold ${statusColors[status]}`}
-                  >
-                    {formatMoney(category.spent)}
-                  </span>
-                </div>
-
-                <ProgressBar
-                  value={progressValue}
-                  color={progressColor}
-                  size="sm"
-                  showLabel
-                />
-
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-xs text-neutral-400">
-                    {category.allocated > 0
-                      ? `${Math.round(progressValue)}% used`
-                      : 'No budget allocated'}
-                  </span>
-                  {status === 'red' && category.allocated > 0 && (
-                    <span className="text-xs text-error-500 font-medium">
-                      Over budget
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-neutral-100">
-                  <Button variant="ghost" size="sm" onClick={() => openExpenseListModal(category)}>
-                    <Pencil className="w-3.5 h-3.5 mr-1" />
-                    Manage Expenses
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => openEditBudgetModal(category)}>
-                    <Wallet className="w-3.5 h-3.5 mr-1" />
-                    Edit Budget
-                  </Button>
-                  {detailsPath && (
-                    <Button variant="ghost" size="sm" onClick={() => navigate(detailsPath)}>
-                      <Eye className="w-3.5 h-3.5 mr-1" />
-                      View Details
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <BudgetCategoryGrid
+          categories={categoriesWithExpenses}
+          orderedStops={orderedStops}
+          isMultiStop={isMultiStop}
+          formatMoney={formatMoney}
+          getStatus={getBudgetStatus}
+          getProgressColor={getBudgetProgressBarColor}
+          getDetailsPath={(categoryName) =>
+            getCategoryDetailsPath(trip.id, categoryName)
+          }
+          onManageExpenses={openExpenseListModal}
+          onEditBudget={openEditBudgetModal}
+          onViewDetails={navigate}
+        />
       )}
 
       {/* Stop-level breakdown */}
       {budget && isMultiStop && (
-        <Card hover={false} className="p-6">
-          <h2 className="text-lg font-semibold text-neutral-800 mb-4">
-            Budget by Stop
-          </h2>
-          <div className="space-y-5">
-            {tripLevelCategories.length > 0 && (
-              <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-neutral-800">
-                    Trip-wide
-                  </h3>
-                  <span className="text-sm text-neutral-500">
-                    {formatMoney(sumSpent(tripLevelCategories))} / {formatMoney(sumAllocated(tripLevelCategories))}
-                  </span>
-                </div>
-                <ProgressBar
-                  value={sumAllocated(tripLevelCategories) > 0 ? (sumSpent(tripLevelCategories) / sumAllocated(tripLevelCategories)) * 100 : 0}
-                  color={getBudgetProgressBarColor(sumSpent(tripLevelCategories), sumAllocated(tripLevelCategories))}
-                  size="sm"
-                />
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {stopBudgetBreakdown.map(({ stop, categories, allocated, spent }) => (
-                <div key={stop.id} className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="text-sm font-semibold text-neutral-800">
-                        {stop.order}. {stop.name}
-                      </h3>
-                      <p className="text-xs text-neutral-400">
-                        {categories.length} categor{categories.length === 1 ? 'y' : 'ies'}
-                      </p>
-                    </div>
-                    <span className="text-sm text-neutral-500">
-                      {formatMoney(spent)} / {formatMoney(allocated)}
-                    </span>
-                  </div>
-                  <ProgressBar
-                    value={allocated > 0 ? (spent / allocated) * 100 : 0}
-                    color={getBudgetProgressBarColor(spent, allocated)}
-                    size="sm"
-                  />
-                  {categories.length > 0 && (
-                    <div className="mt-3 space-y-1.5">
-                      {categories.map((category) => (
-                        <div key={`${stop.id}-${category.name}`} className="flex items-center justify-between text-xs text-neutral-500">
-                          <span>
-                            <span className="mr-1">{category.icon}</span>
-                            {category.name}
-                          </span>
-                          <span>{formatMoney(category.spent)} / {formatMoney(category.allocated)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
+        <StopBudgetBreakdown
+          tripLevelCategories={tripLevelCategories}
+          stopBudgetBreakdown={stopBudgetBreakdown}
+          formatMoney={formatMoney}
+          sumAllocated={sumAllocated}
+          sumSpent={sumSpent}
+          getProgressColor={getBudgetProgressBarColor}
+        />
       )}
 
       {/* Visual breakdown section */}
       {budget && (
-        <Card hover={false} className="p-6">
-          <h2 className="text-lg font-semibold text-neutral-800 mb-4">
-            Budget Breakdown
-          </h2>
-          <div className="space-y-4">
-            {categoriesWithExpenses.map((category) => {
-              const maxAllocated = Math.max(
-                ...categoriesWithExpenses.map((c) => c.allocated)
-              );
-              const barWidth =
-                maxAllocated > 0
-                  ? (category.allocated / maxAllocated) * 100
-                  : 0;
-              const spentWidth =
-                maxAllocated > 0
-                  ? (category.spent / maxAllocated) * 100
-                  : 0;
-              const barColor =
-                categoryBarColorMap[category.name] || 'bg-neutral-400';
-
-              return (
-                <div key={`${category.stopId ?? 'trip'}-${category.name}`}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{category.icon}</span>
-                      <span className="text-sm font-medium text-neutral-700">
-                        {category.name}
-                      </span>
-                    </div>
-                    <span className="text-sm text-neutral-500">
-                      {formatMoney(category.spent)} / {formatMoney(category.allocated)}
-                    </span>
-                  </div>
-                  <div className="relative h-3 bg-neutral-100 rounded-full overflow-hidden">
-                    {/* Allocated bar */}
-                    <div
-                      className="absolute top-0 left-0 h-full bg-neutral-200 rounded-full transition-all duration-500"
-                      style={{ width: `${barWidth}%` }}
-                    />
-                    {/* Spent bar */}
-                    <div
-                      className={`absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${barColor}`}
-                      style={{ width: `${spentWidth}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-            <div className="pt-3 border-t border-neutral-100 flex items-center justify-between">
-              <span className="text-sm font-semibold text-neutral-800">
-                Total
-              </span>
-              <span className="text-sm font-semibold text-neutral-800">
-                {formatMoney(totalSpent)} / {formatMoney(totalAllocated)}
-              </span>
-            </div>
-          </div>
-        </Card>
+        <BudgetBreakdownCard
+          categories={categoriesWithExpenses}
+          totalSpent={totalSpent}
+          totalAllocated={totalAllocated}
+          formatMoney={formatMoney}
+        />
       )}
 
-      <Modal
+      <ExpenseManagerModal
         isOpen={expenseListModalOpen}
+        selectedCategory={selectedCategory}
+        mode={expenseManagerMode}
+        expenseForm={expenseForm}
+        categories={categoriesWithExpenses}
+        orderedStops={orderedStops}
+        isMultiStop={isMultiStop}
+        selectedCategoryExpenses={selectedCategoryExpenses}
+        selectedCategoryTravelSegments={selectedCategoryTravelSegments}
+        editingExpenseId={editingExpenseId}
+        isSavingExpense={isSavingExpense}
+        formatMoney={formatMoney}
+        getTravelSegmentTitle={getTravelSegmentTitle}
         onClose={closeExpenseListModal}
-        title={`Manage ${selectedCategory?.name ?? 'Category'} Expenses`}
-        size="lg"
-      >
-        {expenseManagerMode === 'form' ? (
-          <form
-            className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void handleSaveExpense();
-            }}
-          >
-            <Input
-              label="Expense name"
-              value={expenseForm.title}
-              onChange={(event) => setExpenseForm({ ...expenseForm, title: event.target.value })}
-              placeholder="Train tickets, hotel deposit, dinner"
-              required
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Amount"
-                type="number"
-                min="0"
-                step="0.01"
-                value={expenseForm.amount}
-                onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })}
-                required
-              />
-              <Select
-                label="Category"
-                value={expenseForm.category}
-                onChange={(value) => setExpenseForm({ ...expenseForm, category: value })}
-                options={[...new Set(categoriesWithExpenses.map((category) => category.name))].map((categoryName) => ({
-                  value: categoryName,
-                  label: categoryName,
-                }))}
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {isMultiStop && (
-                <Select
-                  label="Stop"
-                  value={expenseForm.stopId}
-                  onChange={(value) => setExpenseForm({ ...expenseForm, stopId: value })}
-                  options={[
-                    { value: '', label: 'Trip-wide' },
-                    ...orderedStops.map((stop) => ({ value: stop.id, label: stop.name })),
-                  ]}
-                />
-              )}
-              <DatePicker
-                label="Date"
-                value={expenseForm.date}
-                onChange={(value) => setExpenseForm({ ...expenseForm, date: value })}
-              />
-            </div>
-            <label>
-              <span className="block text-sm font-medium text-neutral-700 mb-1.5">Notes</span>
-              <textarea
-                value={expenseForm.notes}
-                onChange={(event) => setExpenseForm({ ...expenseForm, notes: event.target.value })}
-                rows={3}
-                className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
-                placeholder="Optional"
-              />
-            </label>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={returnToExpenseList} disabled={isSavingExpense}>Cancel</Button>
-              <Button type="submit" disabled={isSavingExpense}>
-                {isSavingExpense
-                  ? 'Saving...'
-                  : editingExpenseId
-                    ? 'Save changes'
-                    : 'Add expense'}
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <div className="space-y-4">
-            {selectedCategory && (
-              <div className="flex justify-end">
-                <Button onClick={() => openAddExpenseForm(selectedCategory)}>
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  Add Expense
-                </Button>
-              </div>
-            )}
-            {selectedCategoryExpenses.length > 0 || selectedCategoryTravelSegments.length > 0 ? (
-              <div className="space-y-3">
-                {selectedCategoryTravelSegments.map((segment) => (
-                  <div
-                    key={`segment-${segment.id}`}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-primary-100 bg-primary-50 p-4"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-neutral-900">{getTravelSegmentTitle(segment)}</p>
-                      <p className="text-sm text-neutral-500">
-                        {formatMoney(segment.price ?? 0)}
-                        {segment.departureDateTime ? ` · ${segment.departureDateTime.slice(0, 10)}` : ''}
-                      </p>
-                      <p className="text-xs text-primary-700 mt-1">Imported from travel data · read-only</p>
-                    </div>
-                  </div>
-                ))}
-                {selectedCategoryExpenses.map((expense) => (
-                  <div
-                    key={expense.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-neutral-100 bg-neutral-50 p-4"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-neutral-900">{expense.title}</p>
-                      <p className="text-sm text-neutral-500">
-                        {formatMoney(expense.amount)}
-                        {expense.date ? ` · ${expense.date}` : ''}
-                      </p>
-                      {expense.notes && <p className="text-xs text-neutral-500 mt-1">{expense.notes}</p>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEditExpenseModal(expense)}>
-                        <Pencil className="w-3.5 h-3.5 mr-1" />
-                        Edit
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => void handleDeleteExpense(expense.id)}>
-                        <Trash2 className="w-3.5 h-3.5 mr-1" />
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-sm font-medium text-neutral-700">No expenses in this category yet.</p>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+        onFormChange={setExpenseForm}
+        onSubmitExpense={handleSaveExpense}
+        onCancelForm={returnToExpenseList}
+        onAddExpense={openAddExpenseForm}
+        onEditExpense={openEditExpenseModal}
+        onDeleteExpense={handleDeleteExpense}
+      />
 
-      <Modal
+      <BudgetAllocationModal
         isOpen={budgetModalOpen}
+        selectedCategory={selectedCategory}
+        allocationForm={allocationForm}
+        currencyForm={currencyForm}
+        orderedStops={orderedStops}
         onClose={closeBudgetModal}
-        title={`Edit ${selectedCategory?.name ?? 'Category'} Budget`}
-        size="sm"
-      >
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void handleSaveBudgetAllocation();
-          }}
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Allocated amount"
-              type="number"
-              min="0"
-              step="1"
-              value={allocationForm}
-              onChange={(event) => setAllocationForm(event.target.value)}
-              required
-            />
-            <Select
-              label="Currency"
-              value={currencyForm}
-              onChange={(nextCurrency) => {
-                  if (isBudgetCurrency(nextCurrency)) {
-                    setCurrencyForm(nextCurrency);
-                  }
-                }}
-              options={BUDGET_CURRENCIES.map((currency) => ({
-                value: currency.code,
-                label: currency.label,
-              }))}
-            />
-          </div>
-          {selectedCategory && (
-            <p className="text-sm text-neutral-500">
-              Updates the allocation for {selectedCategory.name}
-              {selectedCategory.stopId
-                ? ` at ${orderedStops.find((stop) => stop.id === selectedCategory.stopId)?.name ?? 'this stop'}`
-                : ''}
-              .
-              {' '}Currency changes apply to this trip's Budget page.
-            </p>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={closeBudgetModal}>Cancel</Button>
-            <Button type="submit">Save budget</Button>
-          </div>
-        </form>
-      </Modal>
+        onAllocationChange={setAllocationForm}
+        onCurrencyChange={setCurrencyForm}
+        onSubmit={handleSaveBudgetAllocation}
+      />
     </div>
   );
 };

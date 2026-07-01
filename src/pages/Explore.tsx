@@ -24,6 +24,10 @@ import {
 } from '../services/locationDisplayMappers';
 import { placesService } from '../services/placesService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
+import {
+  loadTripScopedValue,
+  persistTripScopedValue,
+} from '../utils/tripStorage';
 import FilterTabs from '../components/ui/FilterTabs';
 import SearchBar from '../components/ui/SearchBar';
 import EmptyState from '../components/ui/EmptyState';
@@ -52,31 +56,17 @@ const CATEGORIES: (PlaceCategory | 'All')[] = [
 const LOCAL_SAVED_PLACES_KEY = 'travel-builder:saved-places';
 
 const loadSavedPlaces = (tripId: string, initialSavedPlaceIds: string[]) => {
-  try {
-    const stored = JSON.parse(
-      window.localStorage.getItem(LOCAL_SAVED_PLACES_KEY) ?? '{}',
-    ) as Record<string, string[]>;
-    return new Set(stored[tripId] ?? initialSavedPlaceIds);
-  } catch {
-    return new Set(initialSavedPlaceIds);
-  }
+  return new Set(
+    loadTripScopedValue(
+      LOCAL_SAVED_PLACES_KEY,
+      tripId,
+      initialSavedPlaceIds,
+    ),
+  );
 };
 
 const persistSavedPlaces = (tripId: string, placeIds: Set<string>) => {
-  try {
-    const stored = JSON.parse(
-      window.localStorage.getItem(LOCAL_SAVED_PLACES_KEY) ?? '{}',
-    ) as Record<string, string[]>;
-    window.localStorage.setItem(
-      LOCAL_SAVED_PLACES_KEY,
-      JSON.stringify({ ...stored, [tripId]: [...placeIds] }),
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_SAVED_PLACES_KEY,
-      JSON.stringify({ [tripId]: [...placeIds] }),
-    );
-  }
+  persistTripScopedValue(LOCAL_SAVED_PLACES_KEY, tripId, [...placeIds]);
 };
 
 const Explore: React.FC = () => {

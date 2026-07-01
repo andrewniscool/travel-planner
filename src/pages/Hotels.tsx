@@ -38,6 +38,10 @@ import {
 } from '../services/locationDisplayMappers';
 import { placesService } from '../services/placesService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
+import {
+  loadTripScopedValue,
+  persistTripScopedValue,
+} from '../utils/tripStorage';
 import type { Hotel, LocationRef } from '../types';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -381,27 +385,17 @@ const HotelDetailModal: React.FC<HotelDetailModalProps> = ({
 };
 
 const loadSelectedHotels = (tripId: string, initialSelectedHotelIds: string[]) => {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_SELECTED_HOTELS_KEY) ?? '{}') as Record<string, string[]>;
-    return new Set(stored[tripId] ?? initialSelectedHotelIds);
-  } catch {
-    return new Set(initialSelectedHotelIds);
-  }
+  return new Set(
+    loadTripScopedValue(
+      LOCAL_SELECTED_HOTELS_KEY,
+      tripId,
+      initialSelectedHotelIds,
+    ),
+  );
 };
 
 const persistSelectedHotels = (tripId: string, hotelIds: Set<string>) => {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_SELECTED_HOTELS_KEY) ?? '{}') as Record<string, string[]>;
-    window.localStorage.setItem(
-      LOCAL_SELECTED_HOTELS_KEY,
-      JSON.stringify({ ...stored, [tripId]: [...hotelIds] })
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_SELECTED_HOTELS_KEY,
-      JSON.stringify({ [tripId]: [...hotelIds] })
-    );
-  }
+  persistTripScopedValue(LOCAL_SELECTED_HOTELS_KEY, tripId, [...hotelIds]);
 };
 
 const Hotels: React.FC = () => {

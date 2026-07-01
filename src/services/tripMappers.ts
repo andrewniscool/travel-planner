@@ -2,7 +2,6 @@ import type {
   TransportMode,
   TransportRole,
   TransportSegment,
-  BudgetCurrency,
   BudgetCategory,
   ChecklistItem,
   Hotel,
@@ -61,10 +60,13 @@ import {
   GOOGLE_HOTEL_IMAGE,
   GOOGLE_PLACE_IMAGE,
 } from './locationDisplayMappers';
+import {
+  DEFAULT_BUDGET_CURRENCY,
+  isBudgetCurrency,
+} from '../utils/budget';
 
 const DEFAULT_TRIP_VIBE: TripVibe = 'Cultural';
 const DEFAULT_TRIP_STATUS: TripStatus = 'planning';
-const DEFAULT_BUDGET_CURRENCY: BudgetCurrency = 'USD';
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -103,10 +105,6 @@ function isTripVibe(vibe: string): vibe is TripVibe {
 
 function isTripStatus(status: string): status is TripStatus {
   return ['upcoming', 'planning', 'booked', 'past'].includes(status);
-}
-
-function isBudgetCurrency(currency: string): currency is BudgetCurrency {
-  return ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'].includes(currency);
 }
 
 function isItineraryItemType(type: string): type is ItineraryItemType {

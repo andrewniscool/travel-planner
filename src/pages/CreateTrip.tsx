@@ -30,6 +30,15 @@ import {
   mapLocationRefRowToLocationRef,
   mapTripWithRelationsToTrip,
 } from '../services/tripMappers';
+import {
+  loadTripScopedValue,
+  persistTripScopedValue,
+} from '../utils/tripStorage';
+import {
+  BUDGET_CURRENCY_OPTIONS,
+  DEFAULT_BUDGET_CURRENCY,
+  isBudgetCurrency,
+} from '../utils/budget';
 import type {
   BudgetCurrency,
   LocationRef,
@@ -52,15 +61,6 @@ const VIBE_OPTIONS: TripVibe[] = [
 const PREVIEW_IMAGE =
   'https://images.pexels.com/photos/317855/pexels-photo-317855.jpeg?auto=compress&cs=tinysrgb&w=800';
 const LOCAL_BUDGET_CURRENCIES_KEY = 'travel-builder:budget-currencies';
-const BUDGET_CURRENCIES = [
-  { code: 'USD', symbol: '$' },
-  { code: 'EUR', symbol: '€' },
-  { code: 'GBP', symbol: '£' },
-  { code: 'JPY', symbol: '¥' },
-  { code: 'CAD', symbol: 'C$' },
-  { code: 'AUD', symbol: 'A$' },
-] as const;
-const DEFAULT_BUDGET_CURRENCY: BudgetCurrency = 'USD';
 
 interface StopForm {
   name: string;
@@ -113,36 +113,21 @@ function formatDate(dateStr: string): string {
   });
 }
 
-const isBudgetCurrency = (currency: string): currency is BudgetCurrency =>
-  BUDGET_CURRENCIES.some((option) => option.code === currency);
-
 const loadStoredCurrency = (tripId?: string): BudgetCurrency => {
   if (!tripId) return DEFAULT_BUDGET_CURRENCY;
 
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_CURRENCIES_KEY) ?? '{}') as Record<string, string>;
-    const currency = stored[tripId];
-    return currency && isBudgetCurrency(currency)
-      ? currency
-      : DEFAULT_BUDGET_CURRENCY;
-  } catch {
-    return DEFAULT_BUDGET_CURRENCY;
-  }
+  const currency = loadTripScopedValue<string | undefined>(
+    LOCAL_BUDGET_CURRENCIES_KEY,
+    tripId,
+    undefined,
+  );
+  return currency && isBudgetCurrency(currency)
+    ? currency
+    : DEFAULT_BUDGET_CURRENCY;
 };
 
 const persistStoredCurrency = (tripId: string, currency: BudgetCurrency) => {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LOCAL_BUDGET_CURRENCIES_KEY) ?? '{}') as Record<string, string>;
-    window.localStorage.setItem(
-      LOCAL_BUDGET_CURRENCIES_KEY,
-      JSON.stringify({ ...stored, [tripId]: currency })
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_BUDGET_CURRENCIES_KEY,
-      JSON.stringify({ [tripId]: currency })
-    );
-  }
+  persistTripScopedValue(LOCAL_BUDGET_CURRENCIES_KEY, tripId, currency);
 };
 
 const persistTripStopLocationRefs = async (
@@ -732,7 +717,7 @@ const CreateTrip: React.FC = () => {
                           }
                         }}
                         aria-label="Budget currency"
-                        options={BUDGET_CURRENCIES.map((currency) => ({
+                        options={BUDGET_CURRENCY_OPTIONS.map((currency) => ({
                           value: currency.code,
                           label: `${currency.code} ${currency.symbol}`,
                           selectedLabel: currency.symbol,

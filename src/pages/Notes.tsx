@@ -20,6 +20,10 @@ import {
   getAuthenticatedUserId,
   notesService,
 } from '../services/travelDataService';
+import {
+  loadTripScopedValue,
+  persistTripScopedValue,
+} from '../utils/tripStorage';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import type { ChecklistItem, Note, WeatherData } from '../types';
@@ -33,65 +37,25 @@ const isUuid = (value: string) =>
   );
 
 const loadStoredNotes = (tripId: string, fallbackNotes: Note[]): Note[] => {
-  try {
-    const stored = window.localStorage.getItem(LOCAL_NOTES_KEY);
-    if (!stored) return fallbackNotes;
-    const parsed = JSON.parse(stored) as Record<string, Note[]>;
-    return parsed[tripId] ?? fallbackNotes;
-  } catch {
-    return fallbackNotes;
-  }
+  return loadTripScopedValue(LOCAL_NOTES_KEY, tripId, fallbackNotes);
 };
 
 const persistStoredNotes = (tripId: string, nextNotes: Note[]) => {
-  try {
-    const stored = window.localStorage.getItem(LOCAL_NOTES_KEY);
-    const parsed = stored ? (JSON.parse(stored) as Record<string, Note[]>) : {};
-    window.localStorage.setItem(
-      LOCAL_NOTES_KEY,
-      JSON.stringify({ ...parsed, [tripId]: nextNotes }),
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_NOTES_KEY,
-      JSON.stringify({ [tripId]: nextNotes }),
-    );
-  }
+  persistTripScopedValue(LOCAL_NOTES_KEY, tripId, nextNotes);
 };
 
 const loadStoredChecklist = (
   tripId: string,
   fallbackItems: ChecklistItem[],
 ): ChecklistItem[] => {
-  try {
-    const stored = window.localStorage.getItem(LOCAL_CHECKLIST_KEY);
-    if (!stored) return fallbackItems;
-    const parsed = JSON.parse(stored) as Record<string, ChecklistItem[]>;
-    return parsed[tripId] ?? fallbackItems;
-  } catch {
-    return fallbackItems;
-  }
+  return loadTripScopedValue(LOCAL_CHECKLIST_KEY, tripId, fallbackItems);
 };
 
 const persistStoredChecklist = (
   tripId: string,
   nextItems: ChecklistItem[],
 ) => {
-  try {
-    const stored = window.localStorage.getItem(LOCAL_CHECKLIST_KEY);
-    const parsed = stored
-      ? (JSON.parse(stored) as Record<string, ChecklistItem[]>)
-      : {};
-    window.localStorage.setItem(
-      LOCAL_CHECKLIST_KEY,
-      JSON.stringify({ ...parsed, [tripId]: nextItems }),
-    );
-  } catch {
-    window.localStorage.setItem(
-      LOCAL_CHECKLIST_KEY,
-      JSON.stringify({ [tripId]: nextItems }),
-    );
-  }
+  persistTripScopedValue(LOCAL_CHECKLIST_KEY, tripId, nextItems);
 };
 
 const ChecklistItemRow: React.FC<{

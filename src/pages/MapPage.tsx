@@ -4,7 +4,6 @@ import {
   Building2,
   CalendarDays,
   Car,
-  Filter,
   MapPin,
   Plane,
   Plus,
@@ -29,48 +28,27 @@ import {
   mapSavedPlaceRowToPlace,
 } from '../services/tripMappers';
 import RatingStars from '../components/ui/RatingStars';
-import SearchBar from '../components/ui/SearchBar';
+import MapFallbackView from '../components/map/MapFallbackView';
+import MapFiltersPanel from '../components/map/MapFiltersPanel';
+import MapRouteSelector from '../components/map/MapRouteSelector';
+import {
+  detailOffsets,
+  formatStopDates,
+  getStopPosition,
+  placeCategoryMap,
+  singleStopPositions,
+  type CategoryFilter,
+  type MapPinData,
+  type StopSelection,
+} from '../components/map/mapPageDisplay';
 import type {
   Hotel,
   ItineraryDay,
   ItineraryItem,
   Place,
-  PlaceCategory,
   TransportSegment,
   TripStop,
 } from '../types';
-type CategoryFilter = 'Hotels' | 'Food' | 'Activities' | 'Itinerary' | 'Transport';
-type StopSelection = 'all' | string;
-type MapPinKind = 'hotel' | 'food' | 'activity' | 'itinerary' | 'transport';
-
-interface MapPinData {
-  id: string;
-  kind: MapPinKind;
-  label: string;
-  stopId: string;
-  left: string;
-  top: string;
-}
-
-const categoryIcons: Record<CategoryFilter, React.ReactNode> = {
-  Hotels: <Building2 className="w-4 h-4" />,
-  Food: <UtensilsCrossed className="w-4 h-4" />,
-  Activities: <MapPin className="w-4 h-4" />,
-  Itinerary: <CalendarDays className="w-4 h-4" />,
-  Transport: <Plane className="w-4 h-4" />,
-};
-
-const placeCategoryMap: Record<PlaceCategory, CategoryFilter> = {
-  Restaurants: 'Food',
-  Cafes: 'Food',
-  Museums: 'Activities',
-  Outdoor: 'Activities',
-  Nightlife: 'Activities',
-  Shopping: 'Activities',
-  Tours: 'Activities',
-  Landmarks: 'Activities',
-  'Hidden Gems': 'Activities',
-};
 
 const mergeHotels = (baseHotels: Hotel[], savedHotels: Hotel[]) => {
   const hotelsById = new Map(baseHotels.map((hotel) => [hotel.id, hotel]));
@@ -102,41 +80,6 @@ const mergePlaces = (basePlaces: Place[], savedPlaces: Place[]) => {
   }
 
   return [...placesById.values()];
-};
-
-const stopPositions = [
-  { left: '18%', top: '58%' },
-  { left: '38%', top: '38%' },
-  { left: '60%', top: '56%' },
-  { left: '80%', top: '32%' },
-  { left: '72%', top: '72%' },
-  { left: '28%', top: '26%' },
-];
-
-const detailOffsets = [
-  { x: -7, y: -12 },
-  { x: 9, y: -10 },
-  { x: -10, y: 11 },
-  { x: 11, y: 12 },
-  { x: 0, y: 17 },
-];
-
-const singleStopPositions = [
-  { left: '48%', top: '44%' },
-  { left: '30%', top: '36%' },
-  { left: '66%', top: '35%' },
-  { left: '28%', top: '64%' },
-  { left: '62%', top: '65%' },
-  { left: '80%', top: '18%' },
-];
-
-const getStopPosition = (index: number) => stopPositions[index % stopPositions.length];
-
-const formatStopDates = (stop: TripStop) => {
-  const dateOptions: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-  const start = new Date(`${stop.startDate}T00:00:00`).toLocaleDateString('en-US', dateOptions);
-  const end = new Date(`${stop.endDate}T00:00:00`).toLocaleDateString('en-US', dateOptions);
-  return `${start} - ${end}`;
 };
 
 const getItemStopId = <T extends { stopId?: string }>(item: T, primaryStopId: string) =>
@@ -184,85 +127,6 @@ const getStopMapLocation = (stop: TripStop) => {
         suggestionName.startsWith(`${normalizedStopName},`))
     );
   });
-};
-
-const getPinClasses = (kind: MapPinKind) => {
-  switch (kind) {
-    case 'hotel':
-      return 'bg-primary-600';
-    case 'food':
-      return 'bg-accent-600';
-    case 'activity':
-      return 'bg-success-500';
-    case 'itinerary':
-      return 'bg-warning-500';
-    case 'transport':
-      return 'bg-error-500';
-    default:
-      return 'bg-neutral-600';
-  }
-};
-
-const getPinIcon = (kind: MapPinKind) => {
-  switch (kind) {
-    case 'hotel':
-      return <Building2 className="w-4 h-4" />;
-    case 'food':
-      return <UtensilsCrossed className="w-4 h-4" />;
-    case 'transport':
-      return <Plane className="w-4 h-4" />;
-    case 'itinerary':
-      return <CalendarDays className="w-4 h-4" />;
-    default:
-      return <MapPin className="w-4 h-4" />;
-  }
-};
-
-const MapPinMarker: React.FC<MapPinData> = ({ kind, left, top, label }) => (
-  <div className="absolute group" style={{ left, top }}>
-    <div
-      className={[
-        'flex items-center justify-center w-9 h-9 rounded-full shadow-lg text-white',
-        'transition-transform duration-200 group-hover:scale-110',
-        getPinClasses(kind),
-      ].join(' ')}
-    >
-      {getPinIcon(kind)}
-    </div>
-    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-medium text-neutral-700 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-sm">
-      {label}
-    </span>
-  </div>
-);
-
-const StopMarker: React.FC<{
-  stop: TripStop;
-  index: number;
-  isSelected: boolean;
-  onSelect: () => void;
-}> = ({ stop, index, isSelected, onSelect }) => {
-  const position = getStopPosition(index);
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="absolute group text-left"
-      style={{ left: position.left, top: position.top }}
-    >
-      <div
-        className={[
-          'flex items-center justify-center w-14 h-14 rounded-full shadow-lg border-2 transition-transform duration-200 group-hover:scale-105',
-          isSelected ? 'bg-primary-600 border-white text-white' : 'bg-white border-primary-200 text-primary-600',
-        ].join(' ')}
-      >
-        <span className="text-base font-bold">{stop.order}</span>
-      </div>
-      <div className="absolute left-1/2 top-16 -translate-x-1/2 min-w-max rounded-xl bg-white/95 px-3 py-1.5 shadow-sm border border-neutral-100">
-        <p className="text-xs font-semibold text-neutral-800">{stop.name}</p>
-        <p className="text-[11px] text-neutral-400">{formatStopDates(stop)}</p>
-      </div>
-    </button>
-  );
 };
 
 const PanelItem: React.FC<{
@@ -640,45 +504,11 @@ const MapPage: React.FC = () => {
       )}
 
       {isMultiStop && (
-        <div className="mb-4 shrink-0 bg-white rounded-2xl shadow-card border border-neutral-100 p-4">
-          <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">Trip Route</p>
-          <div className="flex flex-wrap items-center gap-2 text-lg font-semibold text-neutral-900">
-            {orderedStops.map((stop, index) => (
-              <React.Fragment key={stop.id}>
-                <span>{stop.name}</span>
-                {index < orderedStops.length - 1 && <span className="text-neutral-300">→</span>}
-              </React.Fragment>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2 mt-4">
-            <button
-              type="button"
-              onClick={() => setSelectedStopId('all')}
-              className={[
-                'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                selectedStopId === 'all' ? 'bg-primary-600 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200',
-              ].join(' ')}
-            >
-              All Stops
-            </button>
-            {orderedStops.map((stop) => (
-              <button
-                key={stop.id}
-                type="button"
-                onClick={() => setSelectedStopId(stop.id)}
-                className={[
-                  'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                  selectedStopId === stop.id ? 'bg-primary-600 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200',
-                ].join(' ')}
-              >
-                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/20 text-xs">
-                  {stop.order}
-                </span>
-                {stop.name}
-              </button>
-            ))}
-          </div>
-        </div>
+        <MapRouteSelector
+          stops={orderedStops}
+          selectedStopId={selectedStopId}
+          onSelectStop={setSelectedStopId}
+        />
       )}
 
       <div className="grid flex-1 grid-cols-1 gap-6 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -688,100 +518,27 @@ const MapPage: React.FC = () => {
             selectedLabel={mapTitle}
             className="lg:h-full"
             onUnavailable={(
-              <div className="relative h-[420px] w-full rounded-2xl overflow-hidden bg-gradient-to-br from-primary-50 via-accent-50 to-primary-100 lg:h-full">
-                <div className="absolute top-4 left-4 right-4 z-10 bg-white/80 backdrop-blur-sm rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-sm">
-                  <MapPin className="w-4 h-4 text-primary-500" />
-                  <span className="text-sm text-neutral-600">{mapTitle}</span>
-                </div>
-
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute top-0 bottom-0 left-[20%] w-px bg-primary-400" />
-                  <div className="absolute top-0 bottom-0 left-[40%] w-px bg-primary-400" />
-                  <div className="absolute top-0 bottom-0 left-[60%] w-px bg-primary-400" />
-                  <div className="absolute top-0 bottom-0 left-[80%] w-px bg-primary-400" />
-                  <div className="absolute left-0 right-0 top-[25%] h-px bg-primary-400" />
-                  <div className="absolute left-0 right-0 top-[50%] h-px bg-primary-400" />
-                  <div className="absolute left-0 right-0 top-[75%] h-px bg-primary-400" />
-                </div>
-
-                {isMultiStop && (
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-                    <polyline
-                      points={routeLinePoints}
-                      fill="none"
-                      stroke="rgba(37, 99, 235, 0.35)"
-                      strokeWidth="1.5"
-                      strokeDasharray="4 3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
-
-                {isMultiStop
-                  ? orderedStops.map((stop, index) => (
-                      <StopMarker
-                        key={stop.id}
-                        stop={stop}
-                        index={index}
-                        isSelected={effectiveSelection === 'all' || effectiveSelection === stop.id}
-                        onSelect={() => setSelectedStopId(stop.id)}
-                      />
-                    ))
-                  : (
-                    <StopMarker
-                      stop={primaryStop}
-                      index={0}
-                      isSelected
-                      onSelect={() => setSelectedStopId(primaryStop.id)}
-                    />
-                  )}
-
-                {visiblePins.map((pin) => (
-                  <MapPinMarker key={`${pin.kind}-${pin.id}`} {...pin} />
-                ))}
-
-                {visiblePins.length === 0 && (
-                  <div className="absolute left-1/2 bottom-6 -translate-x-1/2 bg-white/90 backdrop-blur-sm rounded-xl px-4 py-3 shadow-sm border border-neutral-100 text-center">
-                    <p className="text-sm font-medium text-neutral-700">No pins in this view</p>
-                    <p className="text-xs text-neutral-400 mt-0.5">Add hotels, places, itinerary items, or travel details for this stop.</p>
-                  </div>
-                )}
-              </div>
+              <MapFallbackView
+                mapTitle={mapTitle}
+                isMultiStop={isMultiStop}
+                routeLinePoints={routeLinePoints}
+                orderedStops={orderedStops}
+                primaryStop={primaryStop}
+                effectiveSelection={effectiveSelection}
+                visiblePins={visiblePins}
+                onSelectStop={setSelectedStopId}
+              />
             )}
           />
         </div>
 
         <div className="flex flex-col gap-4 lg:min-h-0">
-          <div className="shrink-0 bg-white rounded-2xl shadow-card border border-neutral-100 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-4 h-4 text-neutral-500" />
-              <h3 className="text-sm font-semibold text-neutral-700">Filter Pins</h3>
-            </div>
-            <SearchBar
-              value={mapSearchQuery}
-              onChange={setMapSearchQuery}
-              placeholder="Search mapped places..."
-              className="mb-3"
-            />
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(categoryIcons) as CategoryFilter[]).map((category) => (
-                <button
-                  key={category}
-                  onClick={() => toggleFilter(category)}
-                  className={[
-                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150',
-                    activeFilters.has(category)
-                      ? 'bg-primary-50 text-primary-600 border border-primary-200'
-                      : 'bg-neutral-50 text-neutral-400 border border-neutral-200',
-                  ].join(' ')}
-                >
-                  {categoryIcons[category]}
-                  {category}
-                </button>
-              ))}
-            </div>
-          </div>
+          <MapFiltersPanel
+            activeFilters={activeFilters}
+            searchQuery={mapSearchQuery}
+            onSearchChange={setMapSearchQuery}
+            onToggleFilter={toggleFilter}
+          />
 
           <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-card lg:min-h-0">
             <div className="px-4 py-3 border-b border-neutral-100">

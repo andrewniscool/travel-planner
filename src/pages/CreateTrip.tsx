@@ -1,22 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  MapPin,
-  Users,
-  FileText,
-  ArrowRight,
-  Plus,
-  Trash2,
-  Lightbulb,
-  Star,
-} from 'lucide-react';
-import LocationInput from '../components/ui/LocationInput';
+import { ArrowRight } from 'lucide-react';
 import Button from '../components/ui/Button';
-import ImagePlaceholder from '../components/ui/ImagePlaceholder';
-import Badge from '../components/ui/Badge';
-import Select from '../components/ui/Select';
-import TravelerPicker from '../components/ui/TravelerPicker';
-import { DateRangePicker } from '../components/ui/DatePicker';
+import RouteBuilder from '../components/create-trip/RouteBuilder';
+import {
+  getRouteStepLabel,
+  type RouteMode,
+  type StopForm,
+} from '../components/create-trip/createTripDisplay';
+import TripDetailsSection from '../components/create-trip/TripDetailsSection';
+import TripPreviewSidebar from '../components/create-trip/TripPreviewSidebar';
+import TripVibeSelector from '../components/create-trip/TripVibeSelector';
 import { LOCAL_TRIPS_STORAGE_KEY } from '../data/trips';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { getTripFromStorageOrMock } from '../hooks/useTrip';
@@ -35,7 +29,6 @@ import {
   persistTripScopedValue,
 } from '../utils/tripStorage';
 import {
-  BUDGET_CURRENCY_OPTIONS,
   DEFAULT_BUDGET_CURRENCY,
   isBudgetCurrency,
 } from '../utils/budget';
@@ -62,17 +55,6 @@ const PREVIEW_IMAGE =
   'https://images.pexels.com/photos/317855/pexels-photo-317855.jpeg?auto=compress&cs=tinysrgb&w=800';
 const LOCAL_BUDGET_CURRENCIES_KEY = 'travel-builder:budget-currencies';
 
-interface StopForm {
-  name: string;
-  country: string;
-  startDate: string;
-  endDate: string;
-  notes: string;
-  locationRef: LocationRef | null;
-}
-
-type RouteMode = 'single' | 'multi';
-
 const emptyStop = (): StopForm => ({
   name: '',
   country: '',
@@ -95,13 +77,6 @@ const makeManualStopLocation = (name: string): LocationRef | null => {
 
 const getStopFormLocationRef = (stop: TripStop) =>
   stop.locationRef ?? makeManualStopLocation(stop.name);
-
-const getRouteStepLabel = (index: number, stopCount: number) => {
-  if (stopCount <= 1) return 'Destination';
-  if (index === 0) return 'Start';
-  if (index === stopCount - 1) return 'Final destination';
-  return `Stop ${index + 1}`;
-};
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return '';
@@ -548,221 +523,31 @@ const CreateTrip: React.FC = () => {
             </div>
 
             <section className="space-y-10">
-              <div>
-                <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-neutral-900">Route</h2>
-                  </div>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div className="inline-grid rounded-full border border-neutral-200 bg-neutral-50 p-1 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={setSingleDestinationMode}
-                        className={[
-                          'rounded-full px-4 py-2 text-sm font-bold transition-all',
-                          routeMode === 'single'
-                            ? 'bg-white text-neutral-900 shadow-sm'
-                            : 'text-neutral-500 hover:text-neutral-900',
-                        ].join(' ')}
-                      >
-                        One destination
-                      </button>
-                      <button
-                        type="button"
-                        onClick={setMultiStopMode}
-                        className={[
-                          'rounded-full px-4 py-2 text-sm font-bold transition-all',
-                          routeMode === 'multi'
-                            ? 'bg-white text-neutral-900 shadow-sm'
-                            : 'text-neutral-500 hover:text-neutral-900',
-                        ].join(' ')}
-                      >
-                        Multi-stop
-                      </button>
-                    </div>
-                    {routeMode === 'multi' ? (
-                      <button
-                        type="button"
-                        onClick={addStop}
-                        className="inline-flex items-center gap-2 text-sm font-bold text-primary-600 underline underline-offset-4 transition-colors hover:text-primary-700"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add Stop
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={setMultiStopMode}
-                        className="inline-flex items-center gap-2 text-sm font-bold text-primary-600 underline underline-offset-4 transition-colors hover:text-primary-700"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add Stop
-                      </button>
-                    )}
-                  </div>
-                </div>
+              <RouteBuilder
+                stops={stops}
+                routeMode={routeMode}
+                onSetSingleDestinationMode={setSingleDestinationMode}
+                onSetMultiStopMode={setMultiStopMode}
+                onAddStop={addStop}
+                onRemoveStop={removeStop}
+                onUpdateStop={updateStop}
+                getStopFieldError={getStopFieldError}
+              />
 
-                <div className="space-y-6">
-                  {stops.map((stop, index) => (
-                    <div
-                      key={index}
-                      className="group relative rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all hover:border-neutral-300 hover:shadow-lg sm:p-8"
-                    >
-                      <div className="absolute -left-3 top-7 flex h-7 w-7 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white shadow-sm">
-                        {index + 1}
-                      </div>
+              <TripDetailsSection
+                travelers={travelers}
+                budget={budget}
+                budgetCurrency={budgetCurrency}
+                onTravelersChange={setTravelers}
+                onBudgetChange={setBudget}
+                onBudgetCurrencyChange={setBudgetCurrency}
+              />
 
-                      {routeMode === 'multi' && stops.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeStop(index)}
-                          className="absolute right-4 top-4 rounded-full p-2 text-neutral-300 opacity-100 transition-colors hover:bg-error-50 hover:text-error-500 sm:opacity-0 sm:group-hover:opacity-100"
-                          aria-label={`Remove stop ${index + 1}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-
-                      <div className="mb-5 flex flex-col gap-1 pr-10">
-                        <p className="text-xs font-extrabold uppercase text-primary-700">
-                          {getRouteStepLabel(index, stops.length)}
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                        <div className="md:col-span-2">
-                          <LocationInput
-                            label="Location"
-                            value={stop.locationRef}
-                            onChange={(location) =>
-                              updateStop(index, {
-                                name: location?.name ?? '',
-                                locationRef: location,
-                              })
-                            }
-                            placeholder="Search destinations"
-                            required
-                            error={getStopFieldError(index, 'name')}
-                          />
-                        </div>
-
-                        <div className="relative rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600">
-                          <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
-                            Country
-                          </label>
-                          <input
-                            value={stop.country}
-                            onChange={(event) => updateStop(index, { country: event.target.value })}
-                            placeholder="Japan"
-                            className="w-full rounded-xl border-0 bg-transparent px-3 pb-2 pt-6 text-sm text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-0"
-                          />
-                        </div>
-
-                        <DateRangePicker
-                          startValue={stop.startDate}
-                          endValue={stop.endDate}
-                          onChange={(range) =>
-                            updateStop(index, {
-                              startDate: range.start,
-                              endDate: range.end,
-                            })
-                          }
-                          error={getStopFieldError(index, 'startDate') ?? getStopFieldError(index, 'endDate')}
-                        />
-
-                        <div className="relative rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600 md:col-span-2">
-                          <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
-                            Notes
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={stop.notes}
-                            onChange={(event) => updateStop(index, { notes: event.target.value })}
-                            placeholder="Optional stop notes"
-                            className="w-full resize-none rounded-xl border-0 bg-transparent px-3 pb-3 pt-7 text-sm text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-0"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {routeMode === 'multi' && (
-                    <button
-                      type="button"
-                      onClick={addStop}
-                      className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-300 bg-white py-12 text-neutral-400 transition-all hover:border-primary-600 hover:text-primary-600"
-                    >
-                      <MapPin className="mb-2 h-8 w-8" />
-                      <span className="font-bold">Add another stop</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-4 text-lg font-bold text-neutral-900">Trip Details</h3>
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <TravelerPicker
-                    value={travelers}
-                    onChange={setTravelers}
-                  />
-
-                  <div className="flex min-h-[64px] rounded-xl border border-neutral-200 bg-white shadow-sm transition-all focus-within:border-primary-600 focus-within:ring-2 focus-within:ring-primary-500">
-                    <div className="flex w-20 shrink-0 items-center border-r border-neutral-200 px-1">
-                      <Select
-                        value={budgetCurrency}
-                        onChange={(nextCurrency) => {
-                          if (isBudgetCurrency(nextCurrency)) {
-                            setBudgetCurrency(nextCurrency);
-                          }
-                        }}
-                        aria-label="Budget currency"
-                        options={BUDGET_CURRENCY_OPTIONS.map((currency) => ({
-                          value: currency.code,
-                          label: `${currency.code} ${currency.symbol}`,
-                          selectedLabel: currency.symbol,
-                        }))}
-                        buttonClassName="border-0 bg-transparent px-3 py-2 text-lg shadow-none focus:ring-0"
-                        dropdownClassName="right-auto w-36"
-                      />
-                    </div>
-                    <div className="relative min-w-0 flex-1">
-                      <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
-                        Budget
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={budget}
-                        onChange={(event) => setBudget(event.target.value ? Number(event.target.value) : '')}
-                        placeholder="5000"
-                        className="w-full rounded-r-xl border-0 bg-transparent px-3 pb-2 pt-6 text-sm text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-0"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-4 text-lg font-bold text-neutral-900">Trip Vibe</h3>
-                <div className="flex flex-wrap gap-3">
-                  {VIBE_OPTIONS.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setVibe(vibe === option ? '' : option)}
-                      className={[
-                        'rounded-full border px-5 py-2 text-sm font-semibold transition-all',
-                        vibe === option
-                          ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
-                          : 'border-neutral-200 text-neutral-700 hover:border-primary-600 hover:text-primary-700',
-                      ].join(' ')}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <TripVibeSelector
+                options={VIBE_OPTIONS}
+                value={vibe}
+                onChange={setVibe}
+              />
 
               <div className="relative rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600">
                 <label className="absolute left-3 top-2 text-[10px] font-extrabold uppercase text-neutral-900">
@@ -822,83 +607,18 @@ const CreateTrip: React.FC = () => {
             </section>
           </div>
 
-          <div>
-            <div className="lg:sticky lg:top-24">
-              <p className="mb-4 text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
-                Trip Preview
-              </p>
-              <div className="group">
-                <div className="relative mb-4 overflow-hidden rounded-2xl bg-neutral-100 shadow-sm">
-                  <ImagePlaceholder
-                    src={PREVIEW_IMAGE}
-                    alt="Trip preview"
-                    aspectRatio="video"
-                    className="transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute bottom-4 left-4">
-                    <span className="rounded-full bg-white/90 px-3 py-1 text-[10px] font-extrabold uppercase tracking-tight text-neutral-900 backdrop-blur-sm">
-                      {existingTrip?.status ?? 'Planning'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mb-1 flex items-start justify-between gap-4">
-                  <h3 className="text-lg font-bold leading-tight text-neutral-900">
-                    {tripTitle || 'Your Trip'}
-                  </h3>
-                  <div className="flex shrink-0 items-center gap-1 text-sm text-neutral-800">
-                    <Star className="h-4 w-4 fill-primary-600 text-primary-600" />
-                    <span className="font-bold">{vibe ? '4.9' : '--'}</span>
-                    <span className="text-neutral-500">(vibe)</span>
-                  </div>
-                </div>
-
-                <p className="text-[15px] text-neutral-500">
-                  {routeLabel || 'Add at least one stop'}
-                </p>
-                <p className="text-[15px] text-neutral-500">
-                  {dateDisplay || 'Select stop dates'}
-                </p>
-                <div className="mt-3 flex items-center gap-2">
-                  <p className="font-bold text-neutral-900">{formattedBudget || 'Set budget'}</p>
-                  <p className="text-[15px] text-neutral-500">total budget</p>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-neutral-500">
-                  <span className="inline-flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    {travelers} traveler{travelers !== 1 ? 's' : ''}
-                  </span>
-                  {vibe && <Badge variant="default">{vibe}</Badge>}
-                </div>
-
-                {(notesPreview || validStops.some((stop) => stop.notes.trim())) && (
-                  <div className="mt-4 rounded-xl border border-neutral-100 bg-neutral-50 p-4">
-                    <p className="text-xs italic leading-relaxed text-neutral-500">
-                      <FileText className="mr-1 inline h-3.5 w-3.5" />
-                      "
-                      {notesPreview ||
-                        validStops.find((stop) => stop.notes.trim())?.notes}
-                      "
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-8 rounded-2xl border border-neutral-200 bg-white p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600">
-                    <Lightbulb className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-neutral-900">Planning Tip</p>
-                    <p className="mt-1 text-xs leading-relaxed text-neutral-500">
-                      Add dates to each stop first. Hotels, budget, and map views become much easier to review once the route is anchored.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <TripPreviewSidebar
+            previewImage={PREVIEW_IMAGE}
+            status={existingTrip?.status}
+            tripTitle={tripTitle}
+            routeLabel={routeLabel}
+            dateDisplay={dateDisplay}
+            formattedBudget={formattedBudget}
+            travelers={travelers}
+            vibe={vibe}
+            notesPreview={notesPreview}
+            validStops={validStops}
+          />
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import type { Flight } from '../../types';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
+import { getSafeExternalUrl } from '../../utils/safeUrl';
 
 interface FlightCardProps {
   flight: Flight;
@@ -43,6 +44,7 @@ const FlightCard: React.FC<FlightCardProps> = ({
   onCompare,
 }) => {
   const colorClass = airlineColors[flight.airlineLogo] || 'bg-neutral-500';
+  const safeBookingUrl = getSafeExternalUrl(flight.bookingUrl);
 
   const stopsLabel =
     flight.stops === 0
@@ -165,8 +167,8 @@ const FlightCard: React.FC<FlightCardProps> = ({
               <Check className="w-4 h-4 mr-1" />
               Select
             </Button>
-            {flight.bookingUrl && (
-              <a href={flight.bookingUrl} target="_blank" rel="noopener noreferrer">
+            {safeBookingUrl && (
+              <a href={safeBookingUrl} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm">
                   <ExternalLink className="w-4 h-4 mr-1" />
                   Book Flight

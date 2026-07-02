@@ -5,6 +5,7 @@ import Button from '../ui/Button';
 import Card from '../ui/Card';
 import RatingStars from '../ui/RatingStars';
 import { GOOGLE_HOTEL_IMAGE } from '../../services/locationDisplayMappers';
+import { getSafeExternalUrl, getSafeImageUrl } from '../../utils/safeUrl';
 import type { Hotel } from '../../types';
 import {
   amenityIcons,
@@ -29,31 +30,35 @@ const HotelCard: React.FC<HotelCardProps> = ({
   onSelect,
   onSave,
   onViewDetails,
-}) => (
-  <Card
-    hover={false}
-    className={[
-      'transition-all duration-200 overflow-hidden',
-      isSelected ? 'border-primary-500 bg-primary-50/30' : 'border-neutral-100 bg-white',
-    ].join(' ')}
-  >
-    <div className="flex flex-col sm:flex-row">
-      <div className="sm:w-48 sm:shrink-0">
-        <img
-          src={getGooglePhoto(hotel)}
-          alt={hotel.name}
-          loading="lazy"
-          decoding="async"
-          width={320}
-          height={192}
-          className="w-full h-48 sm:h-full object-cover sm:rounded-l-xl"
-          onError={(event) => {
-            if (event.currentTarget.src !== GOOGLE_HOTEL_IMAGE) {
-              event.currentTarget.src = GOOGLE_HOTEL_IMAGE;
-            }
-          }}
-        />
-      </div>
+}) => {
+  const safePhotoUrl = getSafeImageUrl(getGooglePhoto(hotel)) ?? GOOGLE_HOTEL_IMAGE;
+  const safeMapUrl = getSafeExternalUrl(hotel.locationRef?.googleMapsUri);
+
+  return (
+    <Card
+      hover={false}
+      className={[
+        'transition-all duration-200 overflow-hidden',
+        isSelected ? 'border-primary-500 bg-primary-50/30' : 'border-neutral-100 bg-white',
+      ].join(' ')}
+    >
+      <div className="flex flex-col sm:flex-row">
+        <div className="sm:w-48 sm:shrink-0">
+          <img
+            src={safePhotoUrl}
+            alt={hotel.name}
+            loading="lazy"
+            decoding="async"
+            width={320}
+            height={192}
+            className="w-full h-48 sm:h-full object-cover sm:rounded-l-xl"
+            onError={(event) => {
+              if (event.currentTarget.src !== GOOGLE_HOTEL_IMAGE) {
+                event.currentTarget.src = GOOGLE_HOTEL_IMAGE;
+              }
+            }}
+          />
+        </div>
 
       <div className="flex-1 p-4 flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
@@ -114,8 +119,8 @@ const HotelCard: React.FC<HotelCardProps> = ({
             <Check className="w-4 h-4 mr-1" />
             Select
           </Button>
-          {hotel.locationRef?.googleMapsUri && (
-            <a href={hotel.locationRef.googleMapsUri} target="_blank" rel="noopener noreferrer">
+          {safeMapUrl && (
+            <a href={safeMapUrl} target="_blank" rel="noopener noreferrer">
               <Button variant="outline" size="sm">
                 <ExternalLink className="w-4 h-4 mr-1" />
                 Map
@@ -124,8 +129,9 @@ const HotelCard: React.FC<HotelCardProps> = ({
           )}
         </div>
       </div>
-    </div>
-  </Card>
-);
+      </div>
+    </Card>
+  );
+};
 
 export default HotelCard;

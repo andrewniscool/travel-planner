@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getSafeImageUrl } from '../../utils/safeUrl';
 
 interface PhotoGalleryProps {
   photos: string[];
@@ -14,7 +15,12 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   alt,
   className = '',
 }) => {
-  const galleryPhotos = photos.length > 0 ? photos : [fallbackPhoto];
+  const safeFallbackPhoto = getSafeImageUrl(fallbackPhoto) ?? '';
+  const safePhotos = photos.flatMap((photo) => {
+    const safePhoto = getSafeImageUrl(photo);
+    return safePhoto ? [safePhoto] : [];
+  });
+  const galleryPhotos = safePhotos.length > 0 ? safePhotos : [safeFallbackPhoto];
   const [activeIndex, setActiveIndex] = useState(0);
   const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
 
@@ -48,8 +54,8 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
               height={450}
               className="h-full w-full aspect-video object-cover"
               onError={(event) => {
-                if (event.currentTarget.src !== fallbackPhoto) {
-                  event.currentTarget.src = fallbackPhoto;
+                if (safeFallbackPhoto && event.currentTarget.src !== safeFallbackPhoto) {
+                  event.currentTarget.src = safeFallbackPhoto;
                 }
               }}
             />

@@ -5,6 +5,7 @@ import Badge from '../ui/Badge';
 import RatingStars from '../ui/RatingStars';
 import type { Place } from '../../types';
 import { GOOGLE_PLACE_IMAGE } from '../../services/locationDisplayMappers';
+import { getSafeExternalUrl, getSafeImageUrl } from '../../utils/safeUrl';
 
 interface PlaceCardProps {
   place: Place;
@@ -23,18 +24,20 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
 }) => {
   const displayName = place.locationRef?.displayName || place.name;
   const displayImage = place.locationRef?.photoUrls?.[0] || place.image;
+  const safeDisplayImage = getSafeImageUrl(displayImage) ?? GOOGLE_PLACE_IMAGE;
   const displayRating = place.locationRef?.rating ?? place.rating;
   const displayReviewCount = place.locationRef?.reviewCount ?? place.reviewCount;
   const displayLocation = place.locationRef?.formattedAddress || place.location;
   const displayPrice = place.locationRef?.priceRange || place.priceRange;
   const visitUrl = place.locationRef?.websiteUri || place.locationRef?.googleMapsUri;
+  const safeVisitUrl = getSafeExternalUrl(visitUrl);
 
   return (
     <Card hover={false} className="flex flex-col h-full">
       {/* Image Section */}
       <div className="relative">
         <img
-          src={displayImage}
+          src={safeDisplayImage}
           alt={displayName}
           loading="lazy"
           decoding="async"
@@ -131,9 +134,9 @@ const PlaceCard: React.FC<PlaceCardProps> = ({
             Details
           </button>
 
-          {visitUrl && (
+          {safeVisitUrl && (
             <a
-              href={visitUrl}
+              href={safeVisitUrl}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors ml-auto"
               target="_blank"
               rel="noopener noreferrer"

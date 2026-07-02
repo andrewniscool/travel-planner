@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, DollarSign, MapPin, Pencil } from 'lucide-react';
 import Badge from '../ui/Badge';
+import { getSafeImageUrl } from '../../utils/safeUrl';
 import type { TripStatus } from '../../types';
 
 const statusVariant: Record<TripStatus, 'upcoming' | 'planning' | 'booked' | 'past'> = {
@@ -31,10 +32,13 @@ const TripHero: React.FC<TripHeroProps> = ({
   travelers,
   budget,
   status,
-}) => (
-  <div className="relative w-full h-64 sm:h-72 md:h-80">
-    {image ? (
-      <img src={image} alt={tripName} className="w-full h-full object-cover" />
+}) => {
+  const safeImageUrl = getSafeImageUrl(image);
+
+  return (
+    <div className="relative w-full h-64 sm:h-72 md:h-80">
+      {safeImageUrl ? (
+        <img src={safeImageUrl} alt={tripName} className="w-full h-full object-cover" />
     ) : (
       <div className="w-full h-full bg-gradient-to-br from-neutral-300 to-neutral-500" />
     )}
@@ -75,7 +79,8 @@ const TripHero: React.FC<TripHeroProps> = ({
         </div>
       </div>
     </div>
-  </div>
-);
+    </div>
+  );
+};
 
 export default TripHero;

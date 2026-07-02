@@ -19,6 +19,7 @@ import {
   getLocationName,
   getMissingDetails,
 } from '../../utils/transportSegments';
+import { getSafeExternalUrl } from '../../utils/safeUrl';
 import type { TransportMode, TransportSegment } from '../../types';
 
 const modeIconMap: Record<TransportMode, React.ReactNode> = {
@@ -55,6 +56,7 @@ const TransportCard: React.FC<TransportCardProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const safeBookingUrl = getSafeExternalUrl(segment.bookingUrl);
   const fromLabel = segment.fromStopId
     ? getStopName(segment.fromStopId)
     : getLocationName(segment.fromLocation, segment.departureLocation) || 'From';
@@ -155,9 +157,9 @@ const TransportCard: React.FC<TransportCardProps> = ({
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 lg:w-36">
-          {segment.bookingUrl && (
+          {safeBookingUrl && (
             <a
-              href={segment.bookingUrl}
+              href={safeBookingUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-primary-600 transition-colors hover:bg-primary-50"

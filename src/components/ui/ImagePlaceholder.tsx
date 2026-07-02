@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
+import { getSafeImageUrl } from '../../utils/safeUrl';
 
 type AspectRatio = 'video' | 'square' | 'wide';
 
@@ -25,10 +26,11 @@ const ImagePlaceholder: React.FC<ImagePlaceholderProps> = ({
   fallbackText,
 }) => {
   const [hasError, setHasError] = useState(false);
+  const safeSrc = getSafeImageUrl(src);
 
   const fallbackChar = fallbackText ? fallbackText.charAt(0).toUpperCase() : null;
 
-  if (hasError || !src) {
+  if (hasError || !safeSrc) {
     return (
       <div
         className={[
@@ -59,7 +61,7 @@ const ImagePlaceholder: React.FC<ImagePlaceholderProps> = ({
         .join(' ')}
     >
       <img
-        src={src}
+        src={safeSrc}
         alt={alt}
         loading="lazy"
         decoding="async"

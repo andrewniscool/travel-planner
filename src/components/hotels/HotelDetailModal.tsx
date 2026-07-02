@@ -6,6 +6,7 @@ import Modal from '../ui/Modal';
 import PhotoGallery from '../ui/PhotoGallery';
 import RatingStars from '../ui/RatingStars';
 import { GOOGLE_HOTEL_IMAGE } from '../../services/locationDisplayMappers';
+import { getSafeExternalUrl } from '../../utils/safeUrl';
 import type { Hotel } from '../../types';
 import {
   amenityIcons,
@@ -35,6 +36,7 @@ const HotelDetailModal: React.FC<HotelDetailModalProps> = ({
   const hotelPhotos = hotel.locationRef?.photoUrls?.length
     ? hotel.locationRef.photoUrls
     : [hotel.image];
+  const safeWebsiteUrl = getSafeExternalUrl(hotel.locationRef?.websiteUri);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={hotel.locationRef?.displayName || hotel.name} size="lg">
@@ -66,9 +68,9 @@ const HotelDetailModal: React.FC<HotelDetailModalProps> = ({
           {hotel.locationRef?.nationalPhoneNumber && (
             <p className="text-sm text-neutral-500">{hotel.locationRef.nationalPhoneNumber}</p>
           )}
-          {hotel.locationRef?.websiteUri && (
+          {safeWebsiteUrl && (
             <a
-              href={hotel.locationRef.websiteUri}
+              href={safeWebsiteUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700"

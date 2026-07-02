@@ -7,10 +7,6 @@ import {
   Building2,
   DollarSign,
   CheckCircle,
-  CheckCircle2,
-  Circle,
-  Pencil,
-  Clock,
   ArrowRight,
 } from 'lucide-react';
 import { getTripFromStorageOrMock } from '../hooks/useTrip';
@@ -29,10 +25,13 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import StatCard from '../components/ui/StatCard';
 import ProgressBar from '../components/ui/ProgressBar';
-import RatingStars from '../components/ui/RatingStars';
 import ImagePlaceholder from '../components/ui/ImagePlaceholder';
 import TripNav from '../components/layout/TripNav';
-import type { TripStatus } from '../types';
+import TripHero from '../components/trip-details/TripHero';
+import TripRouteCard from '../components/trip-details/TripRouteCard';
+import PlanningProgressCard from '../components/trip-details/PlanningProgressCard';
+import SelectedFlightCard from '../components/trip-details/SelectedFlightCard';
+import SelectedHotelCard from '../components/trip-details/SelectedHotelCard';
 
 function formatFullDate(dateStr: string): string {
   if (!dateStr) return 'Date TBD';
@@ -52,13 +51,6 @@ function calcDays(start: string, end: string): number {
   const e = new Date(end);
   return Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 }
-
-const statusVariant: Record<TripStatus, 'upcoming' | 'planning' | 'booked' | 'past'> = {
-  upcoming: 'upcoming',
-  planning: 'planning',
-  booked: 'booked',
-  past: 'past',
-};
 
 interface ChecklistRule {
   label: string;
@@ -141,59 +133,16 @@ const TripDetails: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-neutral-50 animate-fade-in">
-      {/* Hero Section */}
-      <div className="relative w-full h-64 sm:h-72 md:h-80">
-        {trip.image ? (
-          <img
-            src={trip.image}
-            alt={tripName}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-neutral-300 to-neutral-500" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-
-        {/* Edit button */}
-        <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-          <Link
-            to={`/trip/${trip.id}/edit`}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/30 text-white text-sm font-medium bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors"
-          >
-            <Pencil className="w-4 h-4" />
-            Edit Trip
-          </Link>
-        </div>
-
-        {/* Hero content */}
-        <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6 md:p-8">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-1">
-              {tripName}
-            </h1>
-            <p className="text-white/80 text-sm mb-3">
-              {isMultiStop ? routeLabel : orderedStops[0]?.country || trip.country}
-            </p>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/90">
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarDays className="w-4 h-4" />
-                {formatFullDate(trip.startDate)} - {formatFullDate(trip.endDate)}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="w-4 h-4" />
-                {trip.travelers} traveler{trip.travelers !== 1 ? 's' : ''}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <DollarSign className="w-4 h-4" />
-                ${trip.budget.toLocaleString()}
-              </span>
-              <Badge variant={statusVariant[trip.status]}>
-                {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </div>
+      <TripHero
+        tripId={trip.id}
+        image={trip.image}
+        tripName={tripName}
+        routeLabel={isMultiStop ? routeLabel : orderedStops[0]?.country || trip.country}
+        dateLabel={`${formatFullDate(trip.startDate)} - ${formatFullDate(trip.endDate)}`}
+        travelers={trip.travelers}
+        budget={trip.budget}
+        status={trip.status}
+      />
 
       {/* TripNav */}
       <TripNav />
@@ -240,205 +189,24 @@ const TripDetails: React.FC = () => {
           />
         </div>
 
-        {/* Stops Route */}
-        {orderedStops.length > 0 && (
-          <Card hover={false} className="p-6">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
-              <div>
-                <h2 className="text-lg font-semibold text-neutral-900">
-                  {isMultiStop ? 'Trip Route' : 'Destination'}
-                </h2>
-                <p className="text-sm text-neutral-500 mt-1">
-                  {isMultiStop ? routeLabel : `${orderedStops[0].name}${orderedStops[0].country ? `, ${orderedStops[0].country}` : ''}`}
-                </p>
-              </div>
-              {isMultiStop && (
-                <Badge variant="default">
-                  {orderedStops.length} stops
-                </Badge>
-              )}
-            </div>
-
-            <div className={isMultiStop ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4' : 'max-w-md'}>
-              {orderedStops.map((stop, index) => (
-                <div
-                  key={stop.id}
-                  className="relative rounded-xl border border-neutral-100 bg-neutral-50 p-4"
-                >
-                  {isMultiStop && index < orderedStops.length - 1 && (
-                    <div className="hidden xl:block absolute top-8 left-full w-4 h-px bg-neutral-200" />
-                  )}
-                  <div className="flex items-start gap-3">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-600 text-white text-sm font-bold shrink-0">
-                      {stop.order}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-semibold text-neutral-900">
-                        {stop.name}
-                      </h3>
-                      {stop.country && (
-                        <p className="text-xs text-neutral-500 mt-0.5">
-                          {stop.country}
-                        </p>
-                      )}
-                      <p className="text-xs text-neutral-500 mt-2">
-                        {formatFullDate(stop.startDate)} - {formatFullDate(stop.endDate)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
+        <TripRouteCard
+          stops={orderedStops}
+          isMultiStop={isMultiStop}
+          routeLabel={routeLabel}
+          formatDate={formatFullDate}
+        />
 
         {/* Two-column layout for progress + flight/hotel */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Planning Progress Checklist */}
-          <Card hover={false} className="p-6">
-            <h2 className="text-lg font-semibold text-neutral-900 mb-4">
-              Planning Progress
-            </h2>
-            <div className="space-y-3">
-              {CHECKLIST.map((item) => {
-                const checked = trip.planningProgress >= item.threshold;
-                return (
-                  <div key={item.label} className="flex items-center gap-3">
-                    {checked ? (
-                      <CheckCircle2 className="w-5 h-5 text-success-500 flex-shrink-0" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-neutral-300 flex-shrink-0" />
-                    )}
-                    <span
-                      className={`text-sm ${
-                        checked
-                          ? 'text-neutral-700 line-through'
-                          : 'text-neutral-600'
-                      }`}
-                    >
-                      {item.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-5">
-              <ProgressBar
-                value={trip.planningProgress}
-                color="primary"
-                showLabel
-                size="md"
-              />
-            </div>
-          </Card>
+          <PlanningProgressCard
+            checklist={CHECKLIST}
+            progress={trip.planningProgress}
+          />
 
-          {/* Selected Flight Preview */}
-          <Card hover={false} className="p-6">
-            <h2 className="text-lg font-semibold text-neutral-900 mb-4">
-              Selected Flight
-            </h2>
-            {selectedFlight ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-neutral-900">
-                      {selectedFlight.airline}
-                    </p>
-                    <p className="text-sm text-neutral-500">
-                      {selectedFlight.departureAirportCode} -{' '}
-                      {selectedFlight.arrivalAirportCode}
-                    </p>
-                  </div>
-                  <p className="text-lg font-bold text-primary-600">
-                    ${selectedFlight.price}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-neutral-600">
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="w-4 h-4 text-neutral-400" />
-                    {selectedFlight.departureTime} - {selectedFlight.arrivalTime}
-                  </span>
-                  <span>{selectedFlight.duration}</span>
-                  <span>
-                    {selectedFlight.stops === 0
-                      ? 'Nonstop'
-                      : `${selectedFlight.stops} stop${
-                          selectedFlight.stops > 1 ? 's' : ''
-                        }`}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Plane className="w-10 h-10 text-neutral-300 mb-3" />
-                <p className="text-neutral-600 font-medium mb-1">
-                  No flight selected yet
-                </p>
-                <Link
-                  to="flights"
-                  className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
-                >
-                  Browse flights
-                </Link>
-              </div>
-            )}
-          </Card>
+          <SelectedFlightCard flight={selectedFlight} />
         </div>
 
-        {/* Selected Hotel Preview */}
-        <Card hover={false} className="overflow-hidden">
-          <div className="p-6">
-            <h2 className="text-lg font-semibold text-neutral-900 mb-4">
-              Selected Hotel
-            </h2>
-          </div>
-          {selectedHotel ? (
-            <div className="flex flex-col sm:flex-row gap-0 sm:gap-5 px-6 pb-6">
-              <div className="w-full sm:w-48 flex-shrink-0">
-                <ImagePlaceholder
-                  src={selectedHotel.image}
-                  alt={selectedHotel.name}
-                  aspectRatio="square"
-                  className="rounded-xl"
-                />
-              </div>
-              <div className="flex-1 pt-3 sm:pt-0 space-y-2">
-                <h3 className="font-semibold text-neutral-900">
-                  {selectedHotel.name}
-                </h3>
-                <RatingStars
-                  rating={selectedHotel.rating}
-                  showCount
-                  count={selectedHotel.reviewCount}
-                  size="sm"
-                />
-                <div className="flex items-center gap-4 text-sm text-neutral-600">
-                  <span className="font-semibold text-primary-600">
-                    ${selectedHotel.pricePerNight}
-                    <span className="text-neutral-400 font-normal">/night</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-neutral-400" />
-                    {selectedHotel.neighborhood}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 px-6 text-center">
-              <Building2 className="w-10 h-10 text-neutral-300 mb-3" />
-              <p className="text-neutral-600 font-medium mb-1">
-                No hotel selected yet
-              </p>
-              <Link
-                to="hotels"
-                className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
-              >
-                Browse hotels
-              </Link>
-            </div>
-          )}
-        </Card>
+        <SelectedHotelCard hotel={selectedHotel} />
 
         {/* Two-column: Saved Places + Mini Itinerary */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

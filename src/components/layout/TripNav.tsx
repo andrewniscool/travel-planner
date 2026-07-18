@@ -30,7 +30,7 @@ const TRIP_TABS: TripTab[] = [
   { label: 'Summary', icon: ClipboardCheck, path: 'summary' },
 ];
 
-const TripNav: React.FC = () => {
+const TripNav: React.FC<{ className?: string }> = ({ className = '' }) => {
   const { tripId } = useParams<{ tripId: string }>();
 
   if (!tripId) return null;
@@ -39,32 +39,27 @@ const TripNav: React.FC = () => {
 
   const tabClasses = ({ isActive }: { isActive: boolean }) =>
     [
-      'flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors duration-150 border-b-2',
+      'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg',
       isActive
-        ? 'text-primary-600 border-primary-600'
-        : 'text-neutral-500 hover:text-neutral-700 border-transparent',
+        ? 'bg-primary-600 text-white'
+        : 'bg-app-surface-muted text-app-text-muted hover:bg-neutral-200 hover:text-app-text',
     ].join(' ');
 
   return (
-    <nav
-      className="bg-white border-b border-neutral-200"
-      aria-label="Trip navigation"
-    >
-      <div className="overflow-x-auto scrollbar-hide">
-        <ul className="flex min-w-max px-4 sm:px-6 lg:px-8">
-          {TRIP_TABS.map((tab) => (
-            <li key={tab.path}>
-              <NavLink
-                to={tab.path ? `${basePath}/${tab.path}` : basePath}
-                end={tab.path === ''}
-                className={tabClasses}
-              >
-                <tab.icon className="w-4 h-4 flex-shrink-0" />
-                <span>{tab.label}</span>
-              </NavLink>
-            </li>
-          ))}
-        </ul>
+    <nav aria-label="Trip navigation" className={['print:hidden', className].filter(Boolean).join(' ')}>
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {TRIP_TABS.map((tab) => (
+          <NavLink
+            key={tab.path}
+            to={tab.path ? `${basePath}/${tab.path}` : basePath}
+            end={tab.path === ''}
+            className={tabClasses}
+          >
+            <tab.icon className="h-3.5 w-3.5" />
+            {tab.label}
+          </NavLink>
+        ))}
       </div>
     </nav>
   );

@@ -23,7 +23,7 @@ const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
         places.map((place) => (
           <div
             key={place.id}
-            className="flex items-center gap-3 p-3 rounded-xl border border-neutral-100 hover:border-neutral-200 hover:bg-neutral-50 transition-colors"
+            className="flex items-center gap-3 p-3 rounded-xl border border-app-border-muted hover:border-app-border hover:bg-app-surface-subtle transition-colors"
           >
             <img
               src={place.image}
@@ -40,16 +40,14 @@ const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
               }}
             />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-neutral-900 truncate">
-                {place.name}
-              </p>
-              <p className="text-xs text-neutral-500">
+              <p className="text-sm font-semibold text-app-text-strong truncate">{place.name}</p>
+              <p className="text-xs text-app-text-muted">
                 {place.category} - {place.location}
               </p>
             </div>
             <button
               onClick={() => void onAddPlace(place)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors flex-shrink-0"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
             >
               <Plus className="w-3.5 h-3.5" />
               Add
@@ -58,9 +56,9 @@ const SavedPlacesModal: React.FC<SavedPlacesModalProps> = ({
         ))
       ) : (
         <div className="flex flex-col items-center py-8 text-center">
-          <Bookmark className="w-8 h-8 text-neutral-300 mb-2" />
-          <p className="text-sm text-neutral-500">No saved places yet</p>
-          <p className="text-xs text-neutral-400 mt-1">
+          <Bookmark className="w-8 h-8 text-app-text-subtle mb-2" />
+          <p className="text-sm text-app-text-muted">No saved places yet</p>
+          <p className="text-xs text-app-text-subtle mt-1">
             Save places from the Explore page to add them here
           </p>
         </div>

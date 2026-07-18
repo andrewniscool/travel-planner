@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './hooks/AuthProvider';
 import { ThemeProvider } from './hooks/ThemeProvider';
 import LandingLayout from './components/layout/LandingLayout';
@@ -20,38 +20,48 @@ import TripSummary from './pages/TripSummary';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 
+declare const __LANDING_PAGE_ENABLED__: boolean;
+declare const __SIGN_IN_PAGE_ENABLED__: boolean;
+
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-          <Route element={<LandingLayout />}>
-            <Route path="/" element={<Landing />} />
-          </Route>
-          <Route path="/sign-in" element={<SignIn />} />
-          <Route
-            element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/create-trip" element={<CreateTrip />} />
-            <Route path="/trip/:tripId" element={<TripDetails />} />
-            <Route path="/trip/:tripId/edit" element={<CreateTrip />} />
-            <Route path="/trip/:tripId/flights" element={<Flights />} />
-            <Route path="/trip/:tripId/hotels" element={<Hotels />} />
-            <Route path="/trip/:tripId/explore" element={<Explore />} />
-            <Route path="/trip/:tripId/itinerary" element={<Itinerary />} />
-            <Route path="/trip/:tripId/map" element={<MapPage />} />
-            <Route path="/trip/:tripId/budget" element={<Budget />} />
-            <Route path="/trip/:tripId/notes" element={<Notes />} />
-            <Route path="/trip/:tripId/summary" element={<TripSummary />} />
-            <Route path="/profile" element={<Profile />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
+            {__LANDING_PAGE_ENABLED__ ? (
+              <Route element={<LandingLayout />}>
+                <Route path="/" element={<Landing />} />
+              </Route>
+            ) : (
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            )}
+            <Route
+              path="/sign-in"
+              element={__SIGN_IN_PAGE_ENABLED__ ? <SignIn /> : <Navigate to="/dashboard" replace />}
+            />
+            <Route
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/create-trip" element={<CreateTrip />} />
+              <Route path="/trip/:tripId" element={<TripDetails />} />
+              <Route path="/trip/:tripId/edit" element={<CreateTrip />} />
+              <Route path="/trip/:tripId/flights" element={<Flights />} />
+              <Route path="/trip/:tripId/hotels" element={<Hotels />} />
+              <Route path="/trip/:tripId/explore" element={<Explore />} />
+              <Route path="/trip/:tripId/itinerary" element={<Itinerary />} />
+              <Route path="/trip/:tripId/map" element={<MapPage />} />
+              <Route path="/trip/:tripId/budget" element={<Budget />} />
+              <Route path="/trip/:tripId/notes" element={<Notes />} />
+              <Route path="/trip/:tripId/summary" element={<TripSummary />} />
+              <Route path="/profile" element={<Profile />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

@@ -94,14 +94,8 @@ const featureCards: FeatureCard[] = [
 const SignIn: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    user,
-    isLoading,
-    signInWithPassword,
-    signUpWithPassword,
-    signInWithOAuth,
-    isConfigured,
-  } = useAuth();
+  const { user, isLoading, signInWithPassword, signUpWithPassword, signInWithOAuth, isConfigured } =
+    useAuth();
   const [mode, setMode] = useState<AuthMode>('sign-in');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -125,9 +119,7 @@ const SignIn: React.FC = () => {
     location.state.returnTo.startsWith('/')
       ? location.state.returnTo
       : null;
-  const returnTo = returnToParam?.startsWith('/')
-    ? returnToParam
-    : stateReturnTo ?? '/dashboard';
+  const returnTo = returnToParam?.startsWith('/') ? returnToParam : (stateReturnTo ?? '/dashboard');
 
   useEffect(() => {
     if (isConfigured && !isLoading && user) {
@@ -174,11 +166,7 @@ const SignIn: React.FC = () => {
         navigate(returnTo, { replace: true });
       }
     } catch (authError) {
-      setError(
-        authError instanceof Error
-          ? authError.message
-          : 'Authentication failed.',
-      );
+      setError(authError instanceof Error ? authError.message : 'Authentication failed.');
     } finally {
       setIsSubmitting(false);
     }
@@ -201,11 +189,7 @@ const SignIn: React.FC = () => {
       await signInWithOAuth(provider, redirectUrl.toString());
     } catch (authError) {
       setOauthProvider(null);
-      setError(
-        authError instanceof Error
-          ? authError.message
-          : 'Authentication failed.',
-      );
+      setError(authError instanceof Error ? authError.message : 'Authentication failed.');
     }
   };
 
@@ -217,9 +201,7 @@ const SignIn: React.FC = () => {
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100">
               <Compass className="h-5 w-5 text-primary-700" />
             </div>
-            <h1 className="text-3xl font-bold tracking-normal text-primary-700">
-              Travel Builder
-            </h1>
+            <h1 className="text-3xl font-bold tracking-normal text-primary-700">Travel Builder</h1>
             <p className="mt-1 text-sm text-neutral-500">
               {isSignUp
                 ? 'Join our community of organized travelers.'
@@ -240,9 +222,7 @@ const SignIn: React.FC = () => {
               onClick={() => updateMode('sign-in')}
               className={[
                 'relative z-10 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-300',
-                !isSignUp
-                  ? 'text-primary-700'
-                  : 'text-neutral-500 hover:text-neutral-800',
+                !isSignUp ? 'text-primary-700' : 'text-neutral-500 hover:text-neutral-800',
               ].join(' ')}
             >
               Sign In
@@ -252,9 +232,7 @@ const SignIn: React.FC = () => {
               onClick={() => updateMode('sign-up')}
               className={[
                 'relative z-10 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-300',
-                isSignUp
-                  ? 'text-primary-700'
-                  : 'text-neutral-500 hover:text-neutral-800',
+                isSignUp ? 'text-primary-700' : 'text-neutral-500 hover:text-neutral-800',
               ].join(' ')}
             >
               Create Account
@@ -285,10 +263,7 @@ const SignIn: React.FC = () => {
           )}
 
           <div key={mode} className="auth-mode-swap">
-            <form
-              className="flex flex-col gap-4"
-              onSubmit={handleSubmit}
-            >
+            <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
               {isSignUp && (
                 <label className="block">
                   <span className="mb-2 block text-sm font-semibold text-neutral-800">
@@ -325,13 +300,9 @@ const SignIn: React.FC = () => {
 
               <label className="block">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="block text-sm font-semibold text-neutral-800">
-                    Password
-                  </span>
+                  <span className="block text-sm font-semibold text-neutral-800">Password</span>
                   {!isSignUp && (
-                    <span className="text-xs font-medium text-neutral-400">
-                      Password required
-                    </span>
+                    <span className="text-xs font-medium text-neutral-400">Password required</span>
                   )}
                 </div>
                 <div className="group flex items-center rounded-xl border border-neutral-200 bg-white transition-all focus-within:border-primary-600 focus-within:ring-4 focus-within:ring-primary-100">
@@ -349,11 +320,7 @@ const SignIn: React.FC = () => {
                     className="mr-4 text-neutral-400 transition-colors hover:text-primary-700"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
               </label>
@@ -367,23 +334,17 @@ const SignIn: React.FC = () => {
                     <Lock className="ml-4 h-5 w-5 text-neutral-400 transition-colors group-focus-within:text-primary-600" />
                     <input
                       value={confirmPassword}
-                      onChange={(event) =>
-                        setConfirmPassword(event.target.value)
-                      }
+                      onChange={(event) => setConfirmPassword(event.target.value)}
                       className="w-full border-none bg-transparent px-4 py-2.5 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-none focus:ring-0"
                       placeholder="Confirm your password"
                       type={showConfirmPassword ? 'text' : 'password'}
                     />
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowConfirmPassword((visible) => !visible)
-                      }
+                      onClick={() => setShowConfirmPassword((visible) => !visible)}
                       className="mr-4 text-neutral-400 transition-colors hover:text-primary-700"
                       aria-label={
-                        showConfirmPassword
-                          ? 'Hide confirm password'
-                          : 'Show confirm password'
+                        showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'
                       }
                     >
                       {showConfirmPassword ? (
@@ -468,9 +429,7 @@ const SignIn: React.FC = () => {
                           {card.icon}
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold tracking-normal">
-                            {card.title}
-                          </h3>
+                          <h3 className="text-xl font-bold tracking-normal">{card.title}</h3>
                           <p className="text-sm text-white/70">{card.subtitle}</p>
                         </div>
                       </div>

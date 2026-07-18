@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Trip } from '../types';
-import {
-  getAuthenticatedUserId,
-  tripService,
-} from '../services/travelDataService';
+import { getAuthenticatedUserId, tripService } from '../services/travelDataService';
 import { mapTripWithRelationsToTrip } from '../services/tripMappers';
 import { getLocalTrips } from './useTrip';
 

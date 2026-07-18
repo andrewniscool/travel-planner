@@ -7,12 +7,7 @@ interface CardProps {
   onClick?: () => void;
 }
 
-const Card: React.FC<CardProps> = ({
-  children,
-  className = '',
-  hover = true,
-  onClick,
-}) => {
+const Card: React.FC<CardProps> = ({ children, className = '', hover = true, onClick }) => {
   return (
     <div
       onClick={onClick}

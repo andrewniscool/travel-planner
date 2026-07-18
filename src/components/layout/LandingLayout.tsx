@@ -6,9 +6,8 @@ import AuthModal, { type AuthModalMode } from '../auth/AuthModal';
 import { useAuth } from '../../hooks/useAuth';
 
 const NAV_LINKS = [
-  { label: 'Discover', href: '#discover' },
-  { label: 'Destinations', href: '#destinations' },
-  { label: 'Journeys', href: '#journeys' },
+  { label: 'Features', href: '#discover' },
+  { label: 'How it works', href: '#destinations' },
 ];
 
 const LandingLayout: React.FC = () => {
@@ -67,7 +66,7 @@ const LandingLayout: React.FC = () => {
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'bg-app-bg shadow-sm backdrop-blur'
+            ? 'border-b border-app-border-muted bg-app-bg/90 backdrop-blur'
             : 'bg-transparent'
         }`}
       >
@@ -76,11 +75,11 @@ const LandingLayout: React.FC = () => {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
               <span
-                className={`text-xl font-extrabold tracking-normal transition-colors duration-300 ${
-                  scrolled ? 'text-primary-700' : 'text-white'
+                className={`font-display text-2xl font-medium tracking-normal transition-colors duration-300 ${
+                  scrolled ? 'text-app-text-strong' : 'text-white'
                 }`}
               >
-                REFINE
+                Refine
               </span>
             </Link>
 
@@ -136,13 +135,13 @@ const LandingLayout: React.FC = () => {
               {mobileMenuOpen ? (
                 <X
                   className={`w-6 h-6 transition-colors duration-300 ${
-                    scrolled ? 'text-neutral-900' : 'text-white'
+                    scrolled ? 'text-app-text-strong' : 'text-white'
                   }`}
                 />
               ) : (
                 <Menu
                   className={`w-6 h-6 transition-colors duration-300 ${
-                    scrolled ? 'text-neutral-900' : 'text-white'
+                    scrolled ? 'text-app-text-strong' : 'text-white'
                   }`}
                 />
               )}
@@ -152,23 +151,23 @@ const LandingLayout: React.FC = () => {
 
         {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white shadow-lg border-t border-neutral-100">
+          <div className="md:hidden bg-app-surface shadow-lg border-t border-app-border-muted">
             <div className="px-4 py-4 space-y-2">
               {NAV_LINKS.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
                   onClick={(e) => handleScrollTo(e, link.href)}
-                  className="block px-3 py-2 text-sm font-medium text-neutral-700 rounded-lg hover:bg-neutral-50 transition-colors"
+                  className="block px-3 py-2 text-sm font-medium text-app-text-muted rounded-lg hover:bg-app-surface-muted transition-colors"
                 >
                   {link.label}
                 </a>
               ))}
-              <div className="pt-2 border-t border-neutral-100 space-y-2">
+              <div className="pt-2 border-t border-app-border-muted space-y-2">
                 <button
                   type="button"
                   onClick={() => handleAuthAction('sign-in')}
-                  className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+                  className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-app-text-muted transition-colors hover:bg-app-surface-muted"
                 >
                   Log in
                 </button>
@@ -186,7 +185,9 @@ const LandingLayout: React.FC = () => {
       </nav>
 
       {/* Page Content */}
-      <main><Outlet /></main>
+      <main>
+        <Outlet />
+      </main>
       <AuthModal
         isOpen={authModalOpen}
         initialMode={authMode}

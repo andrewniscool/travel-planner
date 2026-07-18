@@ -11,14 +11,8 @@ import { useTrip } from '../hooks/useTrip';
 import { useServiceTrip } from '../hooks/useServiceTrips';
 import { getNotesByTripId, getChecklistByTripId } from '../data/notes';
 import { getWeatherByTripId } from '../data/weather';
-import {
-  getAuthenticatedUserId,
-  notesService,
-} from '../services/travelDataService';
-import {
-  loadTripScopedValue,
-  persistTripScopedValue,
-} from '../utils/tripStorage';
+import { getAuthenticatedUserId, notesService } from '../services/travelDataService';
+import { loadTripScopedValue, persistTripScopedValue } from '../utils/tripStorage';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import NoteForm from '../components/notes/NoteForm';
@@ -31,9 +25,7 @@ const LOCAL_NOTES_KEY = 'travel-builder:notes';
 const LOCAL_CHECKLIST_KEY = 'travel-builder:checklist';
 
 const isUuid = (value: string) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value,
-  );
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
 const loadStoredNotes = (tripId: string, fallbackNotes: Note[]): Note[] => {
   return loadTripScopedValue(LOCAL_NOTES_KEY, tripId, fallbackNotes);
@@ -43,17 +35,11 @@ const persistStoredNotes = (tripId: string, nextNotes: Note[]) => {
   persistTripScopedValue(LOCAL_NOTES_KEY, tripId, nextNotes);
 };
 
-const loadStoredChecklist = (
-  tripId: string,
-  fallbackItems: ChecklistItem[],
-): ChecklistItem[] => {
+const loadStoredChecklist = (tripId: string, fallbackItems: ChecklistItem[]): ChecklistItem[] => {
   return loadTripScopedValue(LOCAL_CHECKLIST_KEY, tripId, fallbackItems);
 };
 
-const persistStoredChecklist = (
-  tripId: string,
-  nextItems: ChecklistItem[],
-) => {
+const persistStoredChecklist = (tripId: string, nextItems: ChecklistItem[]) => {
   persistTripScopedValue(LOCAL_CHECKLIST_KEY, tripId, nextItems);
 };
 
@@ -69,14 +55,8 @@ const Notes: React.FC = () => {
   } = useServiceTrip(routeTripId);
   const trip = serviceTrip ?? fallbackTrip;
   const tripId = trip?.id;
-  const fallbackNotes = useMemo(
-    () => (trip ? getNotesByTripId(trip.id) : []),
-    [trip],
-  );
-  const fallbackChecklist = useMemo(
-    () => (trip ? getChecklistByTripId(trip.id) : []),
-    [trip],
-  );
+  const fallbackNotes = useMemo(() => (trip ? getNotesByTripId(trip.id) : []), [trip]);
+  const fallbackChecklist = useMemo(() => (trip ? getChecklistByTripId(trip.id) : []), [trip]);
   const weather = trip ? getWeatherByTripId(trip.id) : [];
 
   const [showAddNote, setShowAddNote] = useState(false);
@@ -84,22 +64,18 @@ const Notes: React.FC = () => {
   const [newNoteContent, setNewNoteContent] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [localNotes, setLocalNotes] = useState<Note[]>(fallbackNotes);
-  const [localChecklist, setLocalChecklist] =
-    useState<ChecklistItem[]>(fallbackChecklist);
-  const [notesSource, setNotesSource] = useState<'supabase' | 'fallback'>(
-    'fallback',
-  );
+  const [localChecklist, setLocalChecklist] = useState<ChecklistItem[]>(fallbackChecklist);
+  const [notesSource, setNotesSource] = useState<'supabase' | 'fallback'>('fallback');
   const [notesError, setNotesError] = useState<string | null>(null);
   const [isSavingNote, setIsSavingNote] = useState(false);
-  const [newChecklistText, setNewChecklistText] = useState<
-    Record<ChecklistCategory, string>
-  >({
+  const [newChecklistText, setNewChecklistText] = useState<Record<ChecklistCategory, string>>({
     packing: '',
     documents: '',
     reminders: '',
   });
-  const [savingChecklistCategory, setSavingChecklistCategory] =
-    useState<ChecklistCategory | null>(null);
+  const [savingChecklistCategory, setSavingChecklistCategory] = useState<ChecklistCategory | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!tripId) return;
@@ -126,8 +102,7 @@ const Notes: React.FC = () => {
         if (cancelled) return;
 
         const nextNotes = supabaseNotes.length > 0 ? supabaseNotes : storedNotes;
-        const nextChecklist =
-          supabaseChecklist.length > 0 ? supabaseChecklist : storedChecklist;
+        const nextChecklist = supabaseChecklist.length > 0 ? supabaseChecklist : storedChecklist;
 
         setLocalNotes(nextNotes);
         setLocalChecklist(nextChecklist);
@@ -136,9 +111,7 @@ const Notes: React.FC = () => {
         setNotesSource('supabase');
       } catch {
         if (cancelled) return;
-        setNotesError(
-          'Supabase notes could not be loaded. Showing local notes instead.',
-        );
+        setNotesError('Supabase notes could not be loaded. Showing local notes instead.');
       }
     }
 
@@ -179,9 +152,7 @@ const Notes: React.FC = () => {
     if (!toggledItem) return;
 
     const nextItem = { ...toggledItem, checked: !toggledItem.checked };
-    const nextChecklist = localChecklist.map((item) =>
-      item.id === id ? nextItem : item,
-    );
+    const nextChecklist = localChecklist.map((item) => (item.id === id ? nextItem : item));
     updateChecklist(nextChecklist);
 
     if (notesSource !== 'supabase' || !isUuid(id)) return;
@@ -191,9 +162,7 @@ const Notes: React.FC = () => {
       setNotesError(null);
     } catch {
       setNotesSource('fallback');
-      setNotesError(
-        'Supabase checklist update failed. Saved the change locally instead.',
-      );
+      setNotesError('Supabase checklist update failed. Saved the change locally instead.');
     }
   };
 
@@ -208,9 +177,7 @@ const Notes: React.FC = () => {
       setNotesError(null);
     } catch {
       setNotesSource('fallback');
-      setNotesError(
-        'Supabase checklist delete failed. Removed the item locally instead.',
-      );
+      setNotesError('Supabase checklist delete failed. Removed the item locally instead.');
     }
   };
 
@@ -227,9 +194,7 @@ const Notes: React.FC = () => {
       checked: false,
       category,
     };
-    const orderIndex = localChecklist.filter(
-      (item) => item.category === category,
-    ).length;
+    const orderIndex = localChecklist.filter((item) => item.category === category).length;
 
     const saveLocally = (item: ChecklistItem) => {
       updateChecklist([...localChecklist, item]);
@@ -241,10 +206,7 @@ const Notes: React.FC = () => {
       const userId = await getAuthenticatedUserId();
 
       if (userId && notesSource === 'supabase') {
-        const savedItem = await notesService.createChecklistItem(
-          nextItem,
-          orderIndex,
-        );
+        const savedItem = await notesService.createChecklistItem(nextItem, orderIndex);
         saveLocally(savedItem);
         setNotesError(null);
       } else {
@@ -258,9 +220,7 @@ const Notes: React.FC = () => {
     } catch {
       saveLocally(nextItem);
       setNotesSource('fallback');
-      setNotesError(
-        'Supabase checklist save failed. Saved the item locally instead.',
-      );
+      setNotesError('Supabase checklist save failed. Saved the item locally instead.');
       setNewChecklistText((current) => ({ ...current, [category]: '' }));
     } finally {
       setSavingChecklistCategory(null);
@@ -285,9 +245,7 @@ const Notes: React.FC = () => {
     const saveLocally = (note: Note) => {
       updateNotes(
         editingNoteId
-          ? localNotes.map((currentNote) =>
-              currentNote.id === editingNoteId ? note : currentNote,
-            )
+          ? localNotes.map((currentNote) => (currentNote.id === editingNoteId ? note : currentNote))
           : [note, ...localNotes],
       );
     };
@@ -318,9 +276,7 @@ const Notes: React.FC = () => {
     } catch {
       saveLocally(nextNote);
       setNotesSource('fallback');
-      setNotesError(
-        'Supabase note save failed. Saved the note locally instead.',
-      );
+      setNotesError('Supabase note save failed. Saved the note locally instead.');
       setNewNoteTitle('');
       setNewNoteContent('');
       setEditingNoteId(null);
@@ -355,9 +311,7 @@ const Notes: React.FC = () => {
       setNotesError(null);
     } catch {
       setNotesSource('fallback');
-      setNotesError(
-        'Supabase note delete failed. Removed the note locally instead.',
-      );
+      setNotesError('Supabase note delete failed. Removed the note locally instead.');
     }
   };
 
@@ -374,8 +328,7 @@ const Notes: React.FC = () => {
       {(serviceTripError || notesError) && (
         <Card hover={false} className="p-4 border-warning-100 bg-warning-50">
           <p className="text-sm text-warning-700">
-            {notesError ||
-              'Supabase trip data could not be loaded. Showing local notes instead.'}
+            {notesError || 'Supabase trip data could not be loaded. Showing local notes instead.'}
           </p>
         </Card>
       )}

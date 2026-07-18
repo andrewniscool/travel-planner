@@ -1,14 +1,7 @@
 import React from 'react';
 
 type BadgeVariant =
-  | 'upcoming'
-  | 'planning'
-  | 'booked'
-  | 'past'
-  | 'default'
-  | 'success'
-  | 'warning'
-  | 'error';
+  'upcoming' | 'planning' | 'booked' | 'past' | 'default' | 'success' | 'warning' | 'error';
 
 interface BadgeProps {
   variant?: BadgeVariant;
@@ -27,11 +20,7 @@ const variantClasses: Record<BadgeVariant, string> = {
   error: 'bg-error-50 text-error-500',
 };
 
-const Badge: React.FC<BadgeProps> = ({
-  variant = 'default',
-  children,
-  className = '',
-}) => {
+const Badge: React.FC<BadgeProps> = ({ variant = 'default', children, className = '' }) => {
   return (
     <span
       className={[

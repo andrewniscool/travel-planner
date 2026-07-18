@@ -52,7 +52,17 @@ Required browser-safe variables:
 VITE_SUPABASE_URL=
 VITE_SUPABASE_PUBLISHABLE_KEY=
 VITE_ENABLE_MOCK_DATA=false
+landing_page=true
+sign_in_page=true
 ```
+
+Set `landing_page=false` in `.env.local` to skip the landing page and route `/`
+to the dashboard. Restart the Vite dev server after changing it. The landing
+page remains enabled when the variable is omitted.
+
+Set `sign_in_page=false` to skip the sign-in page and bypass authentication in
+development. `/sign-in` will then redirect to the dashboard. The sign-in page
+and authentication protection remain enabled when the variable is omitted.
 
 Required Supabase Edge Function secret:
 

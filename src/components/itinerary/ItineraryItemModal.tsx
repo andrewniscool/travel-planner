@@ -1,14 +1,12 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
 import LocationInput from '../ui/LocationInput';
 import Select from '../ui/Select';
 import { getBudgetCategoryKey } from '../../utils/budget';
-import type {
-  BudgetCategory,
-  ItineraryItemType,
-  LocationRef,
-} from '../../types';
+import type { BudgetCategory, ItineraryItemType, LocationRef } from '../../types';
 
 export type ItineraryModalMode = 'add' | 'edit';
 
@@ -23,9 +21,7 @@ export interface ItineraryItemFormState {
   locationRef: LocationRef | null;
 }
 
-export type ItineraryFormErrors = Partial<
-  Record<keyof ItineraryItemFormState, string>
->;
+export type ItineraryFormErrors = Partial<Record<keyof ItineraryItemFormState, string>>;
 
 const itineraryItemTypes: { value: ItineraryItemType; label: string }[] = [
   { value: 'flight', label: 'Flight' },
@@ -78,22 +74,20 @@ const ItineraryItemModal: React.FC<ItineraryItemModalProps> = ({
   const buttonText = mode === 'add' ? 'Add item' : 'Save changes';
 
   return createPortal(
-    <div
-      className="fixed -inset-px z-[100] bg-black/65 animate-fade-in"
-      onClick={onClose}
-    >
+    <div className="fixed -inset-px z-[100] bg-black/65 animate-fade-in" onClick={onClose}>
       <div className="flex items-center justify-center min-h-screen p-4">
         <form
           onSubmit={onSubmit}
-          className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-neutral-100 animate-slide-up"
+          className="w-full max-w-lg bg-app-surface rounded-2xl shadow-elevated animate-slide-up"
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="flex items-center justify-between p-6 border-b border-neutral-100">
-            <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
+          <div className="flex items-center justify-between p-6 border-b border-app-border-muted">
+            <h2 className="text-lg font-semibold text-app-text">{title}</h2>
             <button
               type="button"
               onClick={onClose}
-              className="p-1 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors"
+              aria-label="Close"
+              className="p-1 rounded-lg text-app-text-subtle hover:text-app-text-muted hover:bg-app-surface-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
             >
               <X className="w-5 h-5" />
             </button>
@@ -101,20 +95,13 @@ const ItineraryItemModal: React.FC<ItineraryItemModalProps> = ({
 
           <div className="p-6 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Time
-                </label>
-                <input
-                  type="time"
-                  value={form.time}
-                  onChange={(event) => onChange('time', event.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-                {errors.time && (
-                  <p className="text-xs text-error-500 mt-1">{errors.time}</p>
-                )}
-              </div>
+              <Input
+                label="Time"
+                type="time"
+                value={form.time}
+                onChange={(event) => onChange('time', event.target.value)}
+                error={errors.time}
+              />
 
               <Select
                 label="Type"
@@ -127,19 +114,12 @@ const ItineraryItemModal: React.FC<ItineraryItemModalProps> = ({
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Name
-              </label>
-              <input
-                value={form.name}
-                onChange={(event) => onChange('name', event.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-              {errors.name && (
-                <p className="text-xs text-error-500 mt-1">{errors.name}</p>
-              )}
-            </div>
+            <Input
+              label="Name"
+              value={form.name}
+              onChange={(event) => onChange('name', event.target.value)}
+              error={errors.name}
+            />
 
             <div>
               <LocationInput
@@ -147,10 +127,7 @@ const ItineraryItemModal: React.FC<ItineraryItemModalProps> = ({
                 value={form.locationRef}
                 onChange={(location) => {
                   onLocationChange(location);
-                  onChange(
-                    'location',
-                    location?.formattedAddress ?? location?.name ?? '',
-                  );
+                  onChange('location', location?.formattedAddress ?? location?.name ?? '');
                 }}
                 placeholder="Search for a place"
                 error={errors.location}
@@ -158,26 +135,15 @@ const ItineraryItemModal: React.FC<ItineraryItemModalProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Estimated cost
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={form.estimatedCost}
-                  onChange={(event) =>
-                    onChange('estimatedCost', event.target.value)
-                  }
-                  className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-                {errors.estimatedCost && (
-                  <p className="text-xs text-error-500 mt-1">
-                    {errors.estimatedCost}
-                  </p>
-                )}
-              </div>
+              <Input
+                label="Estimated cost"
+                type="number"
+                min={0}
+                step="0.01"
+                value={form.estimatedCost}
+                onChange={(event) => onChange('estimatedCost', event.target.value)}
+                error={errors.estimatedCost}
+              />
 
               <div>
                 <Select
@@ -195,41 +161,29 @@ const ItineraryItemModal: React.FC<ItineraryItemModalProps> = ({
                   ]}
                 />
                 {errors.budgetCategory && (
-                  <p className="text-xs text-error-500 mt-1">
-                    {errors.budgetCategory}
-                  </p>
+                  <p className="text-xs text-error-500 mt-1">{errors.budgetCategory}</p>
                 )}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Notes
-              </label>
+              <label className="block text-sm font-medium text-app-text-muted mb-1.5">Notes</label>
               <textarea
                 value={form.notes}
                 onChange={(event) => onChange('notes', event.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-app-border bg-app-surface text-app-text placeholder:text-app-text-subtle focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors resize-none"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-neutral-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-600 hover:bg-neutral-100 transition-colors"
-            >
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-app-border-muted">
+            <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-4 py-2 rounded-xl text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-            >
+            </Button>
+            <Button type="submit" variant="primary" disabled={isSaving}>
               {isSaving ? 'Saving...' : buttonText}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

@@ -1,12 +1,6 @@
 import type { LocationRef, TransportSegment } from '../types';
 
-export type TravelFilter =
-  | 'all'
-  | 'flight'
-  | 'train'
-  | 'transfer'
-  | 'local'
-  | 'missing';
+export type TravelFilter = 'all' | 'flight' | 'train' | 'transfer' | 'local' | 'missing';
 
 export const splitDateTime = (dateTime?: string) => {
   if (!dateTime) return { date: '', time: '' };
@@ -42,9 +36,7 @@ export const calculateDuration = (departure?: string, arrival?: string) => {
   const minutes = Math.round((end - start) / 60000);
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  return [hours ? `${hours}h` : '', mins ? `${mins}m` : '']
-    .filter(Boolean)
-    .join(' ');
+  return [hours ? `${hours}h` : '', mins ? `${mins}m` : ''].filter(Boolean).join(' ');
 };
 
 const getSegmentSortValue = (segment: TransportSegment) => {
@@ -57,10 +49,8 @@ const getSegmentSortValue = (segment: TransportSegment) => {
 export const sortSegmentsByTime = (segments: TransportSegment[]) =>
   [...segments].sort((a, b) => getSegmentSortValue(a) - getSegmentSortValue(b));
 
-export const getLocationName = (
-  location?: LocationRef | null,
-  fallback = '',
-) => location?.name || fallback;
+export const getLocationName = (location?: LocationRef | null, fallback = '') =>
+  location?.name || fallback;
 
 export const isTransferSegment = (segment: TransportSegment) =>
   segment.mode !== 'flight' &&
@@ -89,10 +79,7 @@ export const getMissingDetails = (segment: TransportSegment) => {
   return missing;
 };
 
-export const matchesTravelFilter = (
-  segment: TransportSegment,
-  filter: TravelFilter,
-) => {
+export const matchesTravelFilter = (segment: TransportSegment, filter: TravelFilter) => {
   if (filter === 'all') return true;
   if (filter === 'missing') return getMissingDetails(segment).length > 0;
   if (filter === 'transfer') return isTransferSegment(segment);
@@ -100,11 +87,7 @@ export const matchesTravelFilter = (
     return segment.mode !== 'flight' && segment.role === 'local';
   }
   if (filter === 'train') {
-    return (
-      segment.mode === 'train' ||
-      segment.mode === 'bus' ||
-      segment.mode === 'ferry'
-    );
+    return segment.mode === 'train' || segment.mode === 'bus' || segment.mode === 'ferry';
   }
   return segment.mode === filter;
 };

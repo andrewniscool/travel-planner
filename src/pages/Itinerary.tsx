@@ -1,10 +1,6 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import {
-  MapPin,
-  Calendar,
-  Bookmark,
-} from 'lucide-react';
+import { MapPin, Calendar, Bookmark } from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
 import { getBudgetByTripId } from '../data/budget';
 import { getItineraryByTripId } from '../data/itinerary';
@@ -23,14 +19,8 @@ import {
   getPlaceItineraryTimeOfDay,
   getPlaceItineraryType,
 } from '../services/locationDisplayMappers';
-import {
-  mapLocationRefRowToLocationRef,
-  mapSavedPlaceRowToPlace,
-} from '../services/tripMappers';
-import {
-  loadTripScopedValue,
-  persistTripScopedValue,
-} from '../utils/tripStorage';
+import { mapLocationRefRowToLocationRef, mapSavedPlaceRowToPlace } from '../services/tripMappers';
+import { loadTripScopedValue, persistTripScopedValue } from '../utils/tripStorage';
 import { getBudgetCategoryKey } from '../utils/budget';
 import DaySection from '../components/itinerary/DaySection';
 import ItineraryItemModal, {
@@ -39,6 +29,8 @@ import ItineraryItemModal, {
   type ItineraryModalMode,
 } from '../components/itinerary/ItineraryItemModal';
 import SavedPlacesModal from '../components/itinerary/SavedPlacesModal';
+import Button from '../components/ui/Button';
+import EmptyState from '../components/ui/EmptyState';
 import type {
   BudgetExpense,
   ItineraryDay,
@@ -47,10 +39,7 @@ import type {
   Place,
   LocationRef,
 } from '../types';
-import type {
-  ItineraryItemInsert,
-  ItineraryItemUpdate,
-} from '../services/supabaseTypes';
+import type { ItineraryItemInsert, ItineraryItemUpdate } from '../services/supabaseTypes';
 
 const LOCAL_REMOVED_ITINERARY_ITEMS_KEY = 'travel-builder:removed-itinerary-items';
 const LOCAL_ITINERARY_DAYS_KEY = 'travel-builder:itinerary-days';
@@ -77,25 +66,15 @@ const emptyItineraryForm = (): ItineraryItemFormState => ({
 });
 
 const loadRemovedItems = (tripId: string) => {
-  return new Set(
-    loadTripScopedValue(LOCAL_REMOVED_ITINERARY_ITEMS_KEY, tripId, []),
-  );
+  return new Set(loadTripScopedValue(LOCAL_REMOVED_ITINERARY_ITEMS_KEY, tripId, []));
 };
 
 const persistRemovedItems = (tripId: string, itemIds: Set<string>) => {
-  persistTripScopedValue(
-    LOCAL_REMOVED_ITINERARY_ITEMS_KEY,
-    tripId,
-    [...itemIds],
-  );
+  persistTripScopedValue(LOCAL_REMOVED_ITINERARY_ITEMS_KEY, tripId, [...itemIds]);
 };
 
 const loadStoredItineraryDays = (tripId: string): ItineraryDay[] | null => {
-  return loadTripScopedValue<ItineraryDay[] | null>(
-    LOCAL_ITINERARY_DAYS_KEY,
-    tripId,
-    null,
-  );
+  return loadTripScopedValue<ItineraryDay[] | null>(LOCAL_ITINERARY_DAYS_KEY, tripId, null);
 };
 
 const persistStoredItineraryDays = (tripId: string, days: ItineraryDay[]) => {
@@ -114,15 +93,11 @@ const loadItineraryBudgetLinks = (tripId: string): Record<string, string> => {
   return loadTripScopedValue(LOCAL_ITINERARY_BUDGET_LINKS_KEY, tripId, {});
 };
 
-const persistItineraryBudgetLinks = (
-  tripId: string,
-  links: Record<string, string>,
-) => {
+const persistItineraryBudgetLinks = (tripId: string, links: Record<string, string>) => {
   persistTripScopedValue(LOCAL_ITINERARY_BUDGET_LINKS_KEY, tripId, links);
 };
 
-const getItineraryExpenseId = (itemId: string) =>
-  `${ITINERARY_EXPENSE_PREFIX}-${itemId}`;
+const getItineraryExpenseId = (itemId: string) => `${ITINERARY_EXPENSE_PREFIX}-${itemId}`;
 
 const findItineraryExpense = (
   expenses: BudgetExpense[],
@@ -150,24 +125,15 @@ const getDaySection = (
 const Itinerary: React.FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
   const fallbackTrip = useTrip();
-  const {
-    trip: serviceTrip,
-    error: serviceTripError,
-    source: tripSource,
-  } = useServiceTrip(tripId);
+  const { trip: serviceTrip, error: serviceTripError, source: tripSource } = useServiceTrip(tripId);
   const trip = serviceTrip ?? fallbackTrip;
-  const fallbackItineraryData = useMemo(
-    () => (trip ? getItineraryByTripId(trip.id) : []),
-    [trip],
-  );
-  const [itineraryData, setItineraryData] = useState<ItineraryDay[]>(
-    fallbackItineraryData,
-  );
+  const fallbackItineraryData = useMemo(() => (trip ? getItineraryByTripId(trip.id) : []), [trip]);
+  const [itineraryData, setItineraryData] = useState<ItineraryDay[]>(fallbackItineraryData);
   const [itinerarySource, setItinerarySource] = useState<'supabase' | 'fallback'>('fallback');
   const [itineraryError, setItineraryError] = useState<string | null>(null);
   const savedPlaces = useMemo(
     () => (trip ? getPlacesByTripId(trip.id).filter((p) => p.isSaved) : []),
-    [trip]
+    [trip],
   );
   const [serviceSavedPlaces, setServiceSavedPlaces] = useState<Place[]>([]);
   const availableSavedPlaces = useMemo(() => {
@@ -178,12 +144,12 @@ const Itinerary: React.FC = () => {
     return [...placesById.values()];
   }, [savedPlaces, serviceSavedPlaces]);
   const budgetCategories = useMemo(
-    () => (trip ? getBudgetByTripId(trip.id)?.categories ?? [] : []),
+    () => (trip ? (getBudgetByTripId(trip.id)?.categories ?? []) : []),
     [trip],
   );
   const orderedStops = useMemo(
     () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
-    [trip]
+    [trip],
   );
   const primaryStop = trip ? getPrimaryStop(trip) : undefined;
   const isMultiStop = trip ? isMultiStopTrip(trip) : false;
@@ -191,16 +157,14 @@ const Itinerary: React.FC = () => {
   const [removedItems, setRemovedItems] = useState<Set<string>>(new Set());
   const [showSavedPlacesModal, setShowSavedPlacesModal] = useState(false);
   const [itemModal, setItemModal] = useState<ItineraryModalState | null>(null);
-  const [itemForm, setItemForm] = useState<ItineraryItemFormState>(
-    emptyItineraryForm,
-  );
+  const [itemForm, setItemForm] = useState<ItineraryItemFormState>(emptyItineraryForm);
   const [itemFormErrors, setItemFormErrors] = useState<ItineraryFormErrors>({});
   const [isSavingItem, setIsSavingItem] = useState(false);
   const [budgetExpenses, setBudgetExpenses] = useState<BudgetExpense[]>(() =>
     trip ? loadStoredExpenses(trip.id) : [],
   );
-  const [budgetExpenseLinks, setBudgetExpenseLinks] = useState<Record<string, string>>(
-    () => (trip ? loadItineraryBudgetLinks(trip.id) : {}),
+  const [budgetExpenseLinks, setBudgetExpenseLinks] = useState<Record<string, string>>(() =>
+    trip ? loadItineraryBudgetLinks(trip.id) : {},
   );
 
   useEffect(() => {
@@ -245,7 +209,9 @@ const Itinerary: React.FC = () => {
         persistStoredExpenses(trip.id, expenses);
       } catch {
         if (cancelled) return;
-        setItineraryError('Supabase itinerary could not be loaded. Showing local itinerary instead.');
+        setItineraryError(
+          'Supabase itinerary could not be loaded. Showing local itinerary instead.',
+        );
       }
     }
 
@@ -257,9 +223,8 @@ const Itinerary: React.FC = () => {
   }, [fallbackItineraryData, trip, tripSource]);
 
   const getStopForDay = useCallback(
-    (day: ItineraryDay) =>
-      orderedStops.find((stop) => stop.id === day.stopId) ?? primaryStop,
-    [orderedStops, primaryStop]
+    (day: ItineraryDay) => orderedStops.find((stop) => stop.id === day.stopId) ?? primaryStop,
+    [orderedStops, primaryStop],
   );
 
   // Build a map of items keyed by "dayNumber-timeOfDay"
@@ -300,9 +265,7 @@ const Itinerary: React.FC = () => {
   };
 
   const getBudgetCategoryByKey = (categoryKey: string) =>
-    budgetCategories.find(
-      (category) => getBudgetCategoryKey(category) === categoryKey,
-    );
+    budgetCategories.find((category) => getBudgetCategoryKey(category) === categoryKey);
 
   const openAddItemModal = (dayNumber: number, timeOfDay: TimeOfDay) => {
     setItemModal({ mode: 'add', dayNumber, timeOfDay });
@@ -314,11 +277,7 @@ const Itinerary: React.FC = () => {
     const section = getDaySection(itineraryData, item.id);
     if (!section) return;
 
-    const linkedExpense = findItineraryExpense(
-      budgetExpenses,
-      item,
-      budgetExpenseLinks,
-    );
+    const linkedExpense = findItineraryExpense(budgetExpenses, item, budgetExpenseLinks);
     const linkedCategory = linkedExpense
       ? budgetCategories.find(
           (category) =>
@@ -352,10 +311,7 @@ const Itinerary: React.FC = () => {
     setItemFormErrors({});
   };
 
-  const handleItemFormChange = (
-    field: keyof ItineraryItemFormState,
-    value: string,
-  ) => {
+  const handleItemFormChange = (field: keyof ItineraryItemFormState, value: string) => {
     setItemForm((currentForm) => ({
       ...currentForm,
       [field]: value,
@@ -380,8 +336,7 @@ const Itinerary: React.FC = () => {
 
   const validateItemForm = () => {
     const errors: ItineraryFormErrors = {};
-    const cost =
-      itemForm.estimatedCost.trim() === '' ? 0 : Number(itemForm.estimatedCost);
+    const cost = itemForm.estimatedCost.trim() === '' ? 0 : Number(itemForm.estimatedCost);
 
     if (!itemForm.time) errors.time = 'Time is required.';
     if (!itemForm.name.trim()) errors.name = 'Name is required.';
@@ -413,10 +368,7 @@ const Itinerary: React.FC = () => {
     const locationRef =
       userId && item.locationRef?.googlePlaceId
         ? mapLocationRefRowToLocationRef(
-            await locationRefService.upsertGoogleLocationRef(
-              userId,
-              item.locationRef,
-            ),
+            await locationRefService.upsertGoogleLocationRef(userId, item.locationRef),
           )
         : item.locationRef;
 
@@ -463,8 +415,7 @@ const Itinerary: React.FC = () => {
 
     const category = getBudgetCategoryByKey(categoryKey);
     const existingExpense =
-      existingExpenseOverride ??
-      findItineraryExpense(budgetExpenses, item, budgetExpenseLinks);
+      existingExpenseOverride ?? findItineraryExpense(budgetExpenses, item, budgetExpenseLinks);
     const nextExpenses = existingExpense
       ? budgetExpenses.filter((expense) => expense.id !== existingExpense.id)
       : budgetExpenses;
@@ -478,7 +429,9 @@ const Itinerary: React.FC = () => {
             await budgetService.deleteBudgetExpense(existingExpense.id);
           } catch {
             setItinerarySource('fallback');
-            setItineraryError('Supabase budget update failed. Saved budget changes locally instead.');
+            setItineraryError(
+              'Supabase budget update failed. Saved budget changes locally instead.',
+            );
           }
         }
         updateLocalBudgetExpenses(nextExpenses);
@@ -526,13 +479,10 @@ const Itinerary: React.FC = () => {
     event.preventDefault();
     if (!trip || !itemModal || !validateItemForm()) return;
 
-    const day = itineraryData.find(
-      (currentDay) => currentDay.dayNumber === itemModal.dayNumber,
-    );
+    const day = itineraryData.find((currentDay) => currentDay.dayNumber === itemModal.dayNumber);
     if (!day) return;
 
-    const cost =
-      itemForm.estimatedCost.trim() === '' ? 0 : Number(itemForm.estimatedCost);
+    const cost = itemForm.estimatedCost.trim() === '' ? 0 : Number(itemForm.estimatedCost);
     const existingItem =
       itemModal.mode === 'edit' && itemModal.itemId
         ? getDaySection(itineraryData, itemModal.itemId)?.item
@@ -554,7 +504,10 @@ const Itinerary: React.FC = () => {
     const sectionItems = day[itemModal.timeOfDay];
     const orderIndex =
       itemModal.mode === 'edit' && itemModal.itemId
-        ? Math.max(sectionItems.findIndex((item) => item.id === itemModal.itemId), 0)
+        ? Math.max(
+            sectionItems.findIndex((item) => item.id === itemModal.itemId),
+            0,
+          )
         : sectionItems.length;
 
     const applySavedItem = (savedItem: ItineraryItem) => {
@@ -563,9 +516,7 @@ const Itinerary: React.FC = () => {
         const currentItems = currentDay[itemModal.timeOfDay];
         const nextItems =
           itemModal.mode === 'edit' && itemModal.itemId
-            ? currentItems.map((item) =>
-                item.id === itemModal.itemId ? savedItem : item,
-              )
+            ? currentItems.map((item) => (item.id === itemModal.itemId ? savedItem : item))
             : [...currentItems, savedItem];
 
         return {
@@ -657,8 +608,7 @@ const Itinerary: React.FC = () => {
     if (!trip) return;
 
     const targetDay =
-      itineraryData.find((day) => day.stopId && day.stopId === place.stopId) ??
-      itineraryData[0];
+      itineraryData.find((day) => day.stopId && day.stopId === place.stopId) ?? itineraryData[0];
     if (!targetDay) return;
 
     const timeOfDay = getPlaceItineraryTimeOfDay(place);
@@ -711,96 +661,113 @@ const Itinerary: React.FC = () => {
 
   if (itineraryData.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 animate-fade-in">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Itinerary</h1>
-          <p className="text-sm text-neutral-500 mt-1">
-            Plan your day-by-day schedule
-          </p>
-          {(serviceTripError || itineraryError) && (
-            <p className="text-sm text-warning-700 mt-2">
-              {itineraryError || 'Supabase trip data could not be loaded. Showing local itinerary instead.'}
-            </p>
-          )}
+          <h1 className="font-display text-2xl font-semibold text-app-text-strong sm:text-[1.75rem]">
+            Itinerary
+          </h1>
+          <p className="mt-1 text-sm text-app-text-muted">Plan your day-by-day schedule</p>
         </div>
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-neutral-100 text-neutral-400 mb-4">
-            <Calendar className="w-8 h-8" />
+        {(serviceTripError || itineraryError) && (
+          <div className="rounded-xl border border-warning-100 bg-warning-50 px-4 py-3 text-sm text-warning-700">
+            {itineraryError ||
+              'Supabase trip data could not be loaded. Showing local itinerary instead.'}
           </div>
-          <h3 className="text-lg font-semibold text-neutral-900 mb-1">No itinerary yet</h3>
-          <p className="text-sm text-neutral-500 max-w-sm">
-            Start building your day-by-day itinerary by adding places and activities.
-          </p>
-        </div>
+        )}
+        <EmptyState
+          icon={<Calendar className="h-8 w-8" />}
+          title="No itinerary yet"
+          description="Start building your day-by-day itinerary by adding places and activities."
+        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Itinerary</h1>
-          <p className="text-sm text-neutral-500 mt-1">
-            {itineraryData.length} day{itineraryData.length !== 1 ? 's' : ''} for {trip ? getTripDisplayName(trip) : 'your trip'}
+          <h1 className="font-display text-2xl font-semibold text-app-text-strong sm:text-[1.75rem]">
+            Itinerary
+          </h1>
+          <p className="mt-1 text-sm text-app-text-muted">
+            {itineraryData.length} day{itineraryData.length !== 1 ? 's' : ''} for{' '}
+            {trip ? getTripDisplayName(trip) : 'your trip'}
           </p>
-          {(serviceTripError || itineraryError) && (
-            <p className="text-sm text-warning-700 mt-2">
-              {itineraryError || 'Supabase trip data could not be loaded. Showing local itinerary instead.'}
-            </p>
-          )}
         </div>
 
         {availableSavedPlaces.length > 0 && (
-          <button
-            onClick={() => setShowSavedPlacesModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 transition-colors"
-          >
-            <Bookmark className="w-4 h-4" />
+          <Button variant="primary" size="md" onClick={() => setShowSavedPlacesModal(true)}>
+            <Bookmark className="mr-2 h-4 w-4" />
             Add from Saved Places
-          </button>
+          </Button>
         )}
       </div>
 
-      {/* Day-by-Day Layout */}
-      <div className="space-y-10">
-        {itineraryData.map((day, index) => {
-          const stop = getStopForDay(day);
-          const previousStop = index > 0 ? getStopForDay(itineraryData[index - 1]) : undefined;
-          const showTransition = isMultiStop && stop && stop.id !== previousStop?.id;
-          const dayItems = [
-            ...day.morning,
-            ...day.afternoon,
-            ...day.evening,
-          ];
-          const isTravelDay = dayItems.some((item) => item.type === 'transport' || item.type === 'flight');
+      {(serviceTripError || itineraryError) && (
+        <div className="rounded-xl border border-warning-100 bg-warning-50 px-4 py-3 text-sm text-warning-700">
+          {itineraryError ||
+            'Supabase trip data could not be loaded. Showing local itinerary instead.'}
+        </div>
+      )}
 
-          return (
-            <div key={day.dayNumber} className="space-y-4">
-              {showTransition && (
-                <div className="flex items-center gap-3">
-                  <div className="h-px flex-1 bg-neutral-200" />
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-neutral-200 text-sm font-medium text-neutral-700 shadow-sm">
-                    <MapPin className="w-4 h-4 text-primary-500" />
-                    {stop.name}
+      <div className="max-w-3xl space-y-6">
+        {itineraryData.length >= 4 && (
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {itineraryData.map((day) => (
+              <a
+                key={day.dayNumber}
+                href={`#day-${day.dayNumber}`}
+                className="whitespace-nowrap rounded-full bg-app-surface-muted px-3 py-1.5 text-xs font-medium text-app-text-muted transition-colors hover:bg-neutral-200 hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
+              >
+                Day {day.dayNumber}
+              </a>
+            ))}
+          </div>
+        )}
+
+        {/* Day-by-Day Layout */}
+        <div className="space-y-10">
+          {itineraryData.map((day, index) => {
+            const stop = getStopForDay(day);
+            const previousStop = index > 0 ? getStopForDay(itineraryData[index - 1]) : undefined;
+            const showTransition = isMultiStop && stop && stop.id !== previousStop?.id;
+            const dayItems = [...day.morning, ...day.afternoon, ...day.evening];
+            const isTravelDay = dayItems.some(
+              (item) => item.type === 'transport' || item.type === 'flight',
+            );
+
+            return (
+              <div
+                key={day.dayNumber}
+                id={`day-${day.dayNumber}`}
+                className="scroll-mt-20 space-y-4"
+              >
+                {showTransition && (
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-app-border-muted" />
+                    <div className="inline-flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-3 py-1.5 text-sm font-medium text-app-text shadow-card">
+                      <MapPin className="w-4 h-4 text-primary-500" />
+                      {stop.name}
+                    </div>
+                    <div className="h-px flex-1 bg-app-border-muted" />
                   </div>
-                  <div className="h-px flex-1 bg-neutral-200" />
-                </div>
-              )}
-              <DaySection
-                day={day}
-                stop={stop}
-                showStopLabel={isMultiStop}
-                isTravelDay={isTravelDay}
-                itemsMap={itemsMap}
-                onAddItem={openAddItemModal}
-                onEditItem={openEditItemModal}
-                onRemoveItem={handleRemoveItem}
-              />
-            </div>
-          );
-        })}
+                )}
+                <DaySection
+                  day={day}
+                  stop={stop}
+                  showStopLabel={isMultiStop}
+                  isTravelDay={isTravelDay}
+                  itemsMap={itemsMap}
+                  onAddItem={openAddItemModal}
+                  onEditItem={openEditItemModal}
+                  onRemoveItem={handleRemoveItem}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <ItineraryItemModal

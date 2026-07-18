@@ -63,16 +63,14 @@ const Select: React.FC<SelectProps> = ({
   return (
     <div ref={rootRef} className={['relative', className].filter(Boolean).join(' ')}>
       {label && (
-        <label className="mb-1.5 block text-sm font-medium text-neutral-700">
-          {label}
-        </label>
+        <label className="mb-1.5 block text-sm font-medium text-app-text-muted">{label}</label>
       )}
       <button
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen((current) => !current)}
         className={[
-          'flex w-full items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-left text-sm text-neutral-900 shadow-sm transition-all hover:border-neutral-300 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-60',
+          'flex w-full items-center justify-between gap-3 rounded-xl border border-app-border bg-app-surface px-4 py-2.5 text-left text-sm text-app-text shadow-sm transition-all hover:border-app-text-subtle focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-60',
           buttonClassName,
         ]
           .filter(Boolean)
@@ -83,18 +81,22 @@ const Select: React.FC<SelectProps> = ({
         aria-label={ariaLabel ?? label ?? placeholder}
       >
         <span className="min-w-0">
-          <span className={selectedOption ? 'block truncate font-medium' : 'block truncate text-neutral-400'}>
+          <span
+            className={
+              selectedOption ? 'block truncate font-medium' : 'block truncate text-app-text-subtle'
+            }
+          >
             {selectedOption?.selectedLabel ?? selectedOption?.label ?? placeholder}
           </span>
           {selectedOption?.description && (
-            <span className="mt-0.5 block truncate text-xs text-neutral-500">
+            <span className="mt-0.5 block truncate text-xs text-app-text-muted">
               {selectedOption.description}
             </span>
           )}
         </span>
         <ChevronDown
           className={[
-            'h-4 w-4 shrink-0 text-neutral-400 transition-transform',
+            'h-4 w-4 shrink-0 text-app-text-subtle transition-transform',
             isOpen ? 'rotate-180' : '',
           ].join(' ')}
         />
@@ -103,17 +105,13 @@ const Select: React.FC<SelectProps> = ({
       {isOpen && (
         <div
           className={[
-            'absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl',
+            'absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-app-border-muted bg-app-surface shadow-elevated',
             dropdownClassName,
           ]
             .filter(Boolean)
             .join(' ')}
         >
-          <div
-            id={listboxId}
-            role="listbox"
-            className="max-h-72 overflow-y-auto p-1.5"
-          >
+          <div id={listboxId} role="listbox" className="max-h-72 overflow-y-auto p-1.5">
             {options.map((option) => {
               const isSelected = option.value === value;
 
@@ -131,13 +129,13 @@ const Select: React.FC<SelectProps> = ({
                     'flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors',
                     isSelected
                       ? 'bg-primary-50 text-primary-700'
-                      : 'text-neutral-700 hover:bg-neutral-50',
+                      : 'text-app-text hover:bg-app-surface-muted',
                   ].join(' ')}
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{option.label}</span>
                     {option.description && (
-                      <span className="mt-0.5 block truncate text-xs text-neutral-500">
+                      <span className="mt-0.5 block truncate text-xs text-app-text-muted">
                         {option.description}
                       </span>
                     )}

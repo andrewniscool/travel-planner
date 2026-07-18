@@ -1,46 +1,43 @@
 import React from 'react';
-import {
-  ArrowRight,
-  CalendarDays,
-  Heart,
-  Hotel,
-  MapPin,
-  Plane,
-  Sparkles,
-  Star,
-  Users,
-  Wallet,
-} from 'lucide-react';
+import { ArrowRight, BedDouble, CalendarDays, ChevronDown, Plane, Wallet } from 'lucide-react';
+import { motion, useReducedMotion, type Variants } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import type { AuthModalMode } from '../components/auth/AuthModal';
 import LandingTripSearch from '../components/landing/LandingTripSearch';
 
 const heroImage =
-  'https://images.pexels.com/photos/2662116/pexels-photo-2662116.jpeg?auto=compress&cs=tinysrgb&w=1800';
-const ctaImage =
-  'https://images.pexels.com/photos/3769135/pexels-photo-3769135.jpeg?auto=compress&cs=tinysrgb&w=1000';
+  'https://images.pexels.com/photos/1642125/pexels-photo-1642125.jpeg?auto=compress&cs=tinysrgb&w=2000';
+const collagePrimary =
+  'https://images.pexels.com/photos/273204/pexels-photo-273204.jpeg?auto=compress&cs=tinysrgb&w=1000';
+const collageSecondary =
+  'https://images.pexels.com/photos/402028/pexels-photo-402028.jpeg?auto=compress&cs=tinysrgb&w=800';
+const journeyStripImages = [
+  'https://images.pexels.com/photos/2662116/pexels-photo-2662116.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/2387871/pexels-photo-2387871.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/3769135/pexels-photo-3769135.jpeg?auto=compress&cs=tinysrgb&w=800',
+];
 
-const features = [
+const layers = [
   {
     icon: Plane,
-    title: 'Flights',
-    description: 'Intelligent routing and seat decisions tuned to comfort.',
+    title: 'Flights & transport',
+    description: 'Every segment of the route, held in one calm view.',
   },
   {
-    icon: Hotel,
-    title: 'Hotels',
-    description: 'Boutique stays and architectural retreats worth the detour.',
+    icon: BedDouble,
+    title: 'Stays',
+    description: 'Compare lodging by place, not by endless tabs.',
   },
   {
     icon: CalendarDays,
-    title: 'Itineraries',
-    description: 'Slow-paced schedules designed for presence, not rushing.',
+    title: 'Itinerary',
+    description: 'A day-by-day rhythm that leaves room to breathe.',
   },
   {
     icon: Wallet,
-    title: 'Budgeting',
-    description: 'Transparent tracking so the experience stays in focus.',
+    title: 'Budget',
+    description: 'Track what a trip costs while it takes shape.',
   },
 ];
 
@@ -48,60 +45,17 @@ const steps = [
   {
     number: '01',
     title: 'Create',
-    description:
-      'Define your intent, from rest to discovery, before the route takes shape.',
+    description: 'Name a destination — or a whole multi-stop journey — and give it a shape.',
   },
   {
     number: '02',
     title: 'Compare',
-    description:
-      'Evaluate routes, stays, and experiences by quality, pace, and fit.',
+    description: 'Weigh stays, routes, and experiences side by side, at your own pace.',
   },
   {
     number: '03',
     title: 'Build',
-    description:
-      'Turn the final plan into a calm digital concierge for the whole trip.',
-  },
-];
-
-const itineraries = [
-  {
-    place: 'Kyoto, Japan',
-    theme: 'Zen Retreat & Tea Ceremonies',
-    dates: 'Oct 12 - 19',
-    price: '$3,450',
-    rating: '4.95',
-    image:
-      'https://images.pexels.com/photos/402028/pexels-photo-402028.jpeg?auto=compress&cs=tinysrgb&w=900',
-  },
-  {
-    place: 'Positano, Italy',
-    theme: 'Coastal Slow-Living',
-    dates: 'Sep 24 - Oct 2',
-    price: '$5,200',
-    rating: '4.98',
-    badge: 'Refine Choice',
-    image:
-      'https://images.pexels.com/photos/1642125/pexels-photo-1642125.jpeg?auto=compress&cs=tinysrgb&w=900',
-  },
-  {
-    place: 'Sedona, USA',
-    theme: 'High-Desert Meditation',
-    dates: 'Nov 5 - 12',
-    price: '$2,800',
-    rating: '4.89',
-    image:
-      'https://images.pexels.com/photos/273204/pexels-photo-273204.jpeg?auto=compress&cs=tinysrgb&w=900',
-  },
-  {
-    place: 'Geiranger, Norway',
-    theme: 'Fjord Discovery & Solitude',
-    dates: 'Dec 1 - 8',
-    price: '$4,100',
-    rating: '4.92',
-    image:
-      'https://images.pexels.com/photos/2387871/pexels-photo-2387871.jpeg?auto=compress&cs=tinysrgb&w=900',
+    description: 'Turn the plan into a living itinerary you carry with you the whole way.',
   },
 ];
 
@@ -116,6 +70,7 @@ const openAuthModal = (mode: AuthModalMode) => {
 const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const prefersReducedMotion = useReducedMotion();
 
   const handleGuestStart = () => {
     if (user) {
@@ -126,226 +81,293 @@ const Landing: React.FC = () => {
     openAuthModal('sign-up');
   };
 
+  const container: Variants = {
+    hidden: {},
+    show: {
+      transition: {
+        staggerChildren: prefersReducedMotion ? 0 : 0.12,
+        delayChildren: prefersReducedMotion ? 0 : 0.08,
+      },
+    },
+  };
+
+  const item: Variants = {
+    hidden: { opacity: 0, y: prefersReducedMotion ? 0 : 22 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: prefersReducedMotion ? 0 : 0.65,
+        ease: [0.22, 1, 0.36, 1],
+      },
+    },
+  };
+
+  const revealViewport = { once: true, amount: 0.35 } as const;
+
   return (
     <div className="min-h-screen bg-app-bg text-app-text">
-      <section className="relative flex min-h-[820px] items-center justify-center overflow-hidden pt-20">
-        <div className="absolute inset-0">
-          <img
+      <section id="hero" className="relative flex min-h-[92svh] flex-col overflow-visible">
+        <div className="absolute inset-0 overflow-hidden">
+          <motion.img
             src={heroImage}
-            alt="Misty emerald lake beneath mountains at sunrise"
+            alt="Golden-hour light over a coastal cliffside village"
             className="h-full w-full object-cover"
+            initial={{ scale: 1.06 }}
+            animate={{ scale: prefersReducedMotion ? 1.06 : 1.14 }}
+            transition={{ duration: 20, ease: 'easeOut' }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/35 to-app-bg" />
-          <div className="absolute inset-0 bg-black/15" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1e1710]/60 via-[#1e1710]/30 to-app-bg" />
         </div>
 
-        <div className="relative z-10 mx-auto max-w-3xl px-6 text-center">
-          <p className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-semibold text-app-text shadow-sm backdrop-blur">
-            <Sparkles className="h-4 w-4 text-primary-700" />
-            Intentional travel, carefully composed
-          </p>
-          <h1 className="text-4xl font-extrabold leading-tight tracking-normal text-white drop-shadow-[0_3px_18px_rgba(0,0,0,0.45)] sm:text-5xl lg:text-6xl">
-            Plan your next journey with intention
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-base font-medium leading-7 text-white/90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)] sm:text-lg">
-            Discover curated experiences and thoughtfully paced itineraries
-            tailored to your rhythm of life.
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6 pb-24 pt-32 text-center"
+        >
+          <motion.p
+            variants={item}
+            className="mb-6 text-xs font-semibold uppercase tracking-eyebrow text-white/80"
+          >
+            Intentional travel, thoughtfully composed
+          </motion.p>
+
+          <motion.h1
+            variants={item}
+            className="max-w-3xl font-display text-display font-medium text-white drop-shadow-[0_4px_24px_rgba(20,15,10,0.4)]"
+          >
+            Where will your <span className="italic text-primary-200">story</span> take you?
+          </motion.h1>
+
+          <motion.p
+            variants={item}
+            className="mx-auto mt-6 max-w-xl text-base font-medium leading-7 text-white/85 drop-shadow-[0_2px_12px_rgba(20,15,10,0.4)] sm:text-lg"
+          >
+            One quiet workspace for the whole journey — from the first &ldquo;where to?&rdquo; to
+            the last day of the trip.
+          </motion.p>
+
+          <motion.div variants={item} className="mt-10 w-full max-w-4xl">
+            <LandingTripSearch onSearch={handleGuestStart} />
+          </motion.div>
+        </motion.div>
+
+        <motion.a
+          href="#discover"
+          aria-label="Explore what you can plan"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: prefersReducedMotion ? 1 : [0.4, 1, 0.4] }}
+          transition={
+            prefersReducedMotion
+              ? { duration: 0 }
+              : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }
+          }
+          className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 text-white/80"
+        >
+          <ChevronDown className="h-6 w-6" />
+        </motion.a>
+      </section>
+
+      {/* Feature moment A — plan every layer */}
+      <section id="discover" className="mx-auto max-w-6xl px-6 py-28 lg:py-32">
+        <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-20">
+          <motion.div
+            variants={container}
+            initial="hidden"
+            whileInView="show"
+            viewport={revealViewport}
+            className="relative order-last lg:order-first"
+          >
+            <motion.div
+              variants={item}
+              className="overflow-hidden rounded-[1.75rem] shadow-elevated"
+            >
+              <img
+                src={collagePrimary}
+                alt="Warm desert canyon at dusk"
+                className="aspect-[4/5] w-full object-cover"
+              />
+            </motion.div>
+            <motion.div
+              variants={item}
+              className="absolute -bottom-8 -right-4 hidden w-44 -rotate-3 overflow-hidden rounded-2xl border-4 border-app-bg shadow-elevated sm:block lg:w-52"
+            >
+              <img
+                src={collageSecondary}
+                alt="Lantern-lit temple street"
+                className="aspect-square w-full object-cover"
+              />
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            variants={container}
+            initial="hidden"
+            whileInView="show"
+            viewport={revealViewport}
+          >
+            <motion.p
+              variants={item}
+              className="text-xs font-semibold uppercase tracking-eyebrow text-primary-700"
+            >
+              Plan every layer
+            </motion.p>
+            <motion.h2
+              variants={item}
+              className="mt-4 font-display text-section-title font-medium text-app-text-strong sm:text-4xl"
+            >
+              Everything the trip needs, nothing it doesn&rsquo;t.
+            </motion.h2>
+            <motion.p
+              variants={item}
+              className="mt-4 max-w-md text-base leading-7 text-app-text-muted"
+            >
+              Flights, stays, places, and spending live together — so the plan stays whole instead
+              of scattered across a dozen tabs.
+            </motion.p>
+
+            <motion.div
+              variants={item}
+              className="mt-10 grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2"
+            >
+              {layers.map((layer) => (
+                <div key={layer.title} className="flex gap-4">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600">
+                    <layer.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-app-text-strong">{layer.title}</h3>
+                    <p className="mt-1 text-sm leading-6 text-app-text-muted">
+                      {layer.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      <section id="destinations" className="bg-app-surface-muted py-28 lg:py-32">
+        <div className="mx-auto max-w-6xl px-6">
+          <motion.div
+            variants={container}
+            initial="hidden"
+            whileInView="show"
+            viewport={revealViewport}
+            className="max-w-2xl"
+          >
+            <motion.p
+              variants={item}
+              className="text-xs font-semibold uppercase tracking-eyebrow text-accent-600"
+            >
+              From idea to itinerary
+            </motion.p>
+            <motion.h2
+              variants={item}
+              className="mt-4 font-display text-section-title font-medium text-app-text-strong sm:text-4xl"
+            >
+              Three unhurried steps, from a spark to a route.
+            </motion.h2>
+          </motion.div>
+
+          <motion.div
+            variants={container}
+            initial="hidden"
+            whileInView="show"
+            viewport={revealViewport}
+            className="mt-16 grid gap-12 md:grid-cols-3"
+          >
+            {steps.map((step) => (
+              <motion.article key={step.number} variants={item}>
+                <span className="font-display text-6xl font-medium text-primary-200">
+                  {step.number}
+                </span>
+                <h3 className="mt-4 font-display text-2xl font-medium text-app-text-strong">
+                  {step.title}
+                </h3>
+                <p className="mt-3 text-base leading-7 text-app-text-muted">{step.description}</p>
+              </motion.article>
+            ))}
+          </motion.div>
+
+          <motion.div
+            variants={container}
+            initial="hidden"
+            whileInView="show"
+            viewport={revealViewport}
+            className="mt-20 grid grid-cols-3 gap-4 sm:gap-6"
+          >
+            {journeyStripImages.map((src, index) => (
+              <motion.div
+                key={src}
+                variants={item}
+                className="overflow-hidden rounded-2xl shadow-card"
+              >
+                <img
+                  src={src}
+                  alt=""
+                  aria-hidden="true"
+                  className={`w-full object-cover ${
+                    index === 1 ? 'aspect-[3/4]' : 'aspect-square'
+                  }`}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* CTA band */}
+      <section className="bg-accent-800">
+        <div className="mx-auto max-w-3xl px-6 py-24 text-center">
+          <h2 className="font-display text-3xl font-medium leading-tight text-app-surface sm:text-4xl">
+            Ready to go somewhere on purpose?
+          </h2>
+          <p className="mx-auto mt-4 max-w-md text-base leading-7 text-app-surface/75">
+            Start with a single &ldquo;where to?&rdquo; and let the rest of the trip fall into
+            place.
           </p>
           <button
             type="button"
             onClick={handleGuestStart}
-            className="mt-9 inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-8 py-4 text-lg font-bold text-white shadow-xl shadow-primary-900/20 transition-all hover:-translate-y-0.5 hover:bg-primary-700 active:scale-[0.98]"
+            className="mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-primary-600 px-8 py-4 text-base font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 active:scale-[0.98]"
           >
-            Start Planning
+            Plan your trip
             <ArrowRight className="h-5 w-5" />
           </button>
         </div>
       </section>
 
-      <LandingTripSearch onSearch={handleGuestStart} />
-
-      <section id="discover" className="mx-auto max-w-7xl px-6 py-24">
-        <div className="mb-14 text-center">
-          <h2 className="text-3xl font-bold tracking-normal text-app-text sm:text-4xl">
-            Everything you need, nothing you do not.
-          </h2>
-          <p className="mt-3 text-base text-app-text-muted">
-            Integrate each part of the journey without crowding the experience.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {features.map((feature) => (
-            <article
-              key={feature.title}
-              className="rounded-xl border border-transparent bg-app-surface-muted p-8 transition-all hover:border-primary-200"
-            >
-              <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
-                <feature.icon className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-bold text-app-text">
-                {feature.title}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-app-text-muted">
-                {feature.description}
-              </p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-app-surface-muted py-24">
-        <div className="mx-auto max-w-7xl px-6">
-          <h2 className="mb-14 text-center text-3xl font-bold tracking-normal text-app-text md:text-left">
-            Your journey in three steps
-          </h2>
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
-            {steps.map((step) => (
-              <article key={step.number} className="group">
-                <div className="mb-6 text-5xl font-extrabold text-primary-700/20 transition-colors group-hover:text-primary-700">
-                  {step.number}
-                </div>
-                <h3 className="text-2xl font-bold text-app-text">
-                  {step.title}
-                </h3>
-                <p className="mt-3 text-base leading-7 text-app-text-muted">
-                  {step.description}
-                </p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="destinations" className="mx-auto max-w-7xl px-6 py-24">
-        <span id="journeys" className="sr-only">
-          Featured journeys
-        </span>
-        <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="text-3xl font-bold tracking-normal text-app-text">
-              Featured Itineraries
-            </h2>
-            <p className="mt-2 text-base text-app-text-muted">
-              Designed by a community of refined travelers.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleGuestStart}
-            className="inline-flex items-center gap-1 self-start text-sm font-bold text-app-text underline underline-offset-4 transition-colors hover:text-primary-700"
-          >
-            View all journeys
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-4">
-          {itineraries.map((trip) => (
-            <article key={trip.place} className="group cursor-pointer">
-              <div className="relative mb-4 aspect-square overflow-hidden rounded-xl bg-app-surface-muted">
-                <img
-                  src={trip.image}
-                  alt={trip.theme}
-                  className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                />
-                <button
-                  type="button"
-                  onClick={handleGuestStart}
-                  className="absolute right-3 top-3 text-white drop-shadow"
-                  aria-label={`Save ${trip.place}`}
-                >
-                  <Heart className="h-6 w-6" />
-                </button>
-                {trip.badge && (
-                  <div className="absolute left-3 top-3 rounded-full bg-app-surface px-3 py-1 text-xs font-bold text-app-text shadow-sm">
-                    {trip.badge}
-                  </div>
-                )}
-              </div>
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-sm font-bold text-app-text">
-                  {trip.place}
-                </h3>
-                <div className="flex items-center gap-1 text-sm text-app-text">
-                  <Star className="h-4 w-4 fill-current" />
-                  {trip.rating}
-                </div>
-              </div>
-              <p className="mt-1 text-sm text-app-text-muted">{trip.theme}</p>
-              <p className="text-sm text-app-text-muted">{trip.dates}</p>
-              <p className="mt-1 text-base font-bold text-app-text">
-                {trip.price}{' '}
-                <span className="font-normal text-app-text-muted">journey</span>
-              </p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="mb-20 py-8">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="grid gap-10 rounded-[2rem] bg-primary-50 p-8 md:grid-cols-2 md:p-16">
-            <div className="flex flex-col justify-center">
-              <h2 className="text-3xl font-bold tracking-normal text-app-text">
-                Ready to redefine how you explore the world?
-              </h2>
-              <p className="mt-5 text-base leading-7 text-app-text-muted">
-                Join intentional travelers who trade crowded tourism for refined
-                discovery.
-              </p>
-              <button
-                type="button"
-                onClick={handleGuestStart}
-                className="mt-8 inline-flex w-fit items-center gap-2 rounded-xl bg-primary-600 px-7 py-4 text-lg font-bold text-white shadow-lg shadow-primary-900/10 transition-colors hover:bg-primary-700"
-              >
-                Begin Your Itinerary
-                <ArrowRight className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="h-80 overflow-hidden rounded-2xl shadow-xl">
-              <img
-                src={ctaImage}
-                alt="Traveler planning a route on a phone beside a passport"
-                className="h-full w-full object-cover"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
       <footer className="border-t border-app-border bg-app-bg">
-        <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-12 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-14 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xl font-extrabold tracking-normal text-primary-700">
-              REFINE
-            </p>
-            <p className="mt-2 text-sm text-app-text-muted">
-              2026 Refined Living. All rights reserved.
+            <p className="font-display text-2xl font-medium text-app-text-strong">Refine</p>
+            <p className="mt-2 max-w-xs text-sm text-app-text-muted">
+              A quiet command center for the whole journey.
             </p>
           </div>
-          <div className="flex flex-wrap gap-6 text-sm text-app-text-muted">
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-app-text-muted">
             <a href="#discover" className="transition-colors hover:text-primary-700">
-              Discover
+              Plan every layer
             </a>
             <a href="#destinations" className="transition-colors hover:text-primary-700">
-              Destinations
-            </a>
-            <a href="#journeys" className="transition-colors hover:text-primary-700">
-              Journeys
+              How it works
             </a>
             <button
               type="button"
               onClick={() => openAuthModal('sign-in')}
               className="transition-colors hover:text-primary-700"
             >
-              Support
+              Sign in
             </button>
           </div>
-          <div className="flex gap-3 text-app-text-muted">
-            <MapPin className="h-5 w-5" />
-            <Users className="h-5 w-5" />
-          </div>
+        </div>
+        <div className="border-t border-app-border-muted">
+          <p className="mx-auto max-w-6xl px-6 py-6 text-xs text-app-text-subtle">
+            © 2026 Refine. All rights reserved.
+          </p>
         </div>
       </footer>
     </div>

@@ -1,11 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import {
-  Plane,
-  Train,
-  Car,
-  Plus,
-} from 'lucide-react';
+import { Plane, Train, Car, Plus } from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
 import { getTripDisplayName } from '../data/trips';
 import { useServiceTrip } from '../hooks/useServiceTrips';
@@ -18,10 +13,7 @@ import {
   mapLocationRefRowToLocationRef,
   mapTransportSegmentRowToTransportSegment,
 } from '../services/tripMappers';
-import {
-  loadTripScopedValue,
-  persistTripScopedValue,
-} from '../utils/tripStorage';
+import { loadTripScopedValue, persistTripScopedValue } from '../utils/tripStorage';
 import {
   buildDateTime,
   calculateDuration,
@@ -39,9 +31,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import EmptyState from '../components/ui/EmptyState';
 import TransportCard from '../components/flights/TransportCard';
-import TravelSegmentForm, {
-  type SegmentFormState,
-} from '../components/flights/TravelSegmentForm';
+import TravelSegmentForm, { type SegmentFormState } from '../components/flights/TravelSegmentForm';
 import TravelSummaryCard from '../components/flights/TravelSummaryCard';
 import TravelFilterTabs from '../components/flights/TravelFilterTabs';
 
@@ -80,11 +70,7 @@ const persistGoogleLocation = async (
 };
 
 const loadStoredSegments = (tripId: string, fallbackSegments: TransportSegment[]) => {
-  return loadTripScopedValue(
-    LOCAL_TRAVEL_SEGMENTS_KEY,
-    tripId,
-    fallbackSegments,
-  );
+  return loadTripScopedValue(LOCAL_TRAVEL_SEGMENTS_KEY, tripId, fallbackSegments);
 };
 
 const persistStoredSegments = (tripId: string, segments: TransportSegment[]) => {
@@ -94,15 +80,11 @@ const persistStoredSegments = (tripId: string, segments: TransportSegment[]) => 
 const Flights: React.FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
   const fallbackTrip = useTrip();
-  const {
-    trip: serviceTrip,
-    error: serviceTripError,
-    source: tripSource,
-  } = useServiceTrip(tripId);
+  const { trip: serviceTrip, error: serviceTripError, source: tripSource } = useServiceTrip(tripId);
   const trip = serviceTrip ?? fallbackTrip;
   const orderedStops = useMemo(
     () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
-    [trip]
+    [trip],
   );
   const isMultiStop = orderedStops.length > 1;
   const [travelSegments, setTravelSegments] = useState<TransportSegment[]>([]);
@@ -145,7 +127,9 @@ const Flights: React.FC = () => {
         persistStoredSegments(trip.id, segments);
       } catch {
         if (cancelled) return;
-        setTravelError('Supabase travel segments could not be loaded. Showing local travel segments instead.');
+        setTravelError(
+          'Supabase travel segments could not be loaded. Showing local travel segments instead.',
+        );
       }
     }
 
@@ -236,7 +220,10 @@ const Flights: React.FC = () => {
       confirmationCode: segmentForm.confirmationCode.trim() || undefined,
       fromLocation: segmentForm.fromLocation || undefined,
       toLocation: segmentForm.toLocation || undefined,
-      departureLocation: getLocationName(segmentForm.fromLocation, segmentForm.departureLocation).trim(),
+      departureLocation: getLocationName(
+        segmentForm.fromLocation,
+        segmentForm.departureLocation,
+      ).trim(),
       arrivalLocation: getLocationName(segmentForm.toLocation, segmentForm.arrivalLocation).trim(),
       departureDateTime,
       arrivalDateTime,
@@ -279,19 +266,13 @@ const Flights: React.FC = () => {
         const row = editingSegmentId
           ? await transportService.updateTravelSegment(segmentToSave)
           : await transportService.createTravelSegment(trip.id, segmentToSave);
-        const savedSegment = mapTransportSegmentRowToTransportSegment(row, [], [
-          segmentToSave,
-        ]);
+        const savedSegment = mapTransportSegmentRowToTransportSegment(row, [], [segmentToSave]);
 
         saveLocally(savedSegment);
         setTravelError(null);
       } else {
         saveLocally(nextSegment);
-        setTravelError(
-          userId
-            ? null
-            : 'Saved locally. Sign-in is not connected yet.',
-        );
+        setTravelError(userId ? null : 'Saved locally. Sign-in is not connected yet.');
       }
 
       closeSegmentModal();
@@ -305,33 +286,27 @@ const Flights: React.FC = () => {
     }
   };
 
-  const timelineSegments = useMemo(
-    () => sortSegmentsByTime(travelSegments),
-    [travelSegments]
-  );
+  const timelineSegments = useMemo(() => sortSegmentsByTime(travelSegments), [travelSegments]);
 
   const filteredTimelineSegments = useMemo(
     () => timelineSegments.filter((segment) => matchesTravelFilter(segment, activeFilter)),
     [activeFilter, timelineSegments],
   );
 
-  const travelStats = useMemo(
-    () => {
-      const totalCost = travelSegments.reduce(
-        (sum, segment) => sum + (typeof segment.price === 'number' ? segment.price : 0),
-        0,
-      );
+  const travelStats = useMemo(() => {
+    const totalCost = travelSegments.reduce(
+      (sum, segment) => sum + (typeof segment.price === 'number' ? segment.price : 0),
+      0,
+    );
 
-      return {
-        flights: travelSegments.filter((segment) => segment.mode === 'flight').length,
-        ground: travelSegments.filter((segment) => matchesTravelFilter(segment, 'train')).length,
-        transfers: travelSegments.filter((segment) => isTransferSegment(segment)).length,
-        missing: travelSegments.filter((segment) => getMissingDetails(segment).length > 0).length,
-        totalCost,
-      };
-    },
-    [travelSegments],
-  );
+    return {
+      flights: travelSegments.filter((segment) => segment.mode === 'flight').length,
+      ground: travelSegments.filter((segment) => matchesTravelFilter(segment, 'train')).length,
+      transfers: travelSegments.filter((segment) => isTransferSegment(segment)).length,
+      missing: travelSegments.filter((segment) => getMissingDetails(segment).length > 0).length,
+      totalCost,
+    };
+  }, [travelSegments]);
 
   const filterOptions = useMemo(
     () => [
@@ -375,21 +350,36 @@ const Flights: React.FC = () => {
           </p>
           {(serviceTripError || travelError) && (
             <p className="text-sm text-warning-700 mt-2">
-              {travelError || 'Supabase trip data could not be loaded. Showing local trip data instead.'}
+              {travelError ||
+                'Supabase trip data could not be loaded. Showing local trip data instead.'}
             </p>
           )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => openCreateModal({ mode: 'flight', role: 'arrival', isPrimary: true })}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openCreateModal({ mode: 'flight', role: 'arrival', isPrimary: true })}
+          >
             <Plane className="w-4 h-4 mr-1.5" />
             Flight
           </Button>
-          <Button variant="outline" size="sm" onClick={() => openCreateModal({ mode: 'train', role: 'between-stops', isPrimary: true })}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              openCreateModal({ mode: 'train', role: 'between-stops', isPrimary: true })
+            }
+          >
             <Train className="w-4 h-4 mr-1.5" />
             Train/Bus
           </Button>
-          <Button variant="outline" size="sm" onClick={() => openCreateModal({ mode: 'car', role: 'local', isPrimary: false })}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openCreateModal({ mode: 'car', role: 'local', isPrimary: false })}
+          >
             <Car className="w-4 h-4 mr-1.5" />
             Local
           </Button>
@@ -459,7 +449,6 @@ const Flights: React.FC = () => {
           isSaving={isSavingSegment}
         />
       </Modal>
-
     </div>
   );
 };

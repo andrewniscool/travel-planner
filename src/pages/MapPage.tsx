@@ -23,10 +23,7 @@ import {
   savedPlaceService,
 } from '../services/travelDataService';
 import TripGoogleMap, { type TripMapMarker } from '../components/map/TripGoogleMap';
-import {
-  mapLodgingOptionRowToHotel,
-  mapSavedPlaceRowToPlace,
-} from '../services/tripMappers';
+import { mapLodgingOptionRowToHotel, mapSavedPlaceRowToPlace } from '../services/tripMappers';
 import RatingStars from '../components/ui/RatingStars';
 import MapFallbackView from '../components/map/MapFallbackView';
 import MapFiltersPanel from '../components/map/MapFiltersPanel';
@@ -73,9 +70,7 @@ const mergePlaces = (basePlaces: Place[], savedPlaces: Place[]) => {
     const existing = placesById.get(savedPlace.id);
     placesById.set(
       savedPlace.id,
-      existing
-        ? { ...existing, isSaved: existing.isSaved || savedPlace.isSaved }
-        : savedPlace,
+      existing ? { ...existing, isSaved: existing.isSaved || savedPlace.isSaved } : savedPlace,
     );
   }
 
@@ -89,14 +84,16 @@ const getTransportStopId = (segment: TransportSegment, primaryStopId: string) =>
   segment.fromStopId || segment.toStopId || primaryStopId;
 
 const getTransportLabel = (segment: TransportSegment, stops: TripStop[]) => {
-  const from = stops.find((stop) => stop.id === segment.fromStopId)?.name || segment.departureLocation;
+  const from =
+    stops.find((stop) => stop.id === segment.fromStopId)?.name || segment.departureLocation;
   const to = stops.find((stop) => stop.id === segment.toStopId)?.name || segment.arrivalLocation;
   return `${from} to ${to}`;
 };
 
-const hasCoordinates = (
-  value?: { latitude?: number; longitude?: number },
-): value is { latitude: number; longitude: number } =>
+const hasCoordinates = (value?: {
+  latitude?: number;
+  longitude?: number;
+}): value is { latitude: number; longitude: number } =>
   typeof value?.latitude === 'number' &&
   Number.isFinite(value.latitude) &&
   typeof value.longitude === 'number' &&
@@ -123,8 +120,7 @@ const getStopMapLocation = (stop: TripStop) => {
     const suggestionName = suggestion.name.trim().toLowerCase();
     return (
       suggestion.placeTypes?.includes('locality') &&
-      (suggestionName === normalizedStopName ||
-        suggestionName.startsWith(`${normalizedStopName},`))
+      (suggestionName === normalizedStopName || suggestionName.startsWith(`${normalizedStopName},`))
     );
   });
 };
@@ -173,21 +169,19 @@ const MapPage: React.FC = () => {
   } = useServiceTrip(tripId);
   const trip = serviceTrip ?? fallbackTrip;
   const [activeFilters, setActiveFilters] = useState<Set<CategoryFilter>>(
-    new Set(['Hotels', 'Food', 'Activities', 'Itinerary', 'Transport'])
+    new Set(['Hotels', 'Food', 'Activities', 'Itinerary', 'Transport']),
   );
   const [selectedStopId, setSelectedStopId] = useState<StopSelection>('all');
   const [serviceHotels, setServiceHotels] = useState<Hotel[]>([]);
   const [servicePlaces, setServicePlaces] = useState<Place[]>([]);
-  const [serviceItineraryDays, setServiceItineraryDays] = useState<
-    ItineraryDay[]
-  >([]);
+  const [serviceItineraryDays, setServiceItineraryDays] = useState<ItineraryDay[]>([]);
   const [mapDataSource, setMapDataSource] = useState<'supabase' | 'fallback'>('fallback');
   const [mapDataError, setMapDataError] = useState<string | null>(null);
   const [mapSearchQuery, setMapSearchQuery] = useState('');
 
   const orderedStops = useMemo(
     () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
-    [trip]
+    [trip],
   );
   const primaryStop = orderedStops[0];
   const isMultiStop = orderedStops.length > 1;
@@ -209,8 +203,14 @@ const MapPage: React.FC = () => {
       ? serviceItineraryDays
       : fallbackItineraryDays;
   const itineraryItems = useMemo(
-    () => itineraryDays.flatMap((day) => [...day.morning, ...day.afternoon, ...day.evening].map((item) => ({ ...item, stopId: item.stopId || day.stopId }))),
-    [itineraryDays]
+    () =>
+      itineraryDays.flatMap((day) =>
+        [...day.morning, ...day.afternoon, ...day.evening].map((item) => ({
+          ...item,
+          stopId: item.stopId || day.stopId,
+        })),
+      ),
+    [itineraryDays],
   );
 
   useEffect(() => {
@@ -230,12 +230,11 @@ const MapPage: React.FC = () => {
         const userId = await getAuthenticatedUserId();
         if (!userId) return;
 
-        const [lodgingRows, savedPlaceRows, supabaseItineraryDays] =
-          await Promise.all([
-            lodgingService.listLodgingOptions(trip.id),
-            savedPlaceService.listSavedPlaces(trip.id),
-            itineraryService.listItineraryDays(trip.id),
-          ]);
+        const [lodgingRows, savedPlaceRows, supabaseItineraryDays] = await Promise.all([
+          lodgingService.listLodgingOptions(trip.id),
+          savedPlaceService.listSavedPlaces(trip.id),
+          itineraryService.listItineraryDays(trip.id),
+        ]);
 
         if (cancelled) return;
 
@@ -310,7 +309,10 @@ const MapPage: React.FC = () => {
 
   const visiblePins = (() => {
     if (!primaryStop) return [];
-    const pinStops = effectiveSelection === 'all' ? orderedStops : orderedStops.filter((stop) => stop.id === effectiveSelection);
+    const pinStops =
+      effectiveSelection === 'all'
+        ? orderedStops
+        : orderedStops.filter((stop) => stop.id === effectiveSelection);
     const pins: MapPinData[] = [];
 
     pinStops.forEach((stop, stopIndex) => {
@@ -318,7 +320,8 @@ const MapPage: React.FC = () => {
       const baseLeft = parseFloat(base.left);
       const baseTop = parseFloat(base.top);
       const makePosition = (index: number) => {
-        if (!isMultiStop && effectiveSelection !== 'all') return singleStopPositions[index % singleStopPositions.length];
+        if (!isMultiStop && effectiveSelection !== 'all')
+          return singleStopPositions[index % singleStopPositions.length];
         const offset = detailOffsets[index % detailOffsets.length];
         return {
           left: `${Math.max(8, Math.min(88, baseLeft + offset.x))}%`,
@@ -328,40 +331,79 @@ const MapPage: React.FC = () => {
 
       let pinIndex = 0;
       if (activeFilters.has('Hotels')) {
-        getStopHotels(stop.id).slice(0, 1).forEach((hotel) => {
-          if (!matchesMapSearch(hotel.name, hotel.neighborhood, hotel.locationRef?.formattedAddress)) return;
-          pins.push({ id: hotel.id, kind: 'hotel', label: hotel.name, stopId: stop.id, ...makePosition(pinIndex++) });
-        });
+        getStopHotels(stop.id)
+          .slice(0, 1)
+          .forEach((hotel) => {
+            if (
+              !matchesMapSearch(hotel.name, hotel.neighborhood, hotel.locationRef?.formattedAddress)
+            )
+              return;
+            pins.push({
+              id: hotel.id,
+              kind: 'hotel',
+              label: hotel.name,
+              stopId: stop.id,
+              ...makePosition(pinIndex++),
+            });
+          });
       }
-      getStopPlaces(stop.id).slice(0, 4).forEach((place) => {
-        const category = placeCategoryMap[place.category] || 'Activities';
-        if (!activeFilters.has(category)) return;
-        if (!matchesMapSearch(place.name, place.category, place.location, place.locationRef?.formattedAddress)) return;
-        pins.push({
-          id: place.id,
-          kind: category === 'Food' ? 'food' : 'activity',
-          label: place.name,
-          stopId: stop.id,
-          ...makePosition(pinIndex++),
-        });
-      });
-      if (activeFilters.has('Itinerary')) {
-        getStopItineraryItems(stop.id).slice(0, 2).forEach((item) => {
-          if (!matchesMapSearch(item.name, item.location, item.type)) return;
-          pins.push({ id: item.id, kind: 'itinerary', label: item.name, stopId: stop.id, ...makePosition(pinIndex++) });
-        });
-      }
-      if (activeFilters.has('Transport')) {
-        getStopTransport(stop.id).slice(0, 2).forEach((segment) => {
-          if (!matchesMapSearch(segment.provider, segment.departureLocation, segment.arrivalLocation, segment.mode)) return;
+      getStopPlaces(stop.id)
+        .slice(0, 4)
+        .forEach((place) => {
+          const category = placeCategoryMap[place.category] || 'Activities';
+          if (!activeFilters.has(category)) return;
+          if (
+            !matchesMapSearch(
+              place.name,
+              place.category,
+              place.location,
+              place.locationRef?.formattedAddress,
+            )
+          )
+            return;
           pins.push({
-            id: segment.id,
-            kind: 'transport',
-            label: getTransportLabel(segment, orderedStops),
-            stopId: getTransportStopId(segment, primaryStop.id),
+            id: place.id,
+            kind: category === 'Food' ? 'food' : 'activity',
+            label: place.name,
+            stopId: stop.id,
             ...makePosition(pinIndex++),
           });
         });
+      if (activeFilters.has('Itinerary')) {
+        getStopItineraryItems(stop.id)
+          .slice(0, 2)
+          .forEach((item) => {
+            if (!matchesMapSearch(item.name, item.location, item.type)) return;
+            pins.push({
+              id: item.id,
+              kind: 'itinerary',
+              label: item.name,
+              stopId: stop.id,
+              ...makePosition(pinIndex++),
+            });
+          });
+      }
+      if (activeFilters.has('Transport')) {
+        getStopTransport(stop.id)
+          .slice(0, 2)
+          .forEach((segment) => {
+            if (
+              !matchesMapSearch(
+                segment.provider,
+                segment.departureLocation,
+                segment.arrivalLocation,
+                segment.mode,
+              )
+            )
+              return;
+            pins.push({
+              id: segment.id,
+              kind: 'transport',
+              label: getTransportLabel(segment, orderedStops),
+              stopId: getTransportStopId(segment, primaryStop.id),
+              ...makePosition(pinIndex++),
+            });
+          });
       }
     });
 
@@ -391,7 +433,10 @@ const MapPage: React.FC = () => {
 
       if (activeFilters.has('Hotels')) {
         getStopHotels(stop.id).forEach((hotel) => {
-          if (!matchesMapSearch(hotel.name, hotel.neighborhood, hotel.locationRef?.formattedAddress)) return;
+          if (
+            !matchesMapSearch(hotel.name, hotel.neighborhood, hotel.locationRef?.formattedAddress)
+          )
+            return;
           const marker = makeTripMapMarker(
             {
               id: `hotel-${hotel.id}`,
@@ -407,7 +452,15 @@ const MapPage: React.FC = () => {
       getStopPlaces(stop.id).forEach((place) => {
         const category = placeCategoryMap[place.category] || 'Activities';
         if (!activeFilters.has(category)) return;
-        if (!matchesMapSearch(place.name, place.category, place.location, place.locationRef?.formattedAddress)) return;
+        if (
+          !matchesMapSearch(
+            place.name,
+            place.category,
+            place.location,
+            place.locationRef?.formattedAddress,
+          )
+        )
+          return;
 
         const marker = makeTripMapMarker(
           {
@@ -437,7 +490,15 @@ const MapPage: React.FC = () => {
 
       if (activeFilters.has('Transport')) {
         getStopTransport(stop.id).forEach((segment) => {
-          if (!matchesMapSearch(segment.provider, segment.departureLocation, segment.arrivalLocation, segment.mode)) return;
+          if (
+            !matchesMapSearch(
+              segment.provider,
+              segment.departureLocation,
+              segment.arrivalLocation,
+              segment.mode,
+            )
+          )
+            return;
           const fromMarker = makeTripMapMarker(
             {
               id: `transport-from-${segment.id}`,
@@ -487,9 +548,7 @@ const MapPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-neutral-500">
-          {serviceTripError
-            ? 'Unable to load this trip map.'
-            : 'Trip not found'}
+          {serviceTripError ? 'Unable to load this trip map.' : 'Trip not found'}
         </p>
       </div>
     );
@@ -499,7 +558,8 @@ const MapPage: React.FC = () => {
     <div className="flex flex-col lg:h-[calc(100vh-8rem)] lg:min-h-[640px] lg:overflow-hidden">
       {(serviceTripError || mapDataError) && (
         <p className="mb-4 text-sm text-warning-700">
-          {mapDataError || 'Supabase trip data could not be loaded. Showing local map data instead.'}
+          {mapDataError ||
+            'Supabase trip data could not be loaded. Showing local map data instead.'}
         </p>
       )}
 
@@ -543,19 +603,43 @@ const MapPage: React.FC = () => {
           <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-card lg:min-h-0">
             <div className="px-4 py-3 border-b border-neutral-100">
               <h3 className="text-sm font-semibold text-neutral-700">
-                {isMultiStop && effectiveSelection === 'all' ? 'All Stops' : `${selectedStop?.name ?? trip.destination} Places`}
+                {isMultiStop && effectiveSelection === 'all'
+                  ? 'All Stops'
+                  : `${selectedStop?.name ?? trip.destination} Places`}
               </h3>
             </div>
             <div className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-5">
               {isMultiStop && effectiveSelection === 'all' ? (
                 orderedStops.map((stop) => {
-                  const lodging = getStopHotels(stop.id).find((hotel) => hotel.isSelected) || getStopHotels(stop.id)[0];
-                  const showLodging = lodging && matchesMapSearch(lodging.name, lodging.neighborhood, lodging.locationRef?.formattedAddress);
+                  const lodging =
+                    getStopHotels(stop.id).find((hotel) => hotel.isSelected) ||
+                    getStopHotels(stop.id)[0];
+                  const showLodging =
+                    lodging &&
+                    matchesMapSearch(
+                      lodging.name,
+                      lodging.neighborhood,
+                      lodging.locationRef?.formattedAddress,
+                    );
                   const topPlaces = getStopPlaces(stop.id)
-                    .filter((place) => matchesMapSearch(place.name, place.category, place.location, place.locationRef?.formattedAddress))
+                    .filter((place) =>
+                      matchesMapSearch(
+                        place.name,
+                        place.category,
+                        place.location,
+                        place.locationRef?.formattedAddress,
+                      ),
+                    )
                     .slice(0, 2);
                   const stopTransport = getStopTransport(stop.id)
-                    .filter((segment) => matchesMapSearch(segment.provider, segment.departureLocation, segment.arrivalLocation, segment.mode))
+                    .filter((segment) =>
+                      matchesMapSearch(
+                        segment.provider,
+                        segment.departureLocation,
+                        segment.arrivalLocation,
+                        segment.mode,
+                      ),
+                    )
                     .slice(0, 1);
                   return (
                     <div key={stop.id}>
@@ -576,7 +660,13 @@ const MapPage: React.FC = () => {
                         {topPlaces.map((place) => (
                           <PanelItem
                             key={place.id}
-                            icon={placeCategoryMap[place.category] === 'Food' ? <UtensilsCrossed className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
+                            icon={
+                              placeCategoryMap[place.category] === 'Food' ? (
+                                <UtensilsCrossed className="w-4 h-4" />
+                              ) : (
+                                <MapPin className="w-4 h-4" />
+                              )
+                            }
                             title={place.name}
                             meta={`${place.category} · ${place.location}`}
                             rating={place.rating}
@@ -587,7 +677,13 @@ const MapPage: React.FC = () => {
                         {stopTransport.map((segment) => (
                           <PanelItem
                             key={segment.id}
-                            icon={segment.mode === 'train' ? <Train className="w-4 h-4" /> : <Car className="w-4 h-4" />}
+                            icon={
+                              segment.mode === 'train' ? (
+                                <Train className="w-4 h-4" />
+                              ) : (
+                                <Car className="w-4 h-4" />
+                              )
+                            }
                             title={segment.provider || getTransportLabel(segment, orderedStops)}
                             meta={`${segment.departureLocation} to ${segment.arrivalLocation}`}
                             actionLabel="Travel"
@@ -603,8 +699,13 @@ const MapPage: React.FC = () => {
                 })
               ) : (
                 <>
-                  {activeFilters.has('Hotels') && selectedLodging && (
-                    matchesMapSearch(selectedLodging.name, selectedLodging.neighborhood, selectedLodging.locationRef?.formattedAddress) && (
+                  {activeFilters.has('Hotels') &&
+                    selectedLodging &&
+                    matchesMapSearch(
+                      selectedLodging.name,
+                      selectedLodging.neighborhood,
+                      selectedLodging.locationRef?.formattedAddress,
+                    ) && (
                       <PanelItem
                         icon={<Building2 className="w-4 h-4" />}
                         title={selectedLodging.name}
@@ -613,15 +714,29 @@ const MapPage: React.FC = () => {
                         actionLabel="Hotels"
                         onAction={() => navigate(`${tripBasePath}/hotels`)}
                       />
-                    )
-                  )}
+                    )}
                   {selectedPlaces
-                    .filter((place) => activeFilters.has(placeCategoryMap[place.category] || 'Activities'))
-                    .filter((place) => matchesMapSearch(place.name, place.category, place.location, place.locationRef?.formattedAddress))
+                    .filter((place) =>
+                      activeFilters.has(placeCategoryMap[place.category] || 'Activities'),
+                    )
+                    .filter((place) =>
+                      matchesMapSearch(
+                        place.name,
+                        place.category,
+                        place.location,
+                        place.locationRef?.formattedAddress,
+                      ),
+                    )
                     .map((place: Place) => (
                       <PanelItem
                         key={place.id}
-                        icon={placeCategoryMap[place.category] === 'Food' ? <UtensilsCrossed className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
+                        icon={
+                          placeCategoryMap[place.category] === 'Food' ? (
+                            <UtensilsCrossed className="w-4 h-4" />
+                          ) : (
+                            <MapPin className="w-4 h-4" />
+                          )
+                        }
                         title={place.name}
                         meta={`${place.category} · ${place.location}`}
                         rating={place.rating}
@@ -634,28 +749,41 @@ const MapPage: React.FC = () => {
                       .filter((item) => matchesMapSearch(item.name, item.location, item.type))
                       .slice(0, 6)
                       .map((item: ItineraryItem) => (
-                      <PanelItem
-                        key={item.id}
-                        icon={<CalendarDays className="w-4 h-4" />}
-                        title={item.name}
-                        meta={`${item.time} · ${item.location}`}
-                        actionLabel="Itinerary"
-                        onAction={() => navigate(`${tripBasePath}/itinerary`)}
-                      />
-                    ))}
+                        <PanelItem
+                          key={item.id}
+                          icon={<CalendarDays className="w-4 h-4" />}
+                          title={item.name}
+                          meta={`${item.time} · ${item.location}`}
+                          actionLabel="Itinerary"
+                          onAction={() => navigate(`${tripBasePath}/itinerary`)}
+                        />
+                      ))}
                   {activeFilters.has('Transport') &&
                     selectedTransport
-                      .filter((segment) => matchesMapSearch(segment.provider, segment.departureLocation, segment.arrivalLocation, segment.mode))
+                      .filter((segment) =>
+                        matchesMapSearch(
+                          segment.provider,
+                          segment.departureLocation,
+                          segment.arrivalLocation,
+                          segment.mode,
+                        ),
+                      )
                       .map((segment) => (
-                      <PanelItem
-                        key={segment.id}
-                        icon={segment.mode === 'train' ? <Train className="w-4 h-4" /> : <Plane className="w-4 h-4" />}
-                        title={segment.provider || getTransportLabel(segment, orderedStops)}
-                        meta={`${segment.departureLocation} to ${segment.arrivalLocation}`}
-                        actionLabel="Travel"
-                        onAction={() => navigate(`${tripBasePath}/flights`)}
-                      />
-                    ))}
+                        <PanelItem
+                          key={segment.id}
+                          icon={
+                            segment.mode === 'train' ? (
+                              <Train className="w-4 h-4" />
+                            ) : (
+                              <Plane className="w-4 h-4" />
+                            )
+                          }
+                          title={segment.provider || getTransportLabel(segment, orderedStops)}
+                          meta={`${segment.departureLocation} to ${segment.arrivalLocation}`}
+                          actionLabel="Travel"
+                          onAction={() => navigate(`${tripBasePath}/flights`)}
+                        />
+                      ))}
                   {!selectedLodging &&
                     selectedPlaces.length === 0 &&
                     selectedItineraryItems.length === 0 &&
@@ -665,7 +793,9 @@ const MapPage: React.FC = () => {
                           <MapPin className="w-6 h-6" />
                         </div>
                         <p className="text-sm font-medium text-neutral-600">No mapped items</p>
-                        <p className="text-xs text-neutral-400 mt-1">Saved places and itinerary items for this stop will appear here.</p>
+                        <p className="text-xs text-neutral-400 mt-1">
+                          Saved places and itinerary items for this stop will appear here.
+                        </p>
                       </div>
                     )}
                 </>

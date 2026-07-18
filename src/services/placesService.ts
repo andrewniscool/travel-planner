@@ -139,9 +139,7 @@ const textSearchCache = new Map<string, PlacesCacheEntry<LocationRef[]>>();
 const detailsCache = new Map<string, PlacesCacheEntry<LocationRef>>();
 
 function getPlaceIdFromResourceName(resourceName?: string) {
-  return resourceName?.startsWith('places/')
-    ? resourceName.slice('places/'.length)
-    : resourceName;
+  return resourceName?.startsWith('places/') ? resourceName.slice('places/'.length) : resourceName;
 }
 
 function formatGoogleMoney(money?: GoogleMoney) {
@@ -248,9 +246,7 @@ function writePersistedCache<T>(key: string, entry: PlacesCacheEntry<T>) {
 
   try {
     const stored = window.localStorage.getItem(PLACES_CACHE_STORAGE_KEY);
-    const cache = stored
-      ? (JSON.parse(stored) as Record<string, PlacesCacheEntry<T>>)
-      : {};
+    const cache = stored ? (JSON.parse(stored) as Record<string, PlacesCacheEntry<T>>) : {};
     const now = Date.now();
     const nextCache = Object.fromEntries(
       Object.entries({ ...cache, [key]: entry }).filter(
@@ -263,10 +259,7 @@ function writePersistedCache<T>(key: string, entry: PlacesCacheEntry<T>) {
   }
 }
 
-function readCache<T>(
-  cache: Map<string, PlacesCacheEntry<T>>,
-  key: string,
-): T | undefined {
+function readCache<T>(cache: Map<string, PlacesCacheEntry<T>>, key: string): T | undefined {
   const memoryEntry = cache.get(key);
   if (memoryEntry) {
     if (memoryEntry.expiresAt > Date.now()) return memoryEntry.value;
@@ -279,11 +272,7 @@ function readCache<T>(
   return persistedEntry.value;
 }
 
-function writeCache<T>(
-  cache: Map<string, PlacesCacheEntry<T>>,
-  key: string,
-  value: T,
-) {
+function writeCache<T>(cache: Map<string, PlacesCacheEntry<T>>, key: string, value: T) {
   const entry = {
     expiresAt: Date.now() + PLACES_CACHE_TTL_MS,
     value,
@@ -300,10 +289,7 @@ function googleResultsNeedPhotos(results: LocationRef[]) {
   );
 }
 
-function readTextSearchCache(
-  textQuery: string,
-  options: TextSearchPlacesOptions = {},
-) {
+function readTextSearchCache(textQuery: string, options: TextSearchPlacesOptions = {}) {
   const cacheKey = getTextSearchCacheKey(textQuery, options);
   const cachedResults = readCache(textSearchCache, cacheKey);
   if (!cachedResults) return undefined;
@@ -331,10 +317,7 @@ function getGooglePlacePhotoNames(place: GooglePlace) {
     .filter((name): name is string => Boolean(name));
 }
 
-async function getPhotoUrl(
-  photoName: string,
-  options: PlacesPhotoOptions = {},
-) {
+async function getPhotoUrl(photoName: string, options: PlacesPhotoOptions = {}) {
   const { data, error } = await invokePlacesFunction<GooglePlacePhotoResponse>({
     action: 'photo',
     photoName,
@@ -348,20 +331,14 @@ async function getPhotoUrl(
   return data?.photoUri;
 }
 
-async function resolveFirstPhotoUrl(
-  place: GooglePlace,
-  options: PlacesPhotoOptions = {},
-) {
+async function resolveFirstPhotoUrl(place: GooglePlace, options: PlacesPhotoOptions = {}) {
   const firstPhotoName = getGooglePlacePhotoNames(place)[0];
   if (!firstPhotoName) return undefined;
 
   return getPhotoUrl(firstPhotoName, options).catch(() => undefined);
 }
 
-async function resolvePhotoUrls(
-  place: GooglePlace,
-  options: PlacesPhotoOptions = {},
-) {
+async function resolvePhotoUrls(place: GooglePlace, options: PlacesPhotoOptions = {}) {
   const photoLimit = Math.max(1, Math.min(options.photoLimit ?? 1, 10));
   const photoNames = getGooglePlacePhotoNames(place).slice(0, photoLimit);
   if (photoNames.length === 0) return [];
@@ -409,12 +386,11 @@ export const placesService = {
     input: string,
     options: AutocompletePlacesOptions = {},
   ): Promise<PlaceAutocompleteSuggestion[]> {
-    const { data, error } =
-      await invokePlacesFunction<GoogleAutocompleteResponse>({
-        action: 'autocomplete',
-        input,
-        ...options,
-      });
+    const { data, error } = await invokePlacesFunction<GoogleAutocompleteResponse>({
+      action: 'autocomplete',
+      input,
+      ...options,
+    });
 
     if (error) throw error;
 
@@ -433,10 +409,7 @@ export const placesService = {
       }));
   },
 
-  async getDetails(
-    placeId: string,
-    options: PlacesPhotoOptions = {},
-  ): Promise<LocationRef> {
+  async getDetails(placeId: string, options: PlacesPhotoOptions = {}): Promise<LocationRef> {
     const cacheKey = getDetailsCacheKey(placeId, options);
     const cachedDetails = readCache(detailsCache, cacheKey);
     if (cachedDetails) return cachedDetails;
@@ -485,10 +458,7 @@ export const placesService = {
     );
 
     const results = places.map((place, index) =>
-      mapGooglePlaceToLocationRef(
-        place,
-        photoUrls[index] ? [photoUrls[index]] : [],
-      ),
+      mapGooglePlaceToLocationRef(place, photoUrls[index] ? [photoUrls[index]] : []),
     );
     writeCache(textSearchCache, cacheKey, results);
     return results;
@@ -501,10 +471,7 @@ export const placesService = {
     return readTextSearchCache(textQuery, options);
   },
 
-  hasUsableDefaultTextSearchCache(
-    textQuery: string,
-    options: TextSearchPlacesOptions = {},
-  ) {
+  hasUsableDefaultTextSearchCache(textQuery: string, options: TextSearchPlacesOptions = {}) {
     return Boolean(readTextSearchCache(textQuery, { ...options, cacheQuery: '' }));
   },
 };

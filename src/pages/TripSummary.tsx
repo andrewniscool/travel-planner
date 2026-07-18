@@ -60,18 +60,12 @@ const TripSummary: React.FC = () => {
   const isMultiStop = trip ? isMultiStopTrip(trip) : false;
   const orderedStops = useMemo(
     () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
-    [trip]
+    [trip],
   );
 
-  const selectedFlight = useMemo(
-    () => flights.find((f) => f.isSelected),
-    [flights]
-  );
+  const selectedFlight = useMemo(() => flights.find((f) => f.isSelected), [flights]);
 
-  const selectedHotel = useMemo(
-    () => hotels.find((h) => h.isSelected),
-    [hotels]
-  );
+  const selectedHotel = useMemo(() => hotels.find((h) => h.isSelected), [hotels]);
 
   const totalSpent = useMemo(() => {
     if (!budget) return 0;
@@ -110,10 +104,10 @@ const TripSummary: React.FC = () => {
   ];
 
   const getStopForDay = (day: ItineraryDay): TripStop | undefined =>
-    orderedStops.find((stop) => stop.id === day.stopId) ?? (trip ? getPrimaryStop(trip) : undefined);
+    orderedStops.find((stop) => stop.id === day.stopId) ??
+    (trip ? getPrimaryStop(trip) : undefined);
 
-  const getStopName = (stopId?: string) =>
-    orderedStops.find((stop) => stop.id === stopId)?.name;
+  const getStopName = (stopId?: string) => orderedStops.find((stop) => stop.id === stopId)?.name;
 
   if (!trip) {
     return (
@@ -148,7 +142,9 @@ const TripSummary: React.FC = () => {
     if (orderedStops.length > 0) {
       lines.push('Route');
       orderedStops.forEach((stop) => {
-        lines.push(`- ${stop.order}. ${stop.name}: ${formatDate(stop.startDate)} - ${formatDate(stop.endDate)}`);
+        lines.push(
+          `- ${stop.order}. ${stop.name}: ${formatDate(stop.startDate)} - ${formatDate(stop.endDate)}`,
+        );
       });
       lines.push('');
     }
@@ -171,11 +167,17 @@ const TripSummary: React.FC = () => {
     if (isMultiStop) {
       orderedStops.forEach((stop) => {
         const stopHotels = hotels.filter((hotel) => hotel.stopId === stop.id);
-        const stopPlaces = places.filter((place) => place.stopId === stop.id && place.isSaved).slice(0, 3);
+        const stopPlaces = places
+          .filter((place) => place.stopId === stop.id && place.isSaved)
+          .slice(0, 3);
         const stopDays = itinerary.filter((day) => getStopForDay(day)?.id === stop.id);
         lines.push(`- ${stop.name}`);
-        lines.push(`  Hotel: ${stopHotels.find((hotel) => hotel.isSelected)?.name || stopHotels[0]?.name || 'No hotel selected'}`);
-        lines.push(`  Places: ${stopPlaces.length > 0 ? stopPlaces.map((place) => place.name).join(', ') : 'No saved places'}`);
+        lines.push(
+          `  Hotel: ${stopHotels.find((hotel) => hotel.isSelected)?.name || stopHotels[0]?.name || 'No hotel selected'}`,
+        );
+        lines.push(
+          `  Places: ${stopPlaces.length > 0 ? stopPlaces.map((place) => place.name).join(', ') : 'No saved places'}`,
+        );
         lines.push(`  Itinerary days: ${stopDays.length}`);
       });
     } else if (selectedHotel) {
@@ -206,9 +208,13 @@ const TripSummary: React.FC = () => {
     lines.push('Budget');
     if (budget) {
       budget.categories.forEach((category) => {
-        lines.push(`- ${category.name}: $${category.spent.toLocaleString()} spent of $${category.allocated.toLocaleString()}`);
+        lines.push(
+          `- ${category.name}: $${category.spent.toLocaleString()} spent of $${category.allocated.toLocaleString()}`,
+        );
       });
-      lines.push(`Total: $${totalSpent.toLocaleString()} spent of $${totalAllocated.toLocaleString()} allocated`);
+      lines.push(
+        `Total: $${totalSpent.toLocaleString()} spent of $${totalAllocated.toLocaleString()} allocated`,
+      );
     } else {
       lines.push('- No budget data');
     }

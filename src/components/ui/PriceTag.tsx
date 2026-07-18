@@ -30,11 +30,7 @@ const PriceTag: React.FC<PriceTagProps> = ({
 
   return (
     <span
-      className={[
-        'font-semibold text-neutral-900',
-        sizeClasses[size],
-        className,
-      ]
+      className={['font-semibold text-neutral-900', sizeClasses[size], className]
         .filter(Boolean)
         .join(' ')}
     >

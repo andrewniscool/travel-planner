@@ -4,9 +4,7 @@ import type { Trip } from '../types';
 
 export function getLocalTrips(): Trip[] {
   try {
-    return JSON.parse(
-      window.localStorage.getItem(LOCAL_TRIPS_STORAGE_KEY) ?? '[]'
-    ) as Trip[];
+    return JSON.parse(window.localStorage.getItem(LOCAL_TRIPS_STORAGE_KEY) ?? '[]') as Trip[];
   } catch {
     return [];
   }

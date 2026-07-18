@@ -29,11 +29,7 @@ const RatingStars: React.FC<RatingStarsProps> = ({
   const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
 
   return (
-    <div
-      className={['flex items-center gap-0.5', className]
-        .filter(Boolean)
-        .join(' ')}
-    >
+    <div className={['flex items-center gap-0.5', className].filter(Boolean).join(' ')}>
       {Array.from({ length: fullStars }).map((_, i) => (
         <Star
           key={`full-${i}`}
@@ -41,15 +37,10 @@ const RatingStars: React.FC<RatingStarsProps> = ({
         />
       ))}
       {hasHalfStar && (
-        <StarHalf
-          className={`${sizeClasses[size]} text-warning-400 fill-warning-400`}
-        />
+        <StarHalf className={`${sizeClasses[size]} text-warning-400 fill-warning-400`} />
       )}
       {Array.from({ length: emptyStars }).map((_, i) => (
-        <Star
-          key={`empty-${i}`}
-          className={`${sizeClasses[size]} text-neutral-200`}
-        />
+        <Star key={`empty-${i}`} className={`${sizeClasses[size]} text-neutral-200`} />
       ))}
       {showCount && count !== undefined && (
         <span className="ml-1 text-sm text-neutral-500">({count})</span>

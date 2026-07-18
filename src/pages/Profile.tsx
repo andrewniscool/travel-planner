@@ -116,10 +116,7 @@ const countTripDays = (startDate?: string | null, endDate?: string | null) => {
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
 
   const millisecondsPerDay = 24 * 60 * 60 * 1000;
-  return Math.max(
-    1,
-    Math.round((end.getTime() - start.getTime()) / millisecondsPerDay) + 1,
-  );
+  return Math.max(1, Math.round((end.getTime() - start.getTime()) / millisecondsPerDay) + 1);
 };
 
 const getLocalSavedPlacesCount = (tripIds: string[]) => {
@@ -129,10 +126,7 @@ const getLocalSavedPlacesCount = (tripIds: string[]) => {
     ) as Record<string, string[]>;
     const scopedTripIds = tripIds.length > 0 ? tripIds : Object.keys(stored);
 
-    return scopedTripIds.reduce(
-      (total, tripId) => total + (stored[tripId]?.length ?? 0),
-      0,
-    );
+    return scopedTripIds.reduce((total, tripId) => total + (stored[tripId]?.length ?? 0), 0);
   } catch {
     return 0;
   }
@@ -142,10 +136,7 @@ const getLocalProfileStats = (): ProfileStats => {
   const trips = getLocalTrips();
   const countries = new Set(
     trips
-      .flatMap((trip) => [
-        trip.country,
-        ...trip.stops.map((stop) => stop.country),
-      ])
+      .flatMap((trip) => [trip.country, ...trip.stops.map((stop) => stop.country)])
       .filter(Boolean),
   );
 
@@ -160,19 +151,14 @@ const getLocalProfileStats = (): ProfileStats => {
   };
 };
 
-const getSupabaseProfileStats = async (
-  userId: string,
-): Promise<ProfileStats> => {
+const getSupabaseProfileStats = async (userId: string): Promise<ProfileStats> => {
   const trips = await tripService.listTripsWithRelations(userId);
   const savedPlaceRowsByTrip = await Promise.all(
     trips.map((trip) => savedPlaceService.listSavedPlaces(trip.id)),
   );
   const countries = new Set(
     trips
-      .flatMap((trip) => [
-        trip.country,
-        ...trip.trip_stops.map((stop) => stop.country),
-      ])
+      .flatMap((trip) => [trip.country, ...trip.trip_stops.map((stop) => stop.country)])
       .filter(Boolean),
   );
 
@@ -220,8 +206,7 @@ const getSupabaseProfileExport = async (
   const tripData = await Promise.all(
     trips.map(async (trip) => ({
       trip,
-      transportSegments:
-        await transportSegmentService.listTransportSegments(trip.id),
+      transportSegments: await transportSegmentService.listTransportSegments(trip.id),
       lodgingOptions: await lodgingService.listLodgingOptions(trip.id),
       savedPlaces: await savedPlaceService.listSavedPlaces(trip.id),
       itineraryItems: await itineraryService.listItineraryItems(trip.id),
@@ -258,13 +243,9 @@ const normalizeNotifications = (
         ? preferences.tripReminders
         : fallback.tripReminders,
     priceAlerts:
-      typeof preferences.priceAlerts === 'boolean'
-        ? preferences.priceAlerts
-        : fallback.priceAlerts,
+      typeof preferences.priceAlerts === 'boolean' ? preferences.priceAlerts : fallback.priceAlerts,
     newsletter:
-      typeof preferences.newsletter === 'boolean'
-        ? preferences.newsletter
-        : fallback.newsletter,
+      typeof preferences.newsletter === 'boolean' ? preferences.newsletter : fallback.newsletter,
     bookingUpdates:
       typeof preferences.bookingUpdates === 'boolean'
         ? preferences.bookingUpdates
@@ -273,9 +254,7 @@ const normalizeNotifications = (
 };
 
 const getAuthFullName = (user: ReturnType<typeof useAuth>['user']) =>
-  typeof user?.user_metadata.full_name === 'string'
-    ? user.user_metadata.full_name
-    : '';
+  typeof user?.user_metadata.full_name === 'string' ? user.user_metadata.full_name : '';
 
 const createAuthenticatedFallbackProfile = (
   user: NonNullable<ReturnType<typeof useAuth>['user']>,
@@ -313,20 +292,14 @@ const mapProfileRowToState = (
   location: row?.location ?? fallback.location,
   website: row?.website ?? fallback.website,
   bio: row?.bio ?? fallback.bio,
-  notifications: normalizeNotifications(
-    row?.notification_preferences,
-    fallback.notifications,
-  ),
+  notifications: normalizeNotifications(row?.notification_preferences, fallback.notifications),
 });
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut, updatePassword } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
-  const { profile: storedProfile, hasStoredProfile } = useMemo(
-    () => loadProfile(),
-    [],
-  );
+  const { profile: storedProfile, hasStoredProfile } = useMemo(() => loadProfile(), []);
   const authName = getAuthFullName(user);
   const [name, setName] = useState(authName || storedProfile.name);
   const [email, setEmail] = useState(user?.email ?? storedProfile.email);
@@ -473,9 +446,7 @@ const Profile: React.FC = () => {
     }
   };
 
-  const saveNotificationPreference = async (
-    nextNotifications: ProfileNotifications,
-  ) => {
+  const saveNotificationPreference = async (nextNotifications: ProfileNotifications) => {
     const nextProfile = {
       name,
       email,
@@ -495,9 +466,7 @@ const Profile: React.FC = () => {
         email: user.email ?? email,
         full_name: name.trim() || null,
         avatar_url:
-          typeof user.user_metadata.avatar_url === 'string'
-            ? user.user_metadata.avatar_url
-            : null,
+          typeof user.user_metadata.avatar_url === 'string' ? user.user_metadata.avatar_url : null,
         location: location.trim() || null,
         website: website.trim() || null,
         bio: bio.trim() || null,
@@ -556,9 +525,7 @@ const Profile: React.FC = () => {
       setIsPasswordFormOpen(false);
       setAccountNotice('Password updated.');
     } catch (error) {
-      setAccountError(
-        error instanceof Error ? error.message : 'Unable to update password.',
-      );
+      setAccountError(error instanceof Error ? error.message : 'Unable to update password.');
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -594,9 +561,7 @@ const Profile: React.FC = () => {
       await signOut();
       navigate('/sign-in');
     } catch (error) {
-      setAccountError(
-        error instanceof Error ? error.message : 'Unable to sign out.',
-      );
+      setAccountError(error instanceof Error ? error.message : 'Unable to sign out.');
     }
   };
 
@@ -628,9 +593,7 @@ const Profile: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12 sm:-mt-10">
               <div className="relative">
                 <div className="w-24 h-24 rounded-2xl bg-white shadow-lg flex items-center justify-center border-4 border-white">
-                  <span className="text-2xl font-bold text-primary-600">
-                    {initials}
-                  </span>
+                  <span className="text-2xl font-bold text-primary-600">{initials}</span>
                 </div>
               </div>
               <div className="flex-1 sm:pb-1">
@@ -732,27 +695,19 @@ const Profile: React.FC = () => {
           )}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-neutral-50 rounded-xl">
-              <p className="text-2xl font-bold text-primary-600">
-                {stats.tripsPlanned}
-              </p>
+              <p className="text-2xl font-bold text-primary-600">{stats.tripsPlanned}</p>
               <p className="text-sm text-neutral-500 mt-1">Trips Planned</p>
             </div>
             <div className="text-center p-4 bg-neutral-50 rounded-xl">
-              <p className="text-2xl font-bold text-accent-600">
-                {stats.countries}
-              </p>
+              <p className="text-2xl font-bold text-accent-600">{stats.countries}</p>
               <p className="text-sm text-neutral-500 mt-1">Countries</p>
             </div>
             <div className="text-center p-4 bg-neutral-50 rounded-xl">
-              <p className="text-2xl font-bold text-success-600">
-                {stats.placesSaved}
-              </p>
+              <p className="text-2xl font-bold text-success-600">{stats.placesSaved}</p>
               <p className="text-sm text-neutral-500 mt-1">Places Saved</p>
             </div>
             <div className="text-center p-4 bg-neutral-50 rounded-xl">
-              <p className="text-2xl font-bold text-neutral-700">
-                {stats.daysTraveled}
-              </p>
+              <p className="text-2xl font-bold text-neutral-700">{stats.daysTraveled}</p>
               <p className="text-sm text-neutral-500 mt-1">Days Traveled</p>
             </div>
           </div>
@@ -800,10 +755,30 @@ const Profile: React.FC = () => {
           <h3 className="text-lg font-semibold text-neutral-900 mb-4">Notification Preferences</h3>
           <div className="space-y-4">
             {[
-              { key: 'tripReminders' as const, label: 'Trip Reminders', desc: 'Get notified about upcoming trips and deadlines', icon: Bell },
-              { key: 'priceAlerts' as const, label: 'Price Alerts', desc: 'Receive alerts when flight or hotel prices drop', icon: CreditCard },
-              { key: 'newsletter' as const, label: 'Newsletter', desc: 'Weekly travel tips and destination inspiration', icon: Mail },
-              { key: 'bookingUpdates' as const, label: 'Booking Updates', desc: 'Status changes for your saved bookings', icon: Shield },
+              {
+                key: 'tripReminders' as const,
+                label: 'Trip Reminders',
+                desc: 'Get notified about upcoming trips and deadlines',
+                icon: Bell,
+              },
+              {
+                key: 'priceAlerts' as const,
+                label: 'Price Alerts',
+                desc: 'Receive alerts when flight or hotel prices drop',
+                icon: CreditCard,
+              },
+              {
+                key: 'newsletter' as const,
+                label: 'Newsletter',
+                desc: 'Weekly travel tips and destination inspiration',
+                icon: Mail,
+              },
+              {
+                key: 'bookingUpdates' as const,
+                label: 'Booking Updates',
+                desc: 'Status changes for your saved bookings',
+                icon: Shield,
+              },
             ].map((item) => (
               <div
                 key={item.key}
@@ -844,9 +819,7 @@ const Profile: React.FC = () => {
             {[
               {
                 label: 'Change Password',
-                desc: user
-                  ? 'Update your account password'
-                  : 'Sign in to update your password',
+                desc: user ? 'Update your account password' : 'Sign in to update your password',
                 icon: Shield,
                 disabled: !user,
                 onClick: () => setIsPasswordFormOpen((isOpen) => !isOpen),
@@ -874,9 +847,7 @@ const Profile: React.FC = () => {
                 disabled={item.disabled}
                 className={[
                   'w-full flex items-center justify-between py-3 px-3 rounded-lg transition-colors group',
-                  item.disabled
-                    ? 'cursor-not-allowed opacity-50'
-                    : 'hover:bg-neutral-50',
+                  item.disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-neutral-50',
                 ].join(' ')}
               >
                 <div className="flex items-center gap-3">

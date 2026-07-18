@@ -1,7 +1,25 @@
 export type TripStatus = 'upcoming' | 'planning' | 'booked' | 'past';
-export type TripVibe = 'Relaxing' | 'Adventure' | 'Food-focused' | 'Romantic' | 'Family' | 'Budget-friendly' | 'Luxury' | 'Cultural';
-export type PlaceCategory = 'Restaurants' | 'Cafes' | 'Museums' | 'Outdoor' | 'Nightlife' | 'Shopping' | 'Tours' | 'Landmarks' | 'Hidden Gems';
-export type ItineraryItemType = 'flight' | 'hotel' | 'restaurant' | 'activity' | 'free-time' | 'transport';
+export type TripVibe =
+  | 'Relaxing'
+  | 'Adventure'
+  | 'Food-focused'
+  | 'Romantic'
+  | 'Family'
+  | 'Budget-friendly'
+  | 'Luxury'
+  | 'Cultural';
+export type PlaceCategory =
+  | 'Restaurants'
+  | 'Cafes'
+  | 'Museums'
+  | 'Outdoor'
+  | 'Nightlife'
+  | 'Shopping'
+  | 'Tours'
+  | 'Landmarks'
+  | 'Hidden Gems';
+export type ItineraryItemType =
+  'flight' | 'hotel' | 'restaurant' | 'activity' | 'free-time' | 'transport';
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening';
 export type TransportMode = 'flight' | 'train' | 'bus' | 'car' | 'ferry' | 'walk' | 'other';
 export type TransportRole = 'arrival' | 'departure' | 'between-stops' | 'local';

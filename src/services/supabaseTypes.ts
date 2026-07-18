@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface Database {
   public: {
@@ -845,56 +839,34 @@ export type TripStopRow = Database['public']['Tables']['trip_stops']['Row'];
 export type TripStopInsert = Database['public']['Tables']['trip_stops']['Insert'];
 export type TripStopUpdate = Database['public']['Tables']['trip_stops']['Update'];
 
-export type TransportSegmentRow =
-  Database['public']['Tables']['transport_segments']['Row'];
-export type TransportSegmentInsert =
-  Database['public']['Tables']['transport_segments']['Insert'];
-export type TransportSegmentUpdate =
-  Database['public']['Tables']['transport_segments']['Update'];
+export type TransportSegmentRow = Database['public']['Tables']['transport_segments']['Row'];
+export type TransportSegmentInsert = Database['public']['Tables']['transport_segments']['Insert'];
+export type TransportSegmentUpdate = Database['public']['Tables']['transport_segments']['Update'];
 
-export type LodgingOptionRow =
-  Database['public']['Tables']['lodging_options']['Row'];
-export type LodgingOptionInsert =
-  Database['public']['Tables']['lodging_options']['Insert'];
-export type LodgingOptionUpdate =
-  Database['public']['Tables']['lodging_options']['Update'];
+export type LodgingOptionRow = Database['public']['Tables']['lodging_options']['Row'];
+export type LodgingOptionInsert = Database['public']['Tables']['lodging_options']['Insert'];
+export type LodgingOptionUpdate = Database['public']['Tables']['lodging_options']['Update'];
 
 export type SavedPlaceRow = Database['public']['Tables']['saved_places']['Row'];
-export type SavedPlaceInsert =
-  Database['public']['Tables']['saved_places']['Insert'];
-export type SavedPlaceUpdate =
-  Database['public']['Tables']['saved_places']['Update'];
+export type SavedPlaceInsert = Database['public']['Tables']['saved_places']['Insert'];
+export type SavedPlaceUpdate = Database['public']['Tables']['saved_places']['Update'];
 
-export type ItineraryItemRow =
-  Database['public']['Tables']['itinerary_items']['Row'];
-export type ItineraryItemInsert =
-  Database['public']['Tables']['itinerary_items']['Insert'];
-export type ItineraryItemUpdate =
-  Database['public']['Tables']['itinerary_items']['Update'];
+export type ItineraryItemRow = Database['public']['Tables']['itinerary_items']['Row'];
+export type ItineraryItemInsert = Database['public']['Tables']['itinerary_items']['Insert'];
+export type ItineraryItemUpdate = Database['public']['Tables']['itinerary_items']['Update'];
 
-export type BudgetExpenseRow =
-  Database['public']['Tables']['budget_expenses']['Row'];
-export type BudgetExpenseInsert =
-  Database['public']['Tables']['budget_expenses']['Insert'];
-export type BudgetExpenseUpdate =
-  Database['public']['Tables']['budget_expenses']['Update'];
+export type BudgetExpenseRow = Database['public']['Tables']['budget_expenses']['Row'];
+export type BudgetExpenseInsert = Database['public']['Tables']['budget_expenses']['Insert'];
+export type BudgetExpenseUpdate = Database['public']['Tables']['budget_expenses']['Update'];
 
-export type BudgetCategoryRow =
-  Database['public']['Tables']['budget_categories']['Row'];
-export type BudgetCategoryInsert =
-  Database['public']['Tables']['budget_categories']['Insert'];
-export type BudgetCategoryUpdate =
-  Database['public']['Tables']['budget_categories']['Update'];
+export type BudgetCategoryRow = Database['public']['Tables']['budget_categories']['Row'];
+export type BudgetCategoryInsert = Database['public']['Tables']['budget_categories']['Insert'];
+export type BudgetCategoryUpdate = Database['public']['Tables']['budget_categories']['Update'];
 
 export type TripNoteRow = Database['public']['Tables']['trip_notes']['Row'];
-export type TripNoteInsert =
-  Database['public']['Tables']['trip_notes']['Insert'];
-export type TripNoteUpdate =
-  Database['public']['Tables']['trip_notes']['Update'];
+export type TripNoteInsert = Database['public']['Tables']['trip_notes']['Insert'];
+export type TripNoteUpdate = Database['public']['Tables']['trip_notes']['Update'];
 
-export type ChecklistItemRow =
-  Database['public']['Tables']['checklist_items']['Row'];
-export type ChecklistItemInsert =
-  Database['public']['Tables']['checklist_items']['Insert'];
-export type ChecklistItemUpdate =
-  Database['public']['Tables']['checklist_items']['Update'];
+export type ChecklistItemRow = Database['public']['Tables']['checklist_items']['Row'];
+export type ChecklistItemInsert = Database['public']['Tables']['checklist_items']['Insert'];
+export type ChecklistItemUpdate = Database['public']['Tables']['checklist_items']['Update'];

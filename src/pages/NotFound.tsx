@@ -12,7 +12,8 @@ const NotFound: React.FC = () => {
       <h1 className="text-6xl font-bold text-neutral-900 mb-2">404</h1>
       <p className="text-lg text-neutral-600 mb-6">Page not found</p>
       <p className="text-sm text-neutral-400 max-w-md mb-8">
-        The page you are looking for does not exist or has been moved. Let&apos;s get you back on track.
+        The page you are looking for does not exist or has been moved. Let&apos;s get you back on
+        track.
       </p>
       <Link to="/dashboard">
         <Button variant="primary" size="lg">

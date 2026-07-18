@@ -13,9 +13,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className={className}>
         {label && (
-          <label className="block text-sm font-medium text-app-text-muted mb-1.5">
-            {label}
-          </label>
+          <label className="block text-sm font-medium text-app-text-muted mb-1.5">{label}</label>
         )}
         <div className="relative">
           {icon && (
@@ -29,21 +27,17 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             className={[
               'w-full px-4 py-2.5 rounded-xl border bg-app-surface text-app-text placeholder:text-app-text-subtle focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors',
               icon ? 'pl-10' : '',
-              error
-                ? 'border-error-400 text-error-500'
-                : 'border-app-border',
+              error ? 'border-error-400 text-error-500' : 'border-app-border',
             ]
               .filter(Boolean)
               .join(' ')}
             {...props}
           />
         </div>
-        {error && (
-          <p className="mt-1.5 text-sm text-error-500">{error}</p>
-        )}
+        {error && <p className="mt-1.5 text-sm text-error-500">{error}</p>}
       </div>
     );
-  }
+  },
 );
 
 Input.displayName = 'Input';

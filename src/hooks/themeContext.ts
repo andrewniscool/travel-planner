@@ -9,6 +9,4 @@ export interface ThemeContextValue {
   toggleTheme: () => void;
 }
 
-export const ThemeContext = createContext<ThemeContextValue | undefined>(
-  undefined,
-);
+export const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);

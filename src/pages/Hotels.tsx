@@ -41,13 +41,7 @@ const LOCAL_SELECTED_HOTELS_KEY = 'travel-builder:selected-hotels';
 type HotelSortOption = 'recommended' | 'highest-rated' | 'most-reviewed' | 'closest';
 
 const loadSelectedHotels = (tripId: string, initialSelectedHotelIds: string[]) => {
-  return new Set(
-    loadTripScopedValue(
-      LOCAL_SELECTED_HOTELS_KEY,
-      tripId,
-      initialSelectedHotelIds,
-    ),
-  );
+  return new Set(loadTripScopedValue(LOCAL_SELECTED_HOTELS_KEY, tripId, initialSelectedHotelIds));
 };
 
 const persistSelectedHotels = (tripId: string, hotelIds: Set<string>) => {
@@ -67,18 +61,18 @@ const Hotels: React.FC = () => {
   const allHotels = useMemo(() => (trip ? getHotelsByTripId(trip.id) : []), [trip]);
   const initiallySelectedHotelIds = useMemo(
     () => allHotels.filter((hotel) => hotel.isSelected).map((hotel) => hotel.id),
-    [allHotels]
+    [allHotels],
   );
   const orderedStops = useMemo(
     () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
-    [trip]
+    [trip],
   );
   const [selectedStopId, setSelectedStopId] = useState(orderedStops[0]?.id ?? '');
   const [sortBy, setSortBy] = useState<HotelSortOption>('recommended');
   const [selectedRatings, setSelectedRatings] = useState<number[]>([]);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [savedHotels, setSavedHotels] = useState<Set<string>>(() =>
-    trip ? loadSelectedHotels(trip.id, initiallySelectedHotelIds) : new Set()
+    trip ? loadSelectedHotels(trip.id, initiallySelectedHotelIds) : new Set(),
   );
   const [serviceHotels, setServiceHotels] = useState<Hotel[]>([]);
   const [googleHotels, setGoogleHotels] = useState<Hotel[]>([]);
@@ -117,10 +111,7 @@ const Hotels: React.FC = () => {
         const nextServiceHotels = lodgingOptions
           .filter((option) => option.is_selected || option.is_saved)
           .map((option) => mapLodgingOptionRowToHotel(option, tripId));
-        const nextSelections = new Set([
-          ...initiallySelectedHotelIds,
-          ...selectedHotelIds,
-        ]);
+        const nextSelections = new Set([...initiallySelectedHotelIds, ...selectedHotelIds]);
 
         setServiceHotels(nextServiceHotels);
         setSavedHotels(nextSelections);
@@ -128,7 +119,9 @@ const Hotels: React.FC = () => {
         setLodgingSource('supabase');
       } catch {
         if (cancelled) return;
-        setLodgingError('Supabase lodging selections could not be loaded. Showing local hotel selections instead.');
+        setLodgingError(
+          'Supabase lodging selections could not be loaded. Showing local hotel selections instead.',
+        );
       }
     }
 
@@ -147,7 +140,7 @@ const Hotels: React.FC = () => {
 
   const selectedStop = useMemo(
     () => orderedStops.find((stop) => stop.id === selectedStopId) ?? orderedStops[0],
-    [orderedStops, selectedStopId]
+    [orderedStops, selectedStopId],
   );
 
   useEffect(() => {
@@ -210,19 +203,20 @@ const Hotels: React.FC = () => {
 
     setIsSearchingGoogleHotels(true);
 
-    placesService.textSearch(textQuery, searchOptions)
+    placesService
+      .textSearch(textQuery, searchOptions)
       .then((locations) => {
         if (cancelled) return;
         setGoogleHotels(
-          locations.map((location) =>
-            mapLocationRefToHotel(trip.id, selectedStop.id, location),
-          ),
+          locations.map((location) => mapLocationRefToHotel(trip.id, selectedStop.id, location)),
         );
       })
       .catch(() => {
         if (cancelled) return;
         setGoogleHotels([]);
-        setLodgingError('Google lodging search is unavailable. Showing saved and local hotels instead.');
+        setLodgingError(
+          'Google lodging search is unavailable. Showing saved and local hotels instead.',
+        );
       })
       .finally(() => {
         if (cancelled) return;
@@ -244,19 +238,22 @@ const Hotels: React.FC = () => {
 
   const stopHotels = useMemo(() => {
     if (!selectedStop) return availableHotels;
-    return availableHotels.filter((hotel) =>
-      hotel.stopId === selectedStop.id || (!hotel.stopId && orderedStops.length <= 1)
+    return availableHotels.filter(
+      (hotel) => hotel.stopId === selectedStop.id || (!hotel.stopId && orderedStops.length <= 1),
     );
   }, [availableHotels, orderedStops.length, selectedStop]);
 
   const availableAmenities = useMemo(
     () => [...new Set(stopHotels.flatMap((hotel) => hotel.amenities))].sort(),
-    [stopHotels]
+    [stopHotels],
   );
 
   const filteredHotels = useMemo(() => {
     return stopHotels.filter((hotel) => {
-      if (selectedRatings.length > 0 && !selectedRatings.some((rating) => getGoogleRating(hotel) >= rating)) {
+      if (
+        selectedRatings.length > 0 &&
+        !selectedRatings.some((rating) => getGoogleRating(hotel) >= rating)
+      ) {
         return false;
       }
       if (
@@ -273,19 +270,30 @@ const Hotels: React.FC = () => {
     const sorted = [...filteredHotels];
     switch (sortBy) {
       case 'highest-rated':
-        sorted.sort((a, b) => getGoogleRating(b) - getGoogleRating(a) || getGoogleReviewCount(b) - getGoogleReviewCount(a));
+        sorted.sort(
+          (a, b) =>
+            getGoogleRating(b) - getGoogleRating(a) ||
+            getGoogleReviewCount(b) - getGoogleReviewCount(a),
+        );
         break;
       case 'most-reviewed':
         sorted.sort((a, b) => getGoogleReviewCount(b) - getGoogleReviewCount(a));
         break;
       case 'closest':
-        sorted.sort((a, b) => extractDistanceNumber(a.distanceToCenter) - extractDistanceNumber(b.distanceToCenter));
+        sorted.sort(
+          (a, b) =>
+            extractDistanceNumber(a.distanceToCenter) - extractDistanceNumber(b.distanceToCenter),
+        );
         break;
       case 'recommended':
       default:
         sorted.sort((a, b) => {
           const selectedWeight = Number(savedHotels.has(b.id)) - Number(savedHotels.has(a.id));
-          return selectedWeight || getGoogleRating(b) - getGoogleRating(a) || getGoogleReviewCount(b) - getGoogleReviewCount(a);
+          return (
+            selectedWeight ||
+            getGoogleRating(b) - getGoogleRating(a) ||
+            getGoogleReviewCount(b) - getGoogleReviewCount(a)
+          );
         });
         break;
     }
@@ -294,13 +302,13 @@ const Hotels: React.FC = () => {
 
   const handleRatingToggle = (rating: number) => {
     setSelectedRatings((prev) =>
-      prev.includes(rating) ? prev.filter((item) => item !== rating) : [...prev, rating]
+      prev.includes(rating) ? prev.filter((item) => item !== rating) : [...prev, rating],
     );
   };
 
   const handleAmenityToggle = (amenity: string) => {
     setSelectedAmenities((prev) =>
-      prev.includes(amenity) ? prev.filter((item) => item !== amenity) : [...prev, amenity]
+      prev.includes(amenity) ? prev.filter((item) => item !== amenity) : [...prev, amenity],
     );
   };
 
@@ -331,10 +339,7 @@ const Hotels: React.FC = () => {
           ? {
               ...hotel,
               locationRef: mapLocationRefRowToLocationRef(
-                await locationRefService.upsertGoogleLocationRef(
-                  userId,
-                  hotel.locationRef,
-                ),
+                await locationRefService.upsertGoogleLocationRef(userId, hotel.locationRef),
               ),
             }
           : hotel;
@@ -367,7 +372,9 @@ const Hotels: React.FC = () => {
         );
       })
       .catch(() => {
-        setLodgingError('Google hotel photos could not be loaded. Showing the available photo instead.');
+        setLodgingError(
+          'Google hotel photos could not be loaded. Showing the available photo instead.',
+        );
       });
   };
 
@@ -395,7 +402,8 @@ const Hotels: React.FC = () => {
           </p>
           {(serviceTripError || lodgingError) && (
             <p className="text-sm text-warning-700 mt-2">
-              {lodgingError || 'Supabase trip data could not be loaded. Showing local hotel data instead.'}
+              {lodgingError ||
+                'Supabase trip data could not be loaded. Showing local hotel data instead.'}
             </p>
           )}
         </div>

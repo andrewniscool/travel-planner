@@ -24,20 +24,14 @@ import {
 } from '../services/locationDisplayMappers';
 import { placesService } from '../services/placesService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
-import {
-  loadTripScopedValue,
-  persistTripScopedValue,
-} from '../utils/tripStorage';
+import { loadTripScopedValue, persistTripScopedValue } from '../utils/tripStorage';
 import FilterTabs from '../components/ui/FilterTabs';
 import SearchBar from '../components/ui/SearchBar';
 import EmptyState from '../components/ui/EmptyState';
 import PlaceCard from '../components/explore/PlaceCard';
 import PlaceDetailModal from '../components/explore/PlaceDetailModal';
 import StopSelector from '../components/trips/StopSelector';
-import type {
-  Place,
-  PlaceCategory,
-} from '../types';
+import type { Place, PlaceCategory } from '../types';
 import type { ItineraryItemInsert } from '../services/supabaseTypes';
 
 const CATEGORIES: (PlaceCategory | 'All')[] = [
@@ -56,13 +50,7 @@ const CATEGORIES: (PlaceCategory | 'All')[] = [
 const LOCAL_SAVED_PLACES_KEY = 'travel-builder:saved-places';
 
 const loadSavedPlaces = (tripId: string, initialSavedPlaceIds: string[]) => {
-  return new Set(
-    loadTripScopedValue(
-      LOCAL_SAVED_PLACES_KEY,
-      tripId,
-      initialSavedPlaceIds,
-    ),
-  );
+  return new Set(loadTripScopedValue(LOCAL_SAVED_PLACES_KEY, tripId, initialSavedPlaceIds));
 };
 
 const persistSavedPlaces = (tripId: string, placeIds: Set<string>) => {
@@ -85,7 +73,7 @@ const Explore: React.FC = () => {
   );
   const orderedStops = useMemo(
     () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
-    [trip]
+    [trip],
   );
   const [selectedStopId, setSelectedStopId] = useState(orderedStops[0]?.id ?? '');
 
@@ -97,13 +85,13 @@ const Explore: React.FC = () => {
 
   const selectedStop = useMemo(
     () => orderedStops.find((stop) => stop.id === selectedStopId) ?? orderedStops[0],
-    [orderedStops, selectedStopId]
+    [orderedStops, selectedStopId],
   );
 
   const stopPlaces = useMemo(() => {
     if (!selectedStop) return allPlaces;
-    return allPlaces.filter((place) =>
-      place.stopId === selectedStop.id || (!place.stopId && orderedStops.length <= 1)
+    return allPlaces.filter(
+      (place) => place.stopId === selectedStop.id || (!place.stopId && orderedStops.length <= 1),
     );
   }, [allPlaces, orderedStops.length, selectedStop]);
 
@@ -144,23 +132,20 @@ const Explore: React.FC = () => {
         const rows = await savedPlaceService.listSavedPlaces(trip.id);
         if (cancelled) return;
 
-        const savedPlaceIds = rows
-          .filter((row) => row.is_saved)
-          .map(getPlaceIdFromSavedPlace);
+        const savedPlaceIds = rows.filter((row) => row.is_saved).map(getPlaceIdFromSavedPlace);
         const nextServiceSavedPlaces = rows
           .filter((row) => row.is_saved)
           .map((row) => mapSavedPlaceRowToPlace(row, trip.id));
-        const nextSavedPlaces = new Set([
-          ...initialSavedPlaceIds,
-          ...savedPlaceIds,
-        ]);
+        const nextSavedPlaces = new Set([...initialSavedPlaceIds, ...savedPlaceIds]);
 
         setServiceSavedPlaces(nextServiceSavedPlaces);
         setSavedPlaces(nextSavedPlaces);
         persistSavedPlaces(trip.id, nextSavedPlaces);
       } catch {
         if (cancelled) return;
-        setSavedPlacesError('Supabase saved places could not be loaded. Showing local saved places instead.');
+        setSavedPlacesError(
+          'Supabase saved places could not be loaded. Showing local saved places instead.',
+        );
       }
     }
 
@@ -211,12 +196,7 @@ const Explore: React.FC = () => {
       setGooglePlaces(
         cachedLocations
           ? cachedLocations.map((location) =>
-              mapLocationRefToPlace(
-                trip.id,
-                selectedStop.id,
-                location,
-                activeCategory,
-              ),
+              mapLocationRefToPlace(trip.id, selectedStop.id, location, activeCategory),
             )
           : [],
       );
@@ -246,19 +226,16 @@ const Explore: React.FC = () => {
         if (cancelled) return;
         setGooglePlaces(
           locations.map((location) =>
-            mapLocationRefToPlace(
-              trip.id,
-              selectedStop.id,
-              location,
-              activeCategory,
-            ),
+            mapLocationRefToPlace(trip.id, selectedStop.id, location, activeCategory),
           ),
         );
       })
       .catch(() => {
         if (cancelled) return;
         setGooglePlaces([]);
-        setGooglePlacesError('Google Places search is unavailable. Showing saved and local places instead.');
+        setGooglePlacesError(
+          'Google Places search is unavailable. Showing saved and local places instead.',
+        );
       })
       .finally(() => {
         if (cancelled) return;
@@ -272,8 +249,8 @@ const Explore: React.FC = () => {
 
   const serviceStopPlaces = useMemo(() => {
     if (!selectedStop) return serviceSavedPlaces;
-    return serviceSavedPlaces.filter((place) =>
-      place.stopId === selectedStop.id || (!place.stopId && orderedStops.length <= 1)
+    return serviceSavedPlaces.filter(
+      (place) => place.stopId === selectedStop.id || (!place.stopId && orderedStops.length <= 1),
     );
   }, [orderedStops.length, selectedStop, serviceSavedPlaces]);
 
@@ -300,7 +277,7 @@ const Explore: React.FC = () => {
         (p) =>
           p.name.toLowerCase().includes(query) ||
           p.location.toLowerCase().includes(query) ||
-          p.tags.some((t) => t.toLowerCase().includes(query))
+          p.tags.some((t) => t.toLowerCase().includes(query)),
       );
     }
 
@@ -337,19 +314,12 @@ const Explore: React.FC = () => {
           ? {
               ...place,
               locationRef: mapLocationRefRowToLocationRef(
-                await locationRefService.upsertGoogleLocationRef(
-                  userId,
-                  place.locationRef,
-                ),
+                await locationRefService.upsertGoogleLocationRef(userId, place.locationRef),
               ),
             }
           : place;
 
-      await savedPlaceService.upsertSavedPlace(
-        trip.id,
-        placeToSave,
-        next.has(placeId),
-      );
+      await savedPlaceService.upsertSavedPlace(trip.id, placeToSave, next.has(placeId));
       setSavedPlacesError(null);
     } catch {
       setSavedPlacesError('Supabase saved place update failed. Saved locally instead.');
@@ -382,15 +352,11 @@ const Explore: React.FC = () => {
         return;
       }
 
-      const locationRef =
-        place.locationRef?.googlePlaceId
-          ? mapLocationRefRowToLocationRef(
-              await locationRefService.upsertGoogleLocationRef(
-                userId,
-                place.locationRef,
-              ),
-            )
-          : place.locationRef;
+      const locationRef = place.locationRef?.googlePlaceId
+        ? mapLocationRefRowToLocationRef(
+            await locationRefService.upsertGoogleLocationRef(userId, place.locationRef),
+          )
+        : place.locationRef;
       const itineraryDate =
         selectedStop?.startDate || trip.startDate || new Date().toISOString().slice(0, 10);
       const payload: ItineraryItemInsert = {
@@ -439,7 +405,9 @@ const Explore: React.FC = () => {
             );
           })
           .catch(() => {
-            setGooglePlacesError('Google place photos could not be loaded. Showing the available photo instead.');
+            setGooglePlacesError(
+              'Google place photos could not be loaded. Showing the available photo instead.',
+            );
           });
       }
     }
@@ -453,7 +421,8 @@ const Explore: React.FC = () => {
           {orderedStops.length > 1 && selectedStop ? `Explore ${selectedStop.name}` : 'Explore'}
         </h1>
         <p className="text-sm text-neutral-500 mt-1">
-          Discover places and activities in {selectedStop?.name || trip?.destination || 'your destination'}
+          Discover places and activities in{' '}
+          {selectedStop?.name || trip?.destination || 'your destination'}
         </p>
         {(serviceTripError || savedPlacesError || googlePlacesError || itineraryError) && (
           <p className="text-sm text-warning-700 mt-2">
@@ -463,9 +432,7 @@ const Explore: React.FC = () => {
               'Supabase trip data could not be loaded. Showing local places instead.'}
           </p>
         )}
-        {itineraryMessage && (
-          <p className="text-sm text-success-700 mt-2">{itineraryMessage}</p>
-        )}
+        {itineraryMessage && <p className="text-sm text-success-700 mt-2">{itineraryMessage}</p>}
       </div>
 
       <StopSelector
@@ -475,18 +442,14 @@ const Explore: React.FC = () => {
       />
 
       {/* Category Tabs */}
-      <FilterTabs
-        tabs={CATEGORIES}
-        activeTab={activeCategory}
-        onChange={setActiveCategory}
-      />
+      <FilterTabs tabs={CATEGORIES} activeTab={activeCategory} onChange={setActiveCategory} />
 
       {/* Search Bar */}
       <SearchBar
         value={searchQuery}
         onChange={setSearchQuery}
         placeholder="Search places by name, location, or tag..."
-            className="max-w-md"
+        className="max-w-md"
       />
 
       {/* Results Count */}
@@ -539,17 +502,13 @@ const Explore: React.FC = () => {
       {/* Place Detail Modal */}
       <PlaceDetailModal
         place={
-          selectedPlace
-            ? { ...selectedPlace, isSaved: savedPlaces.has(selectedPlace.id) }
-            : null
+          selectedPlace ? { ...selectedPlace, isSaved: savedPlaces.has(selectedPlace.id) } : null
         }
         isOpen={selectedPlace !== null}
         onClose={() => setSelectedPlace(null)}
         onSave={(placeId) => void handleSave(placeId)}
         onAddToItinerary={handleAddToItinerary}
-        isAddingToItinerary={
-          selectedPlace ? addingItineraryPlaceIds.has(selectedPlace.id) : false
-        }
+        isAddingToItinerary={selectedPlace ? addingItineraryPlaceIds.has(selectedPlace.id) : false}
       />
     </div>
   );

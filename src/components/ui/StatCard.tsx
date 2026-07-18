@@ -21,7 +21,7 @@ const StatCard: React.FC<StatCardProps> = ({
   return (
     <div
       className={[
-        'bg-white rounded-2xl p-6 shadow-card border border-neutral-100',
+        'bg-app-surface rounded-2xl p-6 shadow-card border border-app-border-muted',
         className,
       ]
         .filter(Boolean)
@@ -32,8 +32,8 @@ const StatCard: React.FC<StatCardProps> = ({
           {icon}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-2xl font-bold text-neutral-900">{value}</p>
-          <p className="text-sm text-neutral-500 mt-0.5">{label}</p>
+          <p className="text-2xl font-bold text-app-text-strong">{value}</p>
+          <p className="text-sm text-app-text-muted mt-0.5">{label}</p>
         </div>
       </div>
       {trend && trendValue && (
@@ -43,11 +43,7 @@ const StatCard: React.FC<StatCardProps> = ({
           ) : (
             <TrendingDown className="w-4 h-4 text-error-500" />
           )}
-          <span
-            className={
-              trend === 'up' ? 'text-sm text-success-500' : 'text-sm text-error-500'
-            }
-          >
+          <span className={trend === 'up' ? 'text-sm text-success-500' : 'text-sm text-error-500'}>
             {trendValue}
           </span>
         </div>

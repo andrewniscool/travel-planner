@@ -139,10 +139,7 @@ export const profileService = {
     return getSupabaseData({ data, error });
   },
 
-  async updateProfile(
-    userId: string,
-    updates: ProfileUpdate,
-  ): Promise<ProfileRow> {
+  async updateProfile(userId: string, updates: ProfileUpdate): Promise<ProfileRow> {
     const { data, error } = await getSupabaseClient()
       .from('profiles')
       .update(updates)
@@ -195,11 +192,7 @@ export const tripService = {
   },
 
   async createTrip(trip: TripInsert): Promise<TripRow> {
-    const { data, error } = await getSupabaseClient()
-      .from('trips')
-      .insert(trip)
-      .select()
-      .single();
+    const { data, error } = await getSupabaseClient().from('trips').insert(trip).select().single();
 
     return getSupabaseData({ data, error });
   },
@@ -211,9 +204,7 @@ export const tripService = {
       const stopInserts = trip.stops.map((stop) =>
         mapTripStopToTripStopInsert(createdTrip.id, stop),
       );
-      const { error } = await getSupabaseClient()
-        .from('trip_stops')
-        .insert(stopInserts);
+      const { error } = await getSupabaseClient().from('trip_stops').insert(stopInserts);
 
       throwSupabaseError(error);
     }
@@ -256,12 +247,8 @@ export const tripService = {
       }
     }
 
-    const removedStops = existingStops.filter(
-      (stop) => !keptStopIds.has(stop.id),
-    );
-    await Promise.all(
-      removedStops.map((stop) => tripStopService.deleteTripStop(stop.id)),
-    );
+    const removedStops = existingStops.filter((stop) => !keptStopIds.has(stop.id));
+    await Promise.all(removedStops.map((stop) => tripStopService.deleteTripStop(stop.id)));
 
     const updatedTripWithRelations = await this.getTrip(trip.id);
     if (!updatedTripWithRelations) {
@@ -272,10 +259,7 @@ export const tripService = {
   },
 
   async deleteTrip(tripId: string): Promise<void> {
-    const { error } = await getSupabaseClient()
-      .from('trips')
-      .delete()
-      .eq('id', tripId);
+    const { error } = await getSupabaseClient().from('trips').delete().eq('id', tripId);
 
     throwSupabaseError(error);
   },
@@ -302,10 +286,7 @@ export const tripStopService = {
     return getSupabaseData({ data, error });
   },
 
-  async updateTripStop(
-    stopId: string,
-    updates: TripStopUpdate,
-  ): Promise<TripStopRow> {
+  async updateTripStop(stopId: string, updates: TripStopUpdate): Promise<TripStopRow> {
     const { data, error } = await getSupabaseClient()
       .from('trip_stops')
       .update(updates)
@@ -317,10 +298,7 @@ export const tripStopService = {
   },
 
   async deleteTripStop(stopId: string): Promise<void> {
-    const { error } = await getSupabaseClient()
-      .from('trip_stops')
-      .delete()
-      .eq('id', stopId);
+    const { error } = await getSupabaseClient().from('trip_stops').delete().eq('id', stopId);
 
     throwSupabaseError(error);
   },
@@ -337,9 +315,7 @@ export const locationRefService = {
     return getSupabaseData({ data, error });
   },
 
-  async createLocationRef(
-    location: LocationRefInsert,
-  ): Promise<LocationRefRow> {
+  async createLocationRef(location: LocationRefInsert): Promise<LocationRefRow> {
     const { data, error } = await getSupabaseClient()
       .from('location_refs')
       .insert(location)
@@ -398,10 +374,7 @@ export const locationRefService = {
     return this.createLocationRef(payload);
   },
 
-  async updateLocationRef(
-    locationId: string,
-    updates: LocationRefUpdate,
-  ): Promise<LocationRefRow> {
+  async updateLocationRef(locationId: string, updates: LocationRefUpdate): Promise<LocationRefRow> {
     const { data, error } = await getSupabaseClient()
       .from('location_refs')
       .update(updates)
@@ -413,10 +386,7 @@ export const locationRefService = {
   },
 
   async deleteLocationRef(locationId: string): Promise<void> {
-    const { error } = await getSupabaseClient()
-      .from('location_refs')
-      .delete()
-      .eq('id', locationId);
+    const { error } = await getSupabaseClient().from('location_refs').delete().eq('id', locationId);
 
     throwSupabaseError(error);
   },
@@ -449,9 +419,7 @@ export const transportSegmentService = {
     tripId: string,
     segment: TransportSegment,
   ): Promise<TransportSegmentWithLocationRefs> {
-    return this.createTransportSegment(
-      mapTransportSegmentToInsert(tripId, segment),
-    );
+    return this.createTransportSegment(mapTransportSegmentToInsert(tripId, segment));
   },
 
   async updateTransportSegment(
@@ -468,13 +436,8 @@ export const transportSegmentService = {
     return getSupabaseData({ data, error });
   },
 
-  async updateTravelSegment(
-    segment: TransportSegment,
-  ): Promise<TransportSegmentWithLocationRefs> {
-    return this.updateTransportSegment(
-      segment.id,
-      mapTransportSegmentToUpdate(segment),
-    );
+  async updateTravelSegment(segment: TransportSegment): Promise<TransportSegmentWithLocationRefs> {
+    return this.updateTransportSegment(segment.id, mapTransportSegmentToUpdate(segment));
   },
 
   async deleteTransportSegment(segmentId: string): Promise<void> {
@@ -505,11 +468,7 @@ export const lodgingService = {
     hotel: Hotel,
     isSelected: boolean,
   ): Promise<LodgingOptionRow> {
-    const insertPayload = mapHotelToLodgingOptionInsert(
-      tripId,
-      hotel,
-      isSelected,
-    );
+    const insertPayload = mapHotelToLodgingOptionInsert(tripId, hotel, isSelected);
     const updatePayload = mapHotelToLodgingOptionUpdate(hotel, isSelected);
 
     const { data, error } = await getSupabaseClient()
@@ -539,11 +498,7 @@ export const savedPlaceService = {
     return getSupabaseData({ data, error });
   },
 
-  async upsertSavedPlace(
-    tripId: string,
-    place: Place,
-    isSaved: boolean,
-  ): Promise<SavedPlaceRow> {
+  async upsertSavedPlace(tripId: string, place: Place, isSaved: boolean): Promise<SavedPlaceRow> {
     const insertPayload = mapPlaceToSavedPlaceInsert(tripId, place, isSaved);
     const updatePayload = mapPlaceToSavedPlaceUpdate(place, isSaved);
 
@@ -580,24 +535,17 @@ export const itineraryService = {
     return mapItineraryRowsToDays(rows);
   },
 
-  async createItineraryItem(
-    item: ItineraryItemInsert,
-  ): Promise<ItineraryItem> {
+  async createItineraryItem(item: ItineraryItemInsert): Promise<ItineraryItem> {
     const { data, error } = await getSupabaseClient()
       .from('itinerary_items')
       .insert(item)
       .select(WITH_LOCATION_REF_SELECT)
       .single();
 
-    return mapItineraryItemRowToItineraryItem(
-      getSupabaseData({ data, error }),
-    );
+    return mapItineraryItemRowToItineraryItem(getSupabaseData({ data, error }));
   },
 
-  async updateItineraryItem(
-    itemId: string,
-    updates: ItineraryItemUpdate,
-  ): Promise<ItineraryItem> {
+  async updateItineraryItem(itemId: string, updates: ItineraryItemUpdate): Promise<ItineraryItem> {
     const { data, error } = await getSupabaseClient()
       .from('itinerary_items')
       .update(updates)
@@ -605,16 +553,11 @@ export const itineraryService = {
       .select(WITH_LOCATION_REF_SELECT)
       .single();
 
-    return mapItineraryItemRowToItineraryItem(
-      getSupabaseData({ data, error }),
-    );
+    return mapItineraryItemRowToItineraryItem(getSupabaseData({ data, error }));
   },
 
   async deleteItineraryItem(itemId: string): Promise<void> {
-    const { error } = await getSupabaseClient()
-      .from('itinerary_items')
-      .delete()
-      .eq('id', itemId);
+    const { error } = await getSupabaseClient().from('itinerary_items').delete().eq('id', itemId);
 
     throwSupabaseError(error);
   },
@@ -642,11 +585,7 @@ export const budgetService = {
     category: BudgetCategory,
     orderIndex = 0,
   ): Promise<BudgetCategory> {
-    const insertPayload = mapBudgetCategoryToInsert(
-      tripId,
-      category,
-      orderIndex,
-    );
+    const insertPayload = mapBudgetCategoryToInsert(tripId, category, orderIndex);
     const updatePayload = mapBudgetCategoryToUpdate(category, orderIndex);
 
     const { data, error } = await getSupabaseClient()
@@ -661,9 +600,7 @@ export const budgetService = {
       .select()
       .single();
 
-    return mapBudgetCategoryRowToBudgetCategory(
-      getSupabaseData({ data, error }),
-    );
+    return mapBudgetCategoryRowToBudgetCategory(getSupabaseData({ data, error }));
   },
 
   async deleteBudgetCategory(categoryId: string): Promise<void> {
@@ -691,23 +628,17 @@ export const budgetService = {
     return rows.map(mapBudgetExpenseRowToBudgetExpense);
   },
 
-  async createBudgetExpense(
-    expense: BudgetExpense,
-  ): Promise<BudgetExpense> {
+  async createBudgetExpense(expense: BudgetExpense): Promise<BudgetExpense> {
     const { data, error } = await getSupabaseClient()
       .from('budget_expenses')
       .insert(mapBudgetExpenseToInsert(expense))
       .select()
       .single();
 
-    return mapBudgetExpenseRowToBudgetExpense(
-      getSupabaseData({ data, error }),
-    );
+    return mapBudgetExpenseRowToBudgetExpense(getSupabaseData({ data, error }));
   },
 
-  async updateBudgetExpense(
-    expense: BudgetExpense,
-  ): Promise<BudgetExpense> {
+  async updateBudgetExpense(expense: BudgetExpense): Promise<BudgetExpense> {
     const { data, error } = await getSupabaseClient()
       .from('budget_expenses')
       .update(mapBudgetExpenseToUpdate(expense))
@@ -715,9 +646,7 @@ export const budgetService = {
       .select()
       .single();
 
-    return mapBudgetExpenseRowToBudgetExpense(
-      getSupabaseData({ data, error }),
-    );
+    return mapBudgetExpenseRowToBudgetExpense(getSupabaseData({ data, error }));
   },
 
   async deleteBudgetExpense(expenseId: string): Promise<void> {
@@ -768,10 +697,7 @@ export const notesService = {
   },
 
   async deleteNote(noteId: string): Promise<void> {
-    const { error } = await getSupabaseClient()
-      .from('trip_notes')
-      .delete()
-      .eq('id', noteId);
+    const { error } = await getSupabaseClient().from('trip_notes').delete().eq('id', noteId);
 
     throwSupabaseError(error);
   },
@@ -792,19 +718,14 @@ export const notesService = {
     return rows.map(mapChecklistItemRowToChecklistItem);
   },
 
-  async createChecklistItem(
-    item: ChecklistItem,
-    orderIndex = 0,
-  ): Promise<ChecklistItem> {
+  async createChecklistItem(item: ChecklistItem, orderIndex = 0): Promise<ChecklistItem> {
     const { data, error } = await getSupabaseClient()
       .from('checklist_items')
       .insert(mapChecklistItemToInsert(item, orderIndex))
       .select()
       .single();
 
-    return mapChecklistItemRowToChecklistItem(
-      getSupabaseData({ data, error }),
-    );
+    return mapChecklistItemRowToChecklistItem(getSupabaseData({ data, error }));
   },
 
   async updateChecklistItem(item: ChecklistItem): Promise<ChecklistItem> {
@@ -815,16 +736,11 @@ export const notesService = {
       .select()
       .single();
 
-    return mapChecklistItemRowToChecklistItem(
-      getSupabaseData({ data, error }),
-    );
+    return mapChecklistItemRowToChecklistItem(getSupabaseData({ data, error }));
   },
 
   async deleteChecklistItem(itemId: string): Promise<void> {
-    const { error } = await getSupabaseClient()
-      .from('checklist_items')
-      .delete()
-      .eq('id', itemId);
+    const { error } = await getSupabaseClient().from('checklist_items').delete().eq('id', itemId);
 
     throwSupabaseError(error);
   },

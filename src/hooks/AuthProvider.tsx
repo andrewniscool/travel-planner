@@ -1,10 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { AuthContext, type AuthContextValue } from './authContext';
-import {
-  getSupabaseClient,
-  isSupabaseConfigured,
-} from '../services/supabaseClient';
+import { getSupabaseClient, isSupabaseConfigured } from '../services/supabaseClient';
 import { profileService } from '../services/travelDataService';
 
 function getErrorMessage(error: unknown): string {
@@ -18,22 +15,16 @@ async function ensureProfile(user: User, fullName?: string) {
       email: user.email ?? null,
       full_name:
         fullName ??
-        (typeof user.user_metadata.full_name === 'string'
-          ? user.user_metadata.full_name
-          : null),
+        (typeof user.user_metadata.full_name === 'string' ? user.user_metadata.full_name : null),
       avatar_url:
-        typeof user.user_metadata.avatar_url === 'string'
-          ? user.user_metadata.avatar_url
-          : null,
+        typeof user.user_metadata.avatar_url === 'string' ? user.user_metadata.avatar_url : null,
     });
   } catch {
     // Profile creation can fail before email confirmation creates a session.
   }
 }
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
 
@@ -82,12 +73,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           throw new Error('Supabase is not configured.');
         }
 
-        const { data, error } = await getSupabaseClient().auth.signInWithPassword(
-          {
-            email,
-            password,
-          },
-        );
+        const { data, error } = await getSupabaseClient().auth.signInWithPassword({
+          email,
+          password,
+        });
 
         if (error) throw new Error(getErrorMessage(error));
         if (data.user) await ensureProfile(data.user);

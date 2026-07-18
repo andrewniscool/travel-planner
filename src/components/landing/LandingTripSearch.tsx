@@ -1,19 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  MapPin,
-  Minus,
-  Plus,
-  Search,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, MapPin, Minus, Plus, Search } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { mockLocationSuggestions } from '../../data/locationSuggestions';
-import {
-  placesService,
-  type PlaceAutocompleteSuggestion,
-} from '../../services/placesService';
+import { placesService, type PlaceAutocompleteSuggestion } from '../../services/placesService';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 import type { LocationRef } from '../../types';
 
@@ -30,21 +19,25 @@ const SEARCH_BAR_MAX_WIDTH = 'max-w-5xl';
 const FIELD_BASE_CLASS =
   'relative z-10 flex min-h-[78px] flex-col justify-center rounded-[1.75rem] px-7 py-4 text-left transition-all duration-300 ease-out md:h-full md:min-h-0 md:rounded-full md:px-8';
 const FIELD_ACTIVE_CLASS =
-  'bg-app-surface shadow-[0_10px_30px_rgb(15_23_42_/_0.16)] md:bg-transparent md:shadow-none';
-const FIELD_IDLE_CLASS = 'hover:bg-app-surface/65';
+  'bg-app-surface-muted shadow-[0_8px_24px_rgb(30_23_16_/_0.14)] md:bg-transparent md:shadow-none';
+const FIELD_IDLE_CLASS = 'hover:bg-app-surface-muted/80';
 const FIELD_LABEL_CLASS =
-  'block text-xs font-extrabold leading-none tracking-normal text-app-text';
-const FIELD_VALUE_CLASS =
-  'mt-2 block h-8 truncate text-base font-semibold md:text-[15px]';
+  'block text-xs font-semibold uppercase leading-none tracking-eyebrow text-app-text-muted';
+const FIELD_VALUE_CLASS = 'mt-2 block h-8 truncate text-base font-semibold md:text-[15px]';
 const OVERLAY_BASE_CLASS =
-  'absolute z-40 mt-4 overflow-hidden rounded-[1.75rem] border border-app-border bg-app-surface shadow-[0_18px_45px_rgb(15_23_42_/_0.18)]';
+  'absolute z-40 mt-4 overflow-hidden rounded-[1.75rem] border border-app-border bg-app-surface shadow-[0_18px_45px_rgb(30_23_16_/_0.24)]';
 const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 const countLabel = (count: number, singular: string, plural = `${singular}s`) =>
   `${count} ${count === 1 ? singular : plural}`;
 
 const makeManualLocation = (name: string): LocationRef => ({
-  id: `manual-${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'location'}`,
+  id: `manual-${
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-') || 'location'
+  }`,
   name: name.trim(),
   source: 'manual',
 });
@@ -69,10 +62,10 @@ const addMonths = (date: Date, count: number) =>
 const isSameDay = (first: Date | null, second: Date | null) =>
   Boolean(
     first &&
-      second &&
-      first.getFullYear() === second.getFullYear() &&
-      first.getMonth() === second.getMonth() &&
-      first.getDate() === second.getDate(),
+    second &&
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate(),
   );
 
 const isBetween = (date: Date, start: Date | null, end: Date | null) =>
@@ -95,8 +88,7 @@ const formatSearchDateLabel = (start: string, end: string) => {
     month: 'short',
     day: 'numeric',
   });
-  const formatValue = (value: string) =>
-    formatter.format(new Date(`${value}T00:00:00`));
+  const formatValue = (value: string) => formatter.format(new Date(`${value}T00:00:00`));
 
   if (start && end) return `${formatValue(start)} - ${formatValue(end)}`;
   return start ? formatValue(start) : formatValue(end);
@@ -149,7 +141,9 @@ const CalendarMonth: React.FC<{
               isStart && selectedEnd ? 'rounded-l-full bg-primary-600 text-white' : '',
               isEnd && selectedStart ? 'rounded-r-full bg-primary-600 text-white' : '',
               isSingleSelected ? 'rounded-full bg-primary-600 text-white' : '',
-              !isStart && !isEnd ? 'hover:rounded-full hover:bg-app-surface-muted hover:ring-1 hover:ring-app-text' : '',
+              !isStart && !isEnd
+                ? 'hover:rounded-full hover:bg-app-surface-muted hover:ring-1 hover:ring-app-text'
+                : '',
             ]
               .filter(Boolean)
               .join(' ')}
@@ -165,13 +159,11 @@ const CalendarMonth: React.FC<{
 const LandingTripSearch: React.FC<LandingTripSearchProps> = ({ onSearch }) => {
   const prefersReducedMotion = useReducedMotion();
   const [destinationQuery, setDestinationQuery] = useState('');
-  const [googleSuggestions, setGoogleSuggestions] = useState<
-    PlaceAutocompleteSuggestion[]
-  >([]);
+  const [googleSuggestions, setGoogleSuggestions] = useState<PlaceAutocompleteSuggestion[]>([]);
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(false);
   const [placesError, setPlacesError] = useState<string | null>(null);
-  const [sessionToken, setSessionToken] = useState(() =>
-    crypto.randomUUID?.() ?? String(Date.now()),
+  const [sessionToken, setSessionToken] = useState(
+    () => crypto.randomUUID?.() ?? String(Date.now()),
   );
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -257,15 +249,11 @@ const LandingTripSearch: React.FC<LandingTripSearchProps> = ({ onSearch }) => {
     if (!normalizedQuery) return mockLocationSuggestions.slice(0, 6);
     return mockLocationSuggestions
       .filter((suggestion) =>
-        [
-          suggestion.name,
-          suggestion.formattedAddress,
-          ...(suggestion.placeTypes ?? []),
-        ]
+        [suggestion.name, suggestion.formattedAddress, ...(suggestion.placeTypes ?? [])]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
-          .includes(normalizedQuery)
+          .includes(normalizedQuery),
       )
       .slice(0, 6);
   }, [destinationQuery]);
@@ -324,18 +312,15 @@ const LandingTripSearch: React.FC<LandingTripSearchProps> = ({ onSearch }) => {
     return formatSearchDateLabel(displayStartDate, displayEndDate);
   }, [draftDateRange?.end, draftDateRange?.start, endDate, startDate]);
 
-  const datePrompt = (draftDateRange?.end ?? endDate)
-    ? 'Confirm your dates'
-    : (draftDateRange?.start ?? startDate)
-      ? 'Select an end date'
-      : 'Select a start date';
+  const datePrompt =
+    (draftDateRange?.end ?? endDate)
+      ? 'Confirm your dates'
+      : (draftDateRange?.start ?? startDate)
+        ? 'Select an end date'
+        : 'Select a start date';
 
   const fieldClassName = (field: SearchField, extra = '') =>
-    [
-      FIELD_BASE_CLASS,
-      activeOverlay === field ? FIELD_ACTIVE_CLASS : FIELD_IDLE_CLASS,
-      extra,
-    ]
+    [FIELD_BASE_CLASS, activeOverlay === field ? FIELD_ACTIVE_CLASS : FIELD_IDLE_CLASS, extra]
       .filter(Boolean)
       .join(' ');
 
@@ -401,7 +386,11 @@ const LandingTripSearch: React.FC<LandingTripSearchProps> = ({ onSearch }) => {
     const currentStartDate = toDate(currentStart);
     const currentEndDate = toDate(currentEnd);
 
-    if (selectingDate === 'start' || !currentStartDate || (currentEndDate && date > currentEndDate)) {
+    if (
+      selectingDate === 'start' ||
+      !currentStartDate ||
+      (currentEndDate && date > currentEndDate)
+    ) {
       setDraftDateRange({ start: nextValue, end: '' });
       setSelectingDate('end');
       return;
@@ -450,13 +439,13 @@ const LandingTripSearch: React.FC<LandingTripSearchProps> = ({ onSearch }) => {
     : { duration: 0.16, ease: 'easeOut' as const };
 
   return (
-    <section className="relative z-20 -mt-16 px-4 sm:px-6">
+    <div className="relative w-full">
       <div ref={searchRef} className={['relative mx-auto', SEARCH_BAR_MAX_WIDTH].join(' ')}>
-        <div className="overflow-visible rounded-[1.75rem] border border-app-border bg-app-surface-muted shadow-[0_18px_45px_rgb(15_23_42_/_0.18)] md:rounded-full">
+        <div className="overflow-visible rounded-[1.75rem] border border-app-border bg-app-surface shadow-[0_24px_60px_rgb(30_23_16_/_0.28)] md:rounded-full">
           <div className="relative grid grid-cols-1 md:h-[82px] md:grid-cols-3 md:items-stretch">
             {activeFieldIndex !== null && (
               <div
-                className="pointer-events-none absolute bottom-0 top-0 z-0 hidden rounded-full bg-app-surface shadow-[0_10px_30px_rgb(15_23_42_/_0.16)] transition-transform duration-300 ease-out md:block"
+                className="pointer-events-none absolute bottom-0 top-0 z-0 hidden rounded-full bg-app-surface-muted shadow-[0_8px_24px_rgb(30_23_16_/_0.14)] transition-transform duration-300 ease-out md:block"
                 style={{
                   width: 'calc(100% / 3)',
                   transform: `translateX(calc(${activeFieldIndex} * 100%))`,
@@ -479,11 +468,7 @@ const LandingTripSearch: React.FC<LandingTripSearchProps> = ({ onSearch }) => {
               />
             </div>
 
-            <button
-              type="button"
-              className={fieldClassName('when')}
-              onClick={showWhenOverlay}
-            >
+            <button type="button" className={fieldClassName('when')} onClick={showWhenOverlay}>
               <span className={FIELD_LABEL_CLASS}>When</span>
               <span
                 className={[
@@ -519,9 +504,7 @@ const LandingTripSearch: React.FC<LandingTripSearchProps> = ({ onSearch }) => {
                 <span
                   className={[
                     FIELD_VALUE_CLASS,
-                    adults + children + pets > 0
-                      ? 'text-app-text'
-                      : 'text-app-text-muted',
+                    adults + children + pets > 0 ? 'text-app-text' : 'text-app-text-muted',
                   ].join(' ')}
                 >
                   {guestSummary}
@@ -548,9 +531,7 @@ const LandingTripSearch: React.FC<LandingTripSearchProps> = ({ onSearch }) => {
                   <span
                     className={[
                       'transition-all duration-200',
-                      isSearchExpanded
-                        ? 'max-w-20 opacity-100'
-                        : 'max-w-0 opacity-0',
+                      isSearchExpanded ? 'max-w-20 opacity-100' : 'max-w-0 opacity-0',
                     ].join(' ')}
                   >
                     Search
@@ -596,7 +577,7 @@ const LandingTripSearch: React.FC<LandingTripSearchProps> = ({ onSearch }) => {
                               : suggestion.location.id;
                           const name =
                             suggestion.kind === 'google'
-                              ? suggestion.suggestion.mainText ?? suggestion.suggestion.text
+                              ? (suggestion.suggestion.mainText ?? suggestion.suggestion.text)
                               : suggestion.location.name;
                           const description =
                             suggestion.kind === 'google'
@@ -735,19 +716,13 @@ const LandingTripSearch: React.FC<LandingTripSearchProps> = ({ onSearch }) => {
                           className="flex items-center justify-between gap-6 py-5 first:pt-0 last:pb-0"
                         >
                           <div>
-                            <p className="text-base font-bold text-app-text">
-                              {row.title}
-                            </p>
-                            <p className="mt-1 text-sm text-app-text-muted">
-                              {row.description}
-                            </p>
+                            <p className="text-base font-bold text-app-text">{row.title}</p>
+                            <p className="mt-1 text-sm text-app-text-muted">{row.description}</p>
                           </div>
                           <div className="flex items-center gap-3">
                             <button
                               type="button"
-                              onClick={() =>
-                                row.setValue((value) => Math.max(0, value - 1))
-                              }
+                              onClick={() => row.setValue((value) => Math.max(0, value - 1))}
                               disabled={row.value === 0}
                               className="flex h-9 w-9 items-center justify-center rounded-full border border-app-border text-app-text transition-colors hover:border-app-text disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-app-border"
                               aria-label={`Remove ${row.title.toLowerCase()}`}
@@ -776,7 +751,7 @@ const LandingTripSearch: React.FC<LandingTripSearchProps> = ({ onSearch }) => {
           )}
         </AnimatePresence>
       </div>
-    </section>
+    </div>
   );
 };
 

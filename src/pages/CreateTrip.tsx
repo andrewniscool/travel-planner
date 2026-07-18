@@ -24,21 +24,12 @@ import {
   mapLocationRefRowToLocationRef,
   mapTripWithRelationsToTrip,
 } from '../services/tripMappers';
-import {
-  loadTripScopedValue,
-  persistTripScopedValue,
-} from '../utils/tripStorage';
+import { loadTripScopedValue, persistTripScopedValue } from '../utils/tripStorage';
 import {
   DEFAULT_BUDGET_CURRENCY,
   isBudgetCurrency,
 } from '../utils/budget';
-import type {
-  BudgetCurrency,
-  LocationRef,
-  Trip,
-  TripStop,
-  TripVibe,
-} from '../types';
+import type { BudgetCurrency, LocationRef, Trip, TripStop, TripVibe } from '../types';
 
 const VIBE_OPTIONS: TripVibe[] = [
   'Relaxing',
@@ -96,27 +87,19 @@ const loadStoredCurrency = (tripId?: string): BudgetCurrency => {
     tripId,
     undefined,
   );
-  return currency && isBudgetCurrency(currency)
-    ? currency
-    : DEFAULT_BUDGET_CURRENCY;
+  return currency && isBudgetCurrency(currency) ? currency : DEFAULT_BUDGET_CURRENCY;
 };
 
 const persistStoredCurrency = (tripId: string, currency: BudgetCurrency) => {
   persistTripScopedValue(LOCAL_BUDGET_CURRENCIES_KEY, tripId, currency);
 };
 
-const persistTripStopLocationRefs = async (
-  userId: string,
-  trip: Trip,
-): Promise<Trip> => {
+const persistTripStopLocationRefs = async (userId: string, trip: Trip): Promise<Trip> => {
   const stops = await Promise.all(
     trip.stops.map(async (stop) => {
       if (!stop.locationRef?.googlePlaceId) return stop;
 
-      const row = await locationRefService.upsertGoogleLocationRef(
-        userId,
-        stop.locationRef,
-      );
+      const row = await locationRefService.upsertGoogleLocationRef(userId, stop.locationRef);
       const locationRef = mapLocationRefRowToLocationRef(row);
 
       return {
@@ -140,10 +123,7 @@ const persistTripStopLocationRefs = async (
 const CreateTrip: React.FC = () => {
   const navigate = useNavigate();
   const { tripId } = useParams<{ tripId: string }>();
-  const [, setLocalTrips] = useLocalStorage<Trip[]>(
-    LOCAL_TRIPS_STORAGE_KEY,
-    [],
-  );
+  const [, setLocalTrips] = useLocalStorage<Trip[]>(LOCAL_TRIPS_STORAGE_KEY, []);
   const fallbackExistingTrip = useMemo(
     () => (tripId ? getTripFromStorageOrMock(tripId) : undefined),
     [tripId],
@@ -172,19 +152,17 @@ const CreateTrip: React.FC = () => {
             notes: stop.notes ?? '',
             locationRef: getStopFormLocationRef(stop),
           }))
-      : [emptyStop()]
+      : [emptyStop()],
   );
   const [routeMode, setRouteMode] = useState<RouteMode>(initialRouteMode);
   const [travelers, setTravelers] = useState(existingTrip?.travelers ?? 1);
   const [budget, setBudget] = useState<number | ''>(existingTrip?.budget ?? '');
-  const [budgetCurrency, setBudgetCurrency] = useState<BudgetCurrency>(
-    () => {
-      const persistedCurrency = existingTrip?.budgetCurrency;
-      return persistedCurrency && isBudgetCurrency(persistedCurrency)
-        ? persistedCurrency
-        : loadStoredCurrency(existingTrip?.id);
-    }
-  );
+  const [budgetCurrency, setBudgetCurrency] = useState<BudgetCurrency>(() => {
+    const persistedCurrency = existingTrip?.budgetCurrency;
+    return persistedCurrency && isBudgetCurrency(persistedCurrency)
+      ? persistedCurrency
+      : loadStoredCurrency(existingTrip?.id);
+  });
   const [vibe, setVibe] = useState<TripVibe | ''>(existingTrip?.vibe ?? '');
   const [notes, setNotes] = useState(existingTrip?.notes ?? '');
   const [isSaving, setIsSaving] = useState(false);
@@ -196,9 +174,7 @@ const CreateTrip: React.FC = () => {
   useEffect(() => {
     if (!existingTrip || hydratedTripId === existingTrip.id) return;
 
-    const orderedStops = [...existingTrip.stops].sort(
-      (a, b) => a.order - b.order,
-    );
+    const orderedStops = [...existingTrip.stops].sort((a, b) => a.order - b.order);
 
     setTitle(existingTrip.title);
     setStops(
@@ -222,19 +198,21 @@ const CreateTrip: React.FC = () => {
     setHydratedTripId(existingTrip.id);
   }, [existingTrip, hydratedTripId]);
 
-  const validStops = useMemo(
-    () => stops.filter((stop) => stop.name.trim()),
-    [stops]
-  );
+  const validStops = useMemo(() => stops.filter((stop) => stop.name.trim()), [stops]);
   const firstStop = validStops[0];
   const lastStop = validStops[validStops.length - 1];
-  const tripTitle = title.trim() || (validStops.length > 1 ? `${firstStop?.name ?? 'New'} Trip` : firstStop?.name ?? '');
+  const tripTitle =
+    title.trim() ||
+    (validStops.length > 1 ? `${firstStop?.name ?? 'New'} Trip` : (firstStop?.name ?? ''));
   const routeLabel = validStops.map((stop) => stop.name.trim()).join(' → ');
   const startDate = firstStop?.startDate || '';
   const endDate = lastStop?.endDate || firstStop?.endDate || '';
-  const dateDisplay = startDate && endDate
-    ? `${formatDate(startDate)} - ${formatDate(endDate)}`
-    : startDate ? formatDate(startDate) : '';
+  const dateDisplay =
+    startDate && endDate
+      ? `${formatDate(startDate)} - ${formatDate(endDate)}`
+      : startDate
+        ? formatDate(startDate)
+        : '';
   const notesPreview = notes.length > 100 ? `${notes.slice(0, 100)}...` : notes;
   const formattedBudget = budget
     ? new Intl.NumberFormat('en-US', {
@@ -258,10 +236,10 @@ const CreateTrip: React.FC = () => {
     stops.forEach((stop, index) => {
       const hasAnyStopDetails = Boolean(
         stop.name.trim() ||
-          stop.country.trim() ||
-          stop.startDate ||
-          stop.endDate ||
-          stop.notes.trim(),
+        stop.country.trim() ||
+        stop.startDate ||
+        stop.endDate ||
+        stop.notes.trim(),
       );
 
       if (!hasAnyStopDetails && stops.length > 1) return;
@@ -284,10 +262,7 @@ const CreateTrip: React.FC = () => {
 
   const shouldShowValidation = submitAttempted && validationMessages.length > 0;
 
-  const getStopFieldError = (
-    index: number,
-    field: 'name' | 'startDate' | 'endDate',
-  ) => {
+  const getStopFieldError = (index: number, field: 'name' | 'startDate' | 'endDate') => {
     if (!submitAttempted) return undefined;
 
     const stop = stops[index];
@@ -295,10 +270,10 @@ const CreateTrip: React.FC = () => {
 
     const hasAnyStopDetails = Boolean(
       stop.name.trim() ||
-        stop.country.trim() ||
-        stop.startDate ||
-        stop.endDate ||
-        stop.notes.trim(),
+      stop.country.trim() ||
+      stop.startDate ||
+      stop.endDate ||
+      stop.notes.trim(),
     );
 
     if (!hasAnyStopDetails && stops.length > 1) return undefined;
@@ -320,7 +295,7 @@ const CreateTrip: React.FC = () => {
 
   const updateStop = (index: number, patch: Partial<StopForm>) => {
     setStops((current) =>
-      current.map((stop, stopIndex) => stopIndex === index ? { ...stop, ...patch } : stop)
+      current.map((stop, stopIndex) => (stopIndex === index ? { ...stop, ...patch } : stop)),
     );
   };
 
@@ -331,9 +306,7 @@ const CreateTrip: React.FC = () => {
 
   const setMultiStopMode = () => {
     setRouteMode('multi');
-    setStops((current) =>
-      current.length > 1 ? current : [...current, emptyStop()],
-    );
+    setStops((current) => (current.length > 1 ? current : [...current, emptyStop()]));
   };
 
   const addStop = () => {
@@ -397,19 +370,14 @@ const CreateTrip: React.FC = () => {
 
   const saveTripLocally = (trip: Trip) => {
     setLocalTrips((current) => {
-      const idsToReplace = new Set(
-        [existingTrip?.id, trip.id].filter(Boolean) as string[],
-      );
+      const idsToReplace = new Set([existingTrip?.id, trip.id].filter(Boolean) as string[]);
       const nextTrips = [
         ...current.filter((currentTrip) => !idsToReplace.has(currentTrip.id)),
         trip,
       ];
 
       try {
-        window.localStorage.setItem(
-          LOCAL_TRIPS_STORAGE_KEY,
-          JSON.stringify(nextTrips),
-        );
+        window.localStorage.setItem(LOCAL_TRIPS_STORAGE_KEY, JSON.stringify(nextTrips));
       } catch {
         // The hook still holds the in-memory fallback if localStorage is unavailable.
       }
@@ -423,9 +391,7 @@ const CreateTrip: React.FC = () => {
     const trip = buildTrip();
     if (!trip) {
       setSaveError(
-        validationMessages.length > 0
-          ? null
-          : 'Please complete the required trip details.',
+        validationMessages.length > 0 ? null : 'Please complete the required trip details.',
       );
       setSaveMessage(null);
       return undefined;
@@ -441,21 +407,12 @@ const CreateTrip: React.FC = () => {
         Boolean(userId) && (!isEditing || serviceTripSource === 'supabase');
 
       if (userId && shouldSaveToSupabase) {
-        const tripWithPersistedLocations = await persistTripStopLocationRefs(
-          userId,
-          trip,
-        );
+        const tripWithPersistedLocations = await persistTripStopLocationRefs(userId, trip);
         const savedRow =
           isEditing && serviceExistingTrip
             ? await tripService.updateTripWithStops(tripWithPersistedLocations)
-            : await tripService.createTripWithStops(
-                userId,
-                tripWithPersistedLocations,
-              );
-        const savedTrip = mapTripWithRelationsToTrip(
-          savedRow,
-          tripWithPersistedLocations,
-        );
+            : await tripService.createTripWithStops(userId, tripWithPersistedLocations);
+        const savedTrip = mapTripWithRelationsToTrip(savedRow, tripWithPersistedLocations);
 
         saveTripLocally(savedTrip);
         persistStoredCurrency(savedTrip.id, budgetCurrency);
@@ -477,8 +434,7 @@ const CreateTrip: React.FC = () => {
     } catch (error) {
       saveTripLocally(trip);
       persistStoredCurrency(trip.id, budgetCurrency);
-      const message =
-        error instanceof Error ? error.message : 'Unknown Supabase save error.';
+      const message = error instanceof Error ? error.message : 'Unknown Supabase save error.';
       setSaveMessage(null);
       setSaveError(`Supabase save failed: ${message}. Saved locally instead.`);
       return trip;
@@ -582,9 +538,7 @@ const CreateTrip: React.FC = () => {
                   Cancel
                 </button>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  {saveMessage && (
-                    <span className="text-sm text-neutral-500">{saveMessage}</span>
-                  )}
+                  {saveMessage && <span className="text-sm text-neutral-500">{saveMessage}</span>}
                   {saveError && (
                     <span className="max-w-md text-sm text-error-500">{saveError}</span>
                   )}
@@ -595,11 +549,7 @@ const CreateTrip: React.FC = () => {
                     disabled={isSaving}
                     className="gap-2 px-8 shadow-lg shadow-primary-600/20 active:scale-[0.98]"
                   >
-                    {isSaving
-                      ? 'Saving...'
-                      : isEditing
-                        ? 'Save Changes'
-                        : 'Save Trip'}
+                    {isSaving ? 'Saving...' : isEditing ? 'Save Changes' : 'Save Trip'}
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>

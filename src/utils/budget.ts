@@ -20,11 +20,8 @@ export const DEFAULT_BUDGET_CATEGORIES = [
   { name: 'Miscellaneous', icon: '🛍️', share: 0.03 },
 ] as const;
 
-export const isBudgetCurrency = (
-  currency: string,
-): currency is BudgetCurrency =>
+export const isBudgetCurrency = (currency: string): currency is BudgetCurrency =>
   BUDGET_CURRENCY_OPTIONS.some((option) => option.code === currency);
 
-export const getBudgetCategoryKey = (
-  category: Pick<BudgetCategory, 'name' | 'stopId'>,
-) => `${category.stopId ?? 'trip'}:${category.name}`;
+export const getBudgetCategoryKey = (category: Pick<BudgetCategory, 'name' | 'stopId'>) =>
+  `${category.stopId ?? 'trip'}:${category.name}`;

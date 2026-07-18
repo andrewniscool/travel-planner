@@ -56,19 +56,12 @@ import type {
   TripStopWithLocationRef,
   TripWithRelations,
 } from './travelDataService';
-import {
-  GOOGLE_HOTEL_IMAGE,
-  GOOGLE_PLACE_IMAGE,
-} from './locationDisplayMappers';
-import {
-  DEFAULT_BUDGET_CURRENCY,
-  isBudgetCurrency,
-} from '../utils/budget';
+import { GOOGLE_HOTEL_IMAGE, GOOGLE_PLACE_IMAGE } from './locationDisplayMappers';
+import { DEFAULT_BUDGET_CURRENCY, isBudgetCurrency } from '../utils/budget';
 
 const DEFAULT_TRIP_VIBE: TripVibe = 'Cultural';
 const DEFAULT_TRIP_STATUS: TripStatus = 'planning';
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function getStatusFromDates(startDate?: string, endDate?: string): TripStatus {
   const today = new Date();
@@ -81,9 +74,7 @@ function getStatusFromDates(startDate?: string, endDate?: string): TripStatus {
 }
 
 function isTransportMode(mode: string): mode is TransportMode {
-  return ['flight', 'train', 'bus', 'car', 'ferry', 'walk', 'other'].includes(
-    mode,
-  );
+  return ['flight', 'train', 'bus', 'car', 'ferry', 'walk', 'other'].includes(mode);
 }
 
 function isTransportRole(role: string): role is TransportRole {
@@ -108,14 +99,7 @@ function isTripStatus(status: string): status is TripStatus {
 }
 
 function isItineraryItemType(type: string): type is ItineraryItemType {
-  return [
-    'flight',
-    'hotel',
-    'restaurant',
-    'activity',
-    'free-time',
-    'transport',
-  ].includes(type);
+  return ['flight', 'hotel', 'restaurant', 'activity', 'free-time', 'transport'].includes(type);
 }
 
 function isPlaceCategory(category: string): category is Place['category'] {
@@ -132,9 +116,7 @@ function isPlaceCategory(category: string): category is Place['category'] {
   ].includes(category);
 }
 
-function isChecklistCategory(
-  category: string,
-): category is ChecklistItem['category'] {
+function isChecklistCategory(category: string): category is ChecklistItem['category'] {
   return ['packing', 'documents', 'reminders'].includes(category);
 }
 
@@ -147,15 +129,8 @@ function getTimeOfDayFromTime(time?: string | null): TimeOfDay {
   return 'evening';
 }
 
-function normalizeTimeOfDay(
-  timeOfDay?: string | null,
-  time?: string | null,
-): TimeOfDay {
-  if (
-    timeOfDay === 'morning' ||
-    timeOfDay === 'afternoon' ||
-    timeOfDay === 'evening'
-  ) {
+function normalizeTimeOfDay(timeOfDay?: string | null, time?: string | null): TimeOfDay {
+  if (timeOfDay === 'morning' || timeOfDay === 'afternoon' || timeOfDay === 'evening') {
     return timeOfDay;
   }
 
@@ -187,18 +162,12 @@ export function mapLocationRefRowToLocationRef(row: LocationRefRow): LocationRef
     priceRange: row.price_range ?? undefined,
     googleMapsUri: row.google_maps_uri ?? undefined,
     businessStatus: row.business_status ?? undefined,
-    source:
-      row.source === 'google' || row.source === 'mock' ? row.source : 'manual',
+    source: row.source === 'google' || row.source === 'mock' ? row.source : 'manual',
   };
 }
 
-function findPreviousStop(
-  row: TripStopRow | TripStopWithLocationRef,
-  previousStops: TripStop[],
-) {
-  return previousStops.find(
-    (stop) => stop.id === row.id || stop.order === row.order_index,
-  );
+function findPreviousStop(row: TripStopRow | TripStopWithLocationRef, previousStops: TripStop[]) {
+  return previousStops.find((stop) => stop.id === row.id || stop.order === row.order_index);
 }
 
 function getStopLocationRef(row: TripStopRow | TripStopWithLocationRef) {
@@ -209,10 +178,7 @@ function getStopLocationRef(row: TripStopRow | TripStopWithLocationRef) {
   return undefined;
 }
 
-function mapStop(
-  row: TripStopRow | TripStopWithLocationRef,
-  previousStops: TripStop[],
-) {
+function mapStop(row: TripStopRow | TripStopWithLocationRef, previousStops: TripStop[]) {
   const previousStop = findPreviousStop(row, previousStops);
   const locationRef = getStopLocationRef(row) ?? previousStop?.locationRef;
 
@@ -281,12 +247,8 @@ export function mapTripRowToTrip(
   transportSegments: Array<TransportSegmentRow | TransportSegmentWithLocationRefs> = [],
   previousTrip?: Trip,
 ): Trip {
-  const orderedStops = [...tripStops].sort(
-    (a, b) => a.order_index - b.order_index,
-  );
-  const stops = orderedStops.map((stop) =>
-    mapStop(stop, previousTrip?.stops ?? []),
-  );
+  const orderedStops = [...tripStops].sort((a, b) => a.order_index - b.order_index);
+  const stops = orderedStops.map((stop) => mapStop(stop, previousTrip?.stops ?? []));
   const primaryStop = stops[0];
   const startDate = row.start_date ?? primaryStop?.startDate ?? '';
   const endDate = row.end_date ?? primaryStop?.endDate ?? '';
@@ -304,13 +266,11 @@ export function mapTripRowToTrip(
     budget: row.budget,
     budgetCurrency: isBudgetCurrency(row.budget_currency)
       ? row.budget_currency
-      : previousTrip?.budgetCurrency ?? DEFAULT_BUDGET_CURRENCY,
-    vibe: isTripVibe(row.vibe)
-      ? row.vibe
-      : previousTrip?.vibe ?? DEFAULT_TRIP_VIBE,
+      : (previousTrip?.budgetCurrency ?? DEFAULT_BUDGET_CURRENCY),
+    vibe: isTripVibe(row.vibe) ? row.vibe : (previousTrip?.vibe ?? DEFAULT_TRIP_VIBE),
     status: isTripStatus(row.status)
       ? row.status
-      : previousTrip?.status ?? getStatusFromDates(startDate, endDate),
+      : (previousTrip?.status ?? getStatusFromDates(startDate, endDate)),
     notes: row.description ?? '',
     image: row.cover_image ?? previousTrip?.image ?? '',
     planningProgress: row.planning_progress,
@@ -321,16 +281,8 @@ export function mapTripRowToTrip(
   };
 }
 
-export function mapTripWithRelationsToTrip(
-  row: TripWithRelations,
-  previousTrip?: Trip,
-): Trip {
-  return mapTripRowToTrip(
-    row,
-    row.trip_stops,
-    row.transport_segments,
-    previousTrip,
-  );
+export function mapTripWithRelationsToTrip(row: TripWithRelations, previousTrip?: Trip): Trip {
+  return mapTripRowToTrip(row, row.trip_stops, row.transport_segments, previousTrip);
 }
 
 export function mapTripToTripInsert(userId: string, trip: Trip): TripInsert {
@@ -370,10 +322,7 @@ export function mapTripToTripUpdate(trip: Trip): TripUpdate {
   };
 }
 
-export function mapTripStopToTripStopInsert(
-  tripId: string,
-  stop: TripStop,
-): TripStopInsert {
+export function mapTripStopToTripStopInsert(tripId: string, stop: TripStop): TripStopInsert {
   return {
     trip_id: tripId,
     name: stop.name,
@@ -422,9 +371,7 @@ export function mapTransportSegmentToInsert(
   };
 }
 
-export function mapTransportSegmentToUpdate(
-  segment: TransportSegment,
-): TransportSegmentUpdate {
+export function mapTransportSegmentToUpdate(segment: TransportSegment): TransportSegmentUpdate {
   return {
     from_stop_id: segment.fromStopId ?? null,
     to_stop_id: segment.toStopId ?? null,
@@ -496,9 +443,7 @@ export function getHotelIdFromLodgingOption(row: LodgingOptionRow): string {
   return row.source_id ?? row.id;
 }
 
-function getLodgingOptionLocationRef(
-  row: LodgingOptionRow | LodgingOptionWithLocationRef,
-) {
+function getLodgingOptionLocationRef(row: LodgingOptionRow | LodgingOptionWithLocationRef) {
   if ('location_refs' in row && row.location_refs) {
     return mapLocationRefRowToLocationRef(row.location_refs);
   }
@@ -525,10 +470,7 @@ export function mapLodgingOptionRowToHotel(
     totalCost: row.total_cost ?? pricePerNight,
     amenities: [],
     neighborhood:
-      row.neighborhood ??
-      row.address ??
-      locationRef?.formattedAddress ??
-      'Saved lodging',
+      row.neighborhood ?? row.address ?? locationRef?.formattedAddress ?? 'Saved lodging',
     locationRef,
     distanceToCenter: '',
     description: row.notes ?? '',
@@ -556,10 +498,7 @@ export function mapPlaceToSavedPlaceInsert(
   };
 }
 
-export function mapPlaceToSavedPlaceUpdate(
-  place: Place,
-  isSaved: boolean,
-): SavedPlaceUpdate {
+export function mapPlaceToSavedPlaceUpdate(place: Place, isSaved: boolean): SavedPlaceUpdate {
   return {
     stop_id: place.stopId ?? null,
     location_ref_id: getPersistedLocationRefId(place.locationRef),
@@ -578,9 +517,7 @@ export function getPlaceIdFromSavedPlace(row: SavedPlaceRow): string {
   return row.source_id ?? row.id;
 }
 
-function getSavedPlaceLocationRef(
-  row: SavedPlaceRow | SavedPlaceWithLocationRef,
-) {
+function getSavedPlaceLocationRef(row: SavedPlaceRow | SavedPlaceWithLocationRef) {
   if ('location_refs' in row && row.location_refs) {
     return mapLocationRefRowToLocationRef(row.location_refs);
   }
@@ -593,10 +530,7 @@ export function mapSavedPlaceRowToPlace(
   tripId: string,
 ): Place {
   const locationRef = getSavedPlaceLocationRef(row);
-  const category =
-    row.category && isPlaceCategory(row.category)
-      ? row.category
-      : 'Hidden Gems';
+  const category = row.category && isPlaceCategory(row.category) ? row.category : 'Hidden Gems';
 
   return {
     id: getPlaceIdFromSavedPlace(row),
@@ -618,9 +552,7 @@ export function mapSavedPlaceRowToPlace(
   };
 }
 
-function getItineraryItemLocationRef(
-  row: ItineraryItemRow | ItineraryItemWithLocationRef,
-) {
+function getItineraryItemLocationRef(row: ItineraryItemRow | ItineraryItemWithLocationRef) {
   if ('location_refs' in row && row.location_refs) {
     return mapLocationRefRowToLocationRef(row.location_refs);
   }
@@ -676,9 +608,7 @@ export function mapItineraryRowsToDays(
   });
 }
 
-export function mapBudgetExpenseRowToBudgetExpense(
-  row: BudgetExpenseRow,
-): BudgetExpense {
+export function mapBudgetExpenseRowToBudgetExpense(row: BudgetExpenseRow): BudgetExpense {
   return {
     id: row.id,
     tripId: row.trip_id,
@@ -691,9 +621,7 @@ export function mapBudgetExpenseRowToBudgetExpense(
   };
 }
 
-export function mapBudgetExpenseToInsert(
-  expense: BudgetExpense,
-): BudgetExpenseInsert {
+export function mapBudgetExpenseToInsert(expense: BudgetExpense): BudgetExpenseInsert {
   return {
     trip_id: expense.tripId,
     stop_id: expense.stopId ?? null,
@@ -705,9 +633,7 @@ export function mapBudgetExpenseToInsert(
   };
 }
 
-export function mapBudgetExpenseToUpdate(
-  expense: BudgetExpense,
-): BudgetExpenseUpdate {
+export function mapBudgetExpenseToUpdate(expense: BudgetExpense): BudgetExpenseUpdate {
   return {
     stop_id: expense.stopId ?? null,
     category: expense.category,
@@ -718,9 +644,7 @@ export function mapBudgetExpenseToUpdate(
   };
 }
 
-export function mapBudgetCategoryRowToBudgetCategory(
-  row: BudgetCategoryRow,
-): BudgetCategory {
+export function mapBudgetCategoryRowToBudgetCategory(row: BudgetCategoryRow): BudgetCategory {
   return {
     stopId: row.stop_id ?? undefined,
     name: row.name,
@@ -786,9 +710,7 @@ export function mapNoteToTripNoteUpdate(note: Note): TripNoteUpdate {
   };
 }
 
-export function mapChecklistItemRowToChecklistItem(
-  row: ChecklistItemRow,
-): ChecklistItem {
+export function mapChecklistItemRowToChecklistItem(row: ChecklistItemRow): ChecklistItem {
   return {
     id: row.id,
     tripId: row.trip_id,
@@ -799,10 +721,7 @@ export function mapChecklistItemRowToChecklistItem(
   };
 }
 
-export function mapChecklistItemToInsert(
-  item: ChecklistItem,
-  orderIndex = 0,
-): ChecklistItemInsert {
+export function mapChecklistItemToInsert(item: ChecklistItem, orderIndex = 0): ChecklistItemInsert {
   return {
     trip_id: item.tripId,
     stop_id: item.stopId ?? null,
@@ -813,9 +732,7 @@ export function mapChecklistItemToInsert(
   };
 }
 
-export function mapChecklistItemToUpdate(
-  item: ChecklistItem,
-): ChecklistItemUpdate {
+export function mapChecklistItemToUpdate(item: ChecklistItem): ChecklistItemUpdate {
   return {
     stop_id: item.stopId ?? null,
     text: item.text,

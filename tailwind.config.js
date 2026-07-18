@@ -71,6 +71,8 @@ export default {
           100: 'rgb(var(--color-warning-100) / <alpha-value>)',
           400: 'rgb(var(--color-warning-400) / <alpha-value>)',
           500: 'rgb(var(--color-warning-500) / <alpha-value>)',
+          600: 'rgb(var(--color-warning-600) / <alpha-value>)',
+          700: 'rgb(var(--color-warning-700) / <alpha-value>)',
         },
         error: {
           50: 'rgb(var(--color-error-50) / <alpha-value>)',
@@ -82,7 +84,17 @@ export default {
       },
       fontFamily: {
         sans: ['var(--font-sans)'],
-        display: ['var(--font-sans)'],
+        display: ['var(--font-display)'],
+      },
+      fontSize: {
+        display: [
+          'var(--text-display)',
+          { lineHeight: 'var(--line-display)', letterSpacing: 'var(--tracking-display)' },
+        ],
+        'section-title': ['var(--text-section-title)', { lineHeight: 'var(--line-tight)' }],
+      },
+      letterSpacing: {
+        eyebrow: 'var(--tracking-eyebrow)',
       },
       borderRadius: {
         xl: '1rem',

@@ -5,15 +5,8 @@ import { getBudgetByTripId } from '../data/budget';
 import type { TripBudget } from '../data/budget';
 import { isMultiStopTrip } from '../data/trips';
 import { useServiceTrip } from '../hooks/useServiceTrips';
-import {
-  budgetService,
-  getAuthenticatedUserId,
-  tripService,
-} from '../services/travelDataService';
-import {
-  loadTripScopedValue,
-  persistTripScopedValue,
-} from '../utils/tripStorage';
+import { budgetService, getAuthenticatedUserId, tripService } from '../services/travelDataService';
+import { loadTripScopedValue, persistTripScopedValue } from '../utils/tripStorage';
 import {
   DEFAULT_BUDGET_CATEGORIES,
   DEFAULT_BUDGET_CURRENCY,
@@ -29,12 +22,7 @@ import ExpenseManagerModal, {
   type ExpenseFormState,
 } from '../components/budget/ExpenseManagerModal';
 import BudgetAllocationModal from '../components/budget/BudgetAllocationModal';
-import type {
-  BudgetCategory,
-  BudgetCurrency,
-  BudgetExpense,
-  TransportSegment,
-} from '../types';
+import type { BudgetCategory, BudgetCurrency, BudgetExpense, TransportSegment } from '../types';
 
 const LOCAL_BUDGET_EXPENSES_KEY = 'travel-builder:budget-expenses';
 const LOCAL_BUDGET_ALLOCATIONS_KEY = 'travel-builder:budget-allocations';
@@ -50,10 +38,7 @@ const emptyExpenseForm = (category = '', stopId = ''): ExpenseFormState => ({
   notes: '',
 });
 
-function getBudgetStatus(
-  spent: number,
-  allocated: number
-): 'green' | 'yellow' | 'red' {
+function getBudgetStatus(spent: number, allocated: number): 'green' | 'yellow' | 'red' {
   if (allocated === 0) return 'red';
   const ratio = spent / allocated;
   if (ratio < 0.8) return 'green';
@@ -63,7 +48,7 @@ function getBudgetStatus(
 
 function getBudgetProgressBarColor(
   spent: number,
-  allocated: number
+  allocated: number,
 ): 'primary' | 'success' | 'warning' | 'error' | 'accent' {
   if (allocated === 0) return 'error';
   const ratio = spent / allocated;
@@ -82,10 +67,7 @@ const loadStoredAllocations = (tripId: string): Record<string, number> => {
   return loadTripScopedValue(LOCAL_BUDGET_ALLOCATIONS_KEY, tripId, {});
 };
 
-const persistStoredAllocations = (
-  tripId: string,
-  allocations: Record<string, number>,
-) => {
+const persistStoredAllocations = (tripId: string, allocations: Record<string, number>) => {
   persistTripScopedValue(LOCAL_BUDGET_ALLOCATIONS_KEY, tripId, allocations);
 };
 
@@ -95,9 +77,7 @@ const loadStoredCurrency = (tripId: string): BudgetCurrency => {
     tripId,
     undefined,
   );
-  return currency && isBudgetCurrency(currency)
-      ? currency
-      : DEFAULT_BUDGET_CURRENCY;
+  return currency && isBudgetCurrency(currency) ? currency : DEFAULT_BUDGET_CURRENCY;
 };
 
 const persistStoredCurrency = (tripId: string, currency: BudgetCurrency) => {
@@ -126,11 +106,7 @@ const loadStoredTravelSegments = (
   tripId: string,
   fallbackSegments: TransportSegment[],
 ): TransportSegment[] => {
-  return loadTripScopedValue(
-    LOCAL_TRAVEL_SEGMENTS_KEY,
-    tripId,
-    fallbackSegments,
-  );
+  return loadTripScopedValue(LOCAL_TRAVEL_SEGMENTS_KEY, tripId, fallbackSegments);
 };
 
 const getTravelSegmentCategoryName = (segment: TransportSegment) =>
@@ -153,9 +129,10 @@ const getMatchingTravelSegments = (
   );
 
 const getTravelSegmentTitle = (segment: TransportSegment) => {
-  const label = segment.mode === 'flight'
-    ? 'Flight'
-    : segment.mode.charAt(0).toUpperCase() + segment.mode.slice(1);
+  const label =
+    segment.mode === 'flight'
+      ? 'Flight'
+      : segment.mode.charAt(0).toUpperCase() + segment.mode.slice(1);
   return `${label}: ${segment.departureLocation} → ${segment.arrivalLocation}`;
 };
 
@@ -180,26 +157,24 @@ const Budget: React.FC = () => {
   const trip = serviceTrip ?? fallbackTrip;
   const tripId = trip?.id;
   const mockBudget = trip ? getBudgetByTripId(trip.id) : undefined;
-  const budget = trip
-    ? mockBudget ?? buildFallbackBudget(trip.id, trip.budget || 0)
-    : undefined;
+  const budget = trip ? (mockBudget ?? buildFallbackBudget(trip.id, trip.budget || 0)) : undefined;
   const travelSegments = useMemo(
     () => (trip ? loadStoredTravelSegments(trip.id, trip.transportSegments) : []),
-    [trip]
+    [trip],
   );
   const isMultiStop = trip ? isMultiStopTrip(trip) : false;
   const orderedStops = useMemo(
     () => (trip ? [...trip.stops].sort((a, b) => a.order - b.order) : []),
-    [trip]
+    [trip],
   );
   const [expenses, setExpenses] = useState<BudgetExpense[]>(() =>
-    trip ? loadStoredExpenses(trip.id) : []
+    trip ? loadStoredExpenses(trip.id) : [],
   );
-  const [allocationOverrides, setAllocationOverrides] = useState<Record<string, number>>(
-    () => (trip ? loadStoredAllocations(trip.id) : {})
+  const [allocationOverrides, setAllocationOverrides] = useState<Record<string, number>>(() =>
+    trip ? loadStoredAllocations(trip.id) : {},
   );
-  const [budgetCurrency, setBudgetCurrency] = useState<BudgetCurrency>(
-    () => (trip ? trip.budgetCurrency ?? loadStoredCurrency(trip.id) : DEFAULT_BUDGET_CURRENCY)
+  const [budgetCurrency, setBudgetCurrency] = useState<BudgetCurrency>(() =>
+    trip ? (trip.budgetCurrency ?? loadStoredCurrency(trip.id)) : DEFAULT_BUDGET_CURRENCY,
   );
   const [expenseSource, setExpenseSource] = useState<'supabase' | 'fallback'>('fallback');
   const [expenseError, setExpenseError] = useState<string | null>(null);
@@ -255,7 +230,9 @@ const Budget: React.FC = () => {
         setCategorySource('supabase');
       } catch {
         if (cancelled) return;
-        setExpenseError('Supabase budget data could not be loaded. Showing local budget data instead.');
+        setExpenseError(
+          'Supabase budget data could not be loaded. Showing local budget data instead.',
+        );
       }
     }
 
@@ -294,9 +271,7 @@ const Budget: React.FC = () => {
         return {
           ...category,
           allocated:
-            typeof allocationOverride === 'number'
-              ? allocationOverride
-              : category.allocated,
+            typeof allocationOverride === 'number' ? allocationOverride : category.allocated,
         };
       }),
     };
@@ -315,15 +290,14 @@ const Budget: React.FC = () => {
         .filter(
           (expense) =>
             expense.category === category.name &&
-            (expense.stopId ?? '') === (category.stopId ?? '')
+            (expense.stopId ?? '') === (category.stopId ?? ''),
         )
         .reduce((sum, expense) => sum + expense.amount, 0);
       const travelTotal = getMatchingTravelSegments(
         category,
         travelSegments,
         baseTravelSegmentIds,
-      )
-        .reduce((sum, segment) => sum + (segment.price ?? 0), 0);
+      ).reduce((sum, segment) => sum + (segment.price ?? 0), 0);
 
       return {
         ...category,
@@ -342,7 +316,7 @@ const Budget: React.FC = () => {
 
   const tripLevelCategories = useMemo(
     () => categoriesWithExpenses.filter((category) => !category.stopId),
-    [categoriesWithExpenses]
+    [categoriesWithExpenses],
   );
 
   const stopBudgetBreakdown = useMemo(
@@ -356,30 +330,25 @@ const Budget: React.FC = () => {
           spent: sumSpent(categories),
         };
       }),
-    [categoriesWithExpenses, orderedStops]
+    [categoriesWithExpenses, orderedStops],
   );
 
   const remaining = totalAllocated - totalSpent;
   const costPerTraveler = trip ? totalSpent / trip.travelers : 0;
-  const overallProgress =
-    totalAllocated > 0 ? (totalSpent / totalAllocated) * 100 : 0;
+  const overallProgress = totalAllocated > 0 ? (totalSpent / totalAllocated) * 100 : 0;
 
   const selectedCategoryExpenses = useMemo(() => {
     if (!selectedCategory) return [];
     return expenses.filter(
       (expense) =>
         expense.category === selectedCategory.name &&
-        (expense.stopId ?? '') === (selectedCategory.stopId ?? '')
+        (expense.stopId ?? '') === (selectedCategory.stopId ?? ''),
     );
   }, [expenses, selectedCategory]);
 
   const selectedCategoryTravelSegments = useMemo(() => {
     if (!selectedCategory) return [];
-    return getMatchingTravelSegments(
-      selectedCategory,
-      travelSegments,
-      new Set<string>(),
-    );
+    return getMatchingTravelSegments(selectedCategory, travelSegments, new Set<string>());
   }, [selectedCategory, travelSegments]);
 
   const updateExpenses = (nextExpenses: BudgetExpense[]) => {
@@ -481,11 +450,14 @@ const Budget: React.FC = () => {
               budgetService.upsertBudgetCategory(
                 trip.id,
                 { ...selectedCategory, allocated },
-                Math.max(0, categoriesWithExpenses.findIndex(
-                  (category) =>
-                    getCategoryAllocationKey(category) ===
-                    getCategoryAllocationKey(selectedCategory),
-                )),
+                Math.max(
+                  0,
+                  categoriesWithExpenses.findIndex(
+                    (category) =>
+                      getCategoryAllocationKey(category) ===
+                      getCategoryAllocationKey(selectedCategory),
+                  ),
+                ),
               ),
             );
           }
@@ -597,7 +569,8 @@ const Budget: React.FC = () => {
       {(serviceTripError || expenseError) && (
         <Card hover={false} className="p-4 border-warning-100 bg-warning-50">
           <p className="text-sm text-warning-700">
-            {expenseError || 'Supabase trip data could not be loaded. Showing local budget data instead.'}
+            {expenseError ||
+              'Supabase trip data could not be loaded. Showing local budget data instead.'}
           </p>
         </Card>
       )}
@@ -621,9 +594,7 @@ const Budget: React.FC = () => {
           formatMoney={formatMoney}
           getStatus={getBudgetStatus}
           getProgressColor={getBudgetProgressBarColor}
-          getDetailsPath={(categoryName) =>
-            getCategoryDetailsPath(trip.id, categoryName)
-          }
+          getDetailsPath={(categoryName) => getCategoryDetailsPath(trip.id, categoryName)}
           onManageExpenses={openExpenseListModal}
           onEditBudget={openEditBudgetModal}
           onViewDetails={navigate}

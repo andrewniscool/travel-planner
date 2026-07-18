@@ -16,11 +16,7 @@ import { getHotelsByTripId } from '../data/hotels';
 import { getPlacesByTripId } from '../data/places';
 import { getItineraryByTripId } from '../data/itinerary';
 import { getBudgetByTripId } from '../data/budget';
-import {
-  getTripDisplayName,
-  getTripRouteLabel,
-  isMultiStopTrip,
-} from '../data/trips';
+import { getTripDisplayName, getTripRouteLabel, isMultiStopTrip } from '../data/trips';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import StatCard from '../components/ui/StatCard';
@@ -89,12 +85,8 @@ const TripDetails: React.FC = () => {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center animate-fade-in">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-neutral-900 mb-2">
-            Trip not found
-          </h2>
-          <p className="text-neutral-500 mb-6">
-            The trip you are looking for does not exist.
-          </p>
+          <h2 className="text-2xl font-bold text-neutral-900 mb-2">Trip not found</h2>
+          <p className="text-neutral-500 mb-6">The trip you are looking for does not exist.</p>
           <Link
             to="/dashboard"
             className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium transition-colors"
@@ -127,9 +119,7 @@ const TripDetails: React.FC = () => {
   const totalBudget = budget
     ? budget.categories.reduce((sum, c) => sum + c.allocated, 0)
     : trip.budget;
-  const totalSpent = budget
-    ? budget.categories.reduce((sum, c) => sum + c.spent, 0)
-    : 0;
+  const totalSpent = budget ? budget.categories.reduce((sum, c) => sum + c.spent, 0) : 0;
 
   return (
     <div className="min-h-screen bg-neutral-50 animate-fade-in">
@@ -212,9 +202,7 @@ const TripDetails: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Top Saved Places */}
           <Card hover={false} className="p-6">
-            <h2 className="text-lg font-semibold text-neutral-900 mb-4">
-              Saved Places
-            </h2>
+            <h2 className="text-lg font-semibold text-neutral-900 mb-4">Saved Places</h2>
             {displayPlaces.length > 0 ? (
               <div className="grid grid-cols-2 gap-3">
                 {displayPlaces.map((place) => (
@@ -222,20 +210,14 @@ const TripDetails: React.FC = () => {
                     key={place.id}
                     className="rounded-xl overflow-hidden bg-neutral-50 border border-neutral-100"
                   >
-                    <ImagePlaceholder
-                      src={place.image}
-                      alt={place.name}
-                      aspectRatio="square"
-                    />
+                    <ImagePlaceholder src={place.image} alt={place.name} aspectRatio="square" />
                     <div className="p-3">
                       <p className="text-sm font-semibold text-neutral-900 truncate">
                         {place.name}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="default">{place.category}</Badge>
-                        <span className="text-xs text-neutral-500">
-                          {place.rating}
-                        </span>
+                        <span className="text-xs text-neutral-500">{place.rating}</span>
                       </div>
                     </div>
                   </div>
@@ -251,9 +233,7 @@ const TripDetails: React.FC = () => {
 
           {/* Mini Itinerary Preview */}
           <Card hover={false} className="p-6">
-            <h2 className="text-lg font-semibold text-neutral-900 mb-4">
-              Itinerary Preview
-            </h2>
+            <h2 className="text-lg font-semibold text-neutral-900 mb-4">Itinerary Preview</h2>
             {previewItinerary.length > 0 ? (
               <div className="space-y-5">
                 {previewItinerary.map((day) => (
@@ -262,39 +242,32 @@ const TripDetails: React.FC = () => {
                       <span className="text-sm font-semibold text-primary-600">
                         Day {day.dayNumber}
                       </span>
-                      <span className="text-xs text-neutral-400">
-                        {formatFullDate(day.date)}
-                      </span>
+                      <span className="text-xs text-neutral-400">{formatFullDate(day.date)}</span>
                     </div>
                     <div className="space-y-1.5 pl-2 border-l-2 border-neutral-100">
-                      {([
-                        ...day.morning.map((i) => ({
-                          ...i,
-                          period: 'Morning',
-                        })),
-                        ...day.afternoon.map((i) => ({
-                          ...i,
-                          period: 'Afternoon',
-                        })),
-                        ...day.evening.map((i) => ({
-                          ...i,
-                          period: 'Evening',
-                        })),
-                      ] as { period: string; time: string; name: string }[]).map(
-                        (item, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center gap-2 text-sm py-0.5"
-                          >
-                            <span className="text-xs text-neutral-400 w-12 flex-shrink-0">
-                              {item.time}
-                            </span>
-                            <span className="text-neutral-700 truncate">
-                              {item.name}
-                            </span>
-                          </div>
-                        )
-                      )}
+                      {(
+                        [
+                          ...day.morning.map((i) => ({
+                            ...i,
+                            period: 'Morning',
+                          })),
+                          ...day.afternoon.map((i) => ({
+                            ...i,
+                            period: 'Afternoon',
+                          })),
+                          ...day.evening.map((i) => ({
+                            ...i,
+                            period: 'Evening',
+                          })),
+                        ] as { period: string; time: string; name: string }[]
+                      ).map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-sm py-0.5">
+                          <span className="text-xs text-neutral-400 w-12 flex-shrink-0">
+                            {item.time}
+                          </span>
+                          <span className="text-neutral-700 truncate">{item.name}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -311,20 +284,12 @@ const TripDetails: React.FC = () => {
         {/* Budget Summary */}
         {budget && (
           <Card hover={false} className="p-6">
-            <h2 className="text-lg font-semibold text-neutral-900 mb-4">
-              Budget Summary
-            </h2>
+            <h2 className="text-lg font-semibold text-neutral-900 mb-4">Budget Summary</h2>
             <div className="space-y-4">
               {budget.categories.map((cat) => {
-                const pct = cat.allocated > 0
-                  ? Math.min(100, (cat.spent / cat.allocated) * 100)
-                  : 0;
-                const color =
-                  pct >= 100
-                    ? 'error'
-                    : pct >= 75
-                      ? 'warning'
-                      : 'primary';
+                const pct =
+                  cat.allocated > 0 ? Math.min(100, (cat.spent / cat.allocated) * 100) : 0;
+                const color = pct >= 100 ? 'error' : pct >= 75 ? 'warning' : 'primary';
                 return (
                   <div key={cat.name}>
                     <div className="flex items-center justify-between mb-1.5">
@@ -333,8 +298,7 @@ const TripDetails: React.FC = () => {
                         {cat.name}
                       </span>
                       <span className="text-sm text-neutral-500">
-                        ${cat.spent.toLocaleString()} / $
-                        {cat.allocated.toLocaleString()}
+                        ${cat.spent.toLocaleString()} / ${cat.allocated.toLocaleString()}
                       </span>
                     </div>
                     <ProgressBar value={pct} color={color} size="sm" />
@@ -343,12 +307,9 @@ const TripDetails: React.FC = () => {
               })}
             </div>
             <div className="mt-6 pt-4 border-t border-neutral-100 flex items-center justify-between">
+              <span className="text-base font-semibold text-neutral-900">Total</span>
               <span className="text-base font-semibold text-neutral-900">
-                Total
-              </span>
-              <span className="text-base font-semibold text-neutral-900">
-                ${totalSpent.toLocaleString()} / $
-                {totalBudget.toLocaleString()}
+                ${totalSpent.toLocaleString()} / ${totalBudget.toLocaleString()}
               </span>
             </div>
           </Card>

@@ -7,16 +7,13 @@ export interface AuthContextValue {
   isLoading: boolean;
   isConfigured: boolean;
   signInWithPassword: (email: string, password: string) => Promise<void>;
-  signUpWithPassword: (
-    email: string,
-    password: string,
-    fullName?: string,
+  signUpWithPassword: (email: string, password: string, fullName?: string) => Promise<void>;
+  signInWithOAuth: (
+    provider: Extract<Provider, 'google' | 'apple'>,
+    redirectTo?: string,
   ) => Promise<void>;
-  signInWithOAuth: (provider: Extract<Provider, 'google' | 'apple'>, redirectTo?: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-export const AuthContext = createContext<AuthContextValue | undefined>(
-  undefined,
-);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);

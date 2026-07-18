@@ -1,10 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Loader2, MapPin, Search } from 'lucide-react';
 import { mockLocationSuggestions } from '../../data/locationSuggestions';
-import {
-  placesService,
-  type PlaceAutocompleteSuggestion,
-} from '../../services/placesService';
+import { placesService, type PlaceAutocompleteSuggestion } from '../../services/placesService';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 import type { LocationRef } from '../../types';
 
@@ -24,7 +21,12 @@ type LocationSuggestion =
   | { kind: 'location'; location: LocationRef };
 
 const makeManualLocation = (name: string): LocationRef => ({
-  id: `manual-${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'location'}`,
+  id: `manual-${
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-') || 'location'
+  }`,
   name: name.trim(),
   source: 'manual',
 });
@@ -42,13 +44,11 @@ const LocationInput: React.FC<LocationInputProps> = ({
   const inputId = useId();
   const [query, setQuery] = useState(value?.name ?? '');
   const [isOpen, setIsOpen] = useState(false);
-  const [googleSuggestions, setGoogleSuggestions] = useState<
-    PlaceAutocompleteSuggestion[]
-  >([]);
+  const [googleSuggestions, setGoogleSuggestions] = useState<PlaceAutocompleteSuggestion[]>([]);
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(false);
   const [placesError, setPlacesError] = useState<string | null>(null);
-  const [sessionToken, setSessionToken] = useState(() =>
-    crypto.randomUUID?.() ?? String(Date.now()),
+  const [sessionToken, setSessionToken] = useState(
+    () => crypto.randomUUID?.() ?? String(Date.now()),
   );
   const requestIdRef = useRef(0);
 
@@ -61,15 +61,11 @@ const LocationInput: React.FC<LocationInputProps> = ({
     if (!normalizedQuery) return mockLocationSuggestions.slice(0, 6);
     return mockLocationSuggestions
       .filter((suggestion) =>
-        [
-          suggestion.name,
-          suggestion.formattedAddress,
-          ...(suggestion.placeTypes ?? []),
-        ]
+        [suggestion.name, suggestion.formattedAddress, ...(suggestion.placeTypes ?? [])]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
-          .includes(normalizedQuery)
+          .includes(normalizedQuery),
       )
       .slice(0, 6);
   }, [query]);
@@ -137,9 +133,7 @@ const LocationInput: React.FC<LocationInputProps> = ({
     onChange(location);
   };
 
-  const handleSelectGoogleSuggestion = async (
-    suggestion: PlaceAutocompleteSuggestion,
-  ) => {
+  const handleSelectGoogleSuggestion = async (suggestion: PlaceAutocompleteSuggestion) => {
     setQuery(suggestion.mainText ?? suggestion.text);
     setIsLoadingPlaces(true);
     setPlacesError(null);
@@ -165,10 +159,7 @@ const LocationInput: React.FC<LocationInputProps> = ({
   return (
     <div className={['relative', className].filter(Boolean).join(' ')}>
       {label && (
-        <label
-          htmlFor={inputId}
-          className="block text-sm font-medium text-app-text-muted mb-1.5"
-        >
+        <label htmlFor={inputId} className="block text-sm font-medium text-app-text-muted mb-1.5">
           {label}
         </label>
       )}
@@ -210,7 +201,7 @@ const LocationInput: React.FC<LocationInputProps> = ({
                   : suggestion.location.id;
               const name =
                 suggestion.kind === 'google'
-                  ? suggestion.suggestion.mainText ?? suggestion.suggestion.text
+                  ? (suggestion.suggestion.mainText ?? suggestion.suggestion.text)
                   : suggestion.location.name;
               const description =
                 suggestion.kind === 'google'
@@ -218,31 +209,29 @@ const LocationInput: React.FC<LocationInputProps> = ({
                   : suggestion.location.formattedAddress;
 
               return (
-              <button
-                key={key}
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  if (suggestion.kind === 'google') {
-                    void handleSelectGoogleSuggestion(suggestion.suggestion);
-                  } else {
-                    handleSelectLocation(suggestion.location);
-                  }
-                }}
-                className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-app-surface-muted transition-colors"
-              >
-                <MapPin className="w-4 h-4 text-primary-500 mt-0.5 shrink-0" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium text-app-text truncate">
-                    {name}
+                <button
+                  key={key}
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    if (suggestion.kind === 'google') {
+                      void handleSelectGoogleSuggestion(suggestion.suggestion);
+                    } else {
+                      handleSelectLocation(suggestion.location);
+                    }
+                  }}
+                  className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-app-surface-muted transition-colors"
+                >
+                  <MapPin className="w-4 h-4 text-primary-500 mt-0.5 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-app-text truncate">{name}</span>
+                    {description && (
+                      <span className="block text-xs text-app-text-muted truncate">
+                        {description}
+                      </span>
+                    )}
                   </span>
-                  {description && (
-                    <span className="block text-xs text-app-text-muted truncate">
-                      {description}
-                    </span>
-                  )}
-                </span>
-              </button>
+                </button>
               );
             })
           ) : (

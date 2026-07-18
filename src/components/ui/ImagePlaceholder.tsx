@@ -52,11 +52,7 @@ const ImagePlaceholder: React.FC<ImagePlaceholderProps> = ({
 
   return (
     <div
-      className={[
-        'relative w-full overflow-hidden',
-        aspectRatioClasses[aspectRatio],
-        className,
-      ]
+      className={['relative w-full overflow-hidden', aspectRatioClasses[aspectRatio], className]
         .filter(Boolean)
         .join(' ')}
     >

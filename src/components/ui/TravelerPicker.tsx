@@ -126,19 +126,13 @@ const TravelerPicker: React.FC<TravelerPickerProps> = ({
                 className="flex items-center justify-between gap-6 py-5 first:pt-0 last:pb-0"
               >
                 <div>
-                  <p className="text-base font-bold text-neutral-900">
-                    {row.title}
-                  </p>
-                  <p className="mt-1 text-sm text-neutral-500">
-                    {row.description}
-                  </p>
+                  <p className="text-base font-bold text-neutral-900">{row.title}</p>
+                  <p className="mt-1 text-sm text-neutral-500">{row.description}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() =>
-                      row.setValue((current) => Math.max(row.min, current - 1))
-                    }
+                    onClick={() => row.setValue((current) => Math.max(row.min, current - 1))}
                     disabled={row.value === row.min}
                     className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200 text-neutral-900 transition-colors hover:border-neutral-900 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-neutral-200"
                     aria-label={`Remove ${row.title.toLowerCase()}`}

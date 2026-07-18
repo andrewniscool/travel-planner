@@ -23,10 +23,7 @@ const StopSelector: React.FC<StopSelectorProps> = ({
   if (stops.length === 1) {
     return (
       <div
-        className={[
-          'inline-flex items-center gap-2 text-sm text-neutral-500',
-          className,
-        ].join(' ')}
+        className={['inline-flex items-center gap-2 text-sm text-neutral-500', className].join(' ')}
       >
         <MapPin className="w-4 h-4 text-neutral-400" />
         <span>{formatStopLabel(stops[0])}</span>
@@ -36,10 +33,7 @@ const StopSelector: React.FC<StopSelectorProps> = ({
 
   return (
     <div
-      className={[
-        'flex items-center gap-2 overflow-x-auto',
-        className,
-      ].join(' ')}
+      className={['flex items-center gap-2 overflow-x-auto', className].join(' ')}
       aria-label="Select trip stop"
     >
       {stops.map((stop) => (

@@ -2,13 +2,13 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+declare const __DEV_AUTH_BYPASS_ENABLED__: boolean;
+
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const { user, isLoading, isConfigured } = useAuth();
 
-  if (!isConfigured) {
+  if (__DEV_AUTH_BYPASS_ENABLED__ || !isConfigured) {
     return children;
   }
 
@@ -25,13 +25,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   if (!user) {
     const returnTo = `${location.pathname}${location.search}${location.hash}`;
 
-    return (
-      <Navigate
-        to="/sign-in"
-        replace
-        state={{ returnTo }}
-      />
-    );
+    return <Navigate to="/sign-in" replace state={{ returnTo }} />;
   }
 
   return children;

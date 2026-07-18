@@ -1,12 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import {
-  Building2,
-  CalendarDays,
-  MapPin,
-  Plane,
-  UtensilsCrossed,
-} from 'lucide-react';
+import { Building2, CalendarDays, MapPin, Plane, UtensilsCrossed } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 
 type GoogleMapsStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -72,10 +66,7 @@ interface GoogleInfoWindow {
 
 interface GoogleMapsGlobal {
   maps: {
-    Map: new (
-      element: HTMLElement,
-      options: GoogleMapOptions,
-    ) => GoogleMapInstance;
+    Map: new (element: HTMLElement, options: GoogleMapOptions) => GoogleMapInstance;
     LatLngBounds: new () => GoogleLatLngBounds;
     InfoWindow: new () => GoogleInfoWindow;
     marker: {
@@ -186,7 +177,9 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
   if (googleMapsLoadPromise) return googleMapsLoadPromise;
 
   googleMapsLoadPromise = new Promise((resolve, reject) => {
-    const existingScript = document.getElementById(GOOGLE_MAPS_SCRIPT_ID) as HTMLScriptElement | null;
+    const existingScript = document.getElementById(
+      GOOGLE_MAPS_SCRIPT_ID,
+    ) as HTMLScriptElement | null;
 
     window.initTripGoogleMap = () => {
       resolve();
@@ -194,9 +187,13 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
 
     if (existingScript) {
       existingScript.addEventListener('load', () => resolve(), { once: true });
-      existingScript.addEventListener('error', () => reject(new Error('Google Maps failed to load.')), {
-        once: true,
-      });
+      existingScript.addEventListener(
+        'error',
+        () => reject(new Error('Google Maps failed to load.')),
+        {
+          once: true,
+        },
+      );
       return;
     }
 
@@ -309,12 +306,10 @@ const TripGoogleMap: React.FC<TripGoogleMapProps> = ({
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const lightMapId =
-    import.meta.env.VITE_GOOGLE_MAPS_MAP_ID ??
-    import.meta.env.VITE_GOOGLE_MAPS_MAPS_ID;
+    import.meta.env.VITE_GOOGLE_MAPS_MAP_ID ?? import.meta.env.VITE_GOOGLE_MAPS_MAPS_ID;
   const darkMapId =
-    import.meta.env.VITE_GOOGLE_MAPS_DARK_MAP_ID ??
-    import.meta.env.VITE_GOOGLE_MAPS_DARK_MAPS_ID;
-  const mapId = isDarkMode ? darkMapId ?? lightMapId : lightMapId;
+    import.meta.env.VITE_GOOGLE_MAPS_DARK_MAP_ID ?? import.meta.env.VITE_GOOGLE_MAPS_DARK_MAPS_ID;
+  const mapId = isDarkMode ? (darkMapId ?? lightMapId) : lightMapId;
   const mapStyles = useMemo(
     () => (isDarkMode && !darkMapId ? DARK_MAP_STYLES : []),
     [darkMapId, isDarkMode],
@@ -340,8 +335,7 @@ const TripGoogleMap: React.FC<TripGoogleMapProps> = ({
           lng: validMarkers[0].longitude,
         };
         const existingMapElement = mapRef.current.firstElementChild;
-        const existingThemeMapId =
-          existingMapElement?.getAttribute('data-theme-map-id');
+        const existingThemeMapId = existingMapElement?.getAttribute('data-theme-map-id');
 
         if (!mapInstanceRef.current || existingThemeMapId !== mapId) {
           mapRef.current.replaceChildren();
@@ -436,7 +430,9 @@ const TripGoogleMap: React.FC<TripGoogleMapProps> = ({
   }
 
   return (
-    <div className={`relative h-full min-h-[420px] w-full overflow-hidden rounded-2xl ${className}`}>
+    <div
+      className={`relative h-full min-h-[420px] w-full overflow-hidden rounded-2xl ${className}`}
+    >
       <div ref={mapRef} className="h-full min-h-[420px] w-full" />
       <div className="absolute left-4 right-4 top-4 z-10 flex items-center gap-2 rounded-xl bg-white/90 px-4 py-2.5 shadow-sm backdrop-blur-sm dark:bg-neutral-900/90">
         <MapPin className="h-4 w-4 text-primary-500" />

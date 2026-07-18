@@ -23,10 +23,10 @@ const addMonths = (date: Date, count: number) =>
 const isSameDay = (first: Date | null, second: Date | null) =>
   Boolean(
     first &&
-      second &&
-      first.getFullYear() === second.getFullYear() &&
-      first.getMonth() === second.getMonth() &&
-      first.getDate() === second.getDate(),
+    second &&
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate(),
   );
 
 const isBetween = (date: Date, start: Date | null, end: Date | null) =>
@@ -89,7 +89,9 @@ const CalendarMonth: React.FC<{
               isStart && selectedEnd ? 'rounded-l-full bg-primary-600 text-white' : '',
               isEnd && selectedStart ? 'rounded-r-full bg-primary-600 text-white' : '',
               isSingleSelected ? 'rounded-full bg-primary-600 text-white' : '',
-              !isStart && !isEnd ? 'hover:rounded-full hover:bg-app-surface-muted hover:ring-1 hover:ring-app-text' : '',
+              !isStart && !isEnd
+                ? 'hover:rounded-full hover:bg-app-surface-muted hover:ring-1 hover:ring-app-text'
+                : '',
             ]
               .filter(Boolean)
               .join(' ')}
@@ -174,9 +176,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   return (
     <div className={['relative', className].filter(Boolean).join(' ')}>
       {label && (
-        <label className="mb-1.5 block text-sm font-medium text-app-text-muted">
-          {label}
-        </label>
+        <label className="mb-1.5 block text-sm font-medium text-app-text-muted">{label}</label>
       )}
       <button
         type="button"
@@ -352,7 +352,13 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           <span className="block text-[10px] font-extrabold uppercase text-app-text">
             {startLabel}
           </span>
-          <span className={startValue ? 'mt-1 block truncate text-sm font-semibold text-app-text' : 'mt-1 block text-sm text-app-text-subtle'}>
+          <span
+            className={
+              startValue
+                ? 'mt-1 block truncate text-sm font-semibold text-app-text'
+                : 'mt-1 block text-sm text-app-text-subtle'
+            }
+          >
             {formatDateLabel(startValue, 'Add date')}
           </span>
         </button>
@@ -368,7 +374,13 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           <span className="block text-[10px] font-extrabold uppercase text-app-text">
             {endLabel}
           </span>
-          <span className={endValue ? 'mt-1 block truncate text-sm font-semibold text-app-text' : 'mt-1 block text-sm text-app-text-subtle'}>
+          <span
+            className={
+              endValue
+                ? 'mt-1 block truncate text-sm font-semibold text-app-text'
+                : 'mt-1 block text-sm text-app-text-subtle'
+            }
+          >
             {formatDateLabel(endValue, 'Add date')}
           </span>
         </button>

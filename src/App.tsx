@@ -11,7 +11,7 @@ const SignIn = lazy(() => import('./pages/SignIn'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const CreateTrip = lazy(() => import('./pages/CreateTrip'));
 const TripDetails = lazy(() => import('./pages/TripDetails'));
-const Flights = lazy(() => import('./pages/Flights'));
+const Flights = lazy(() => import('./pages/Transportation'));
 const Hotels = lazy(() => import('./pages/Hotels'));
 const Explore = lazy(() => import('./pages/Explore'));
 const Itinerary = lazy(() => import('./pages/Itinerary'));

@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Flight, Hotel } from '../../types';
-import SavedLinksCard from './SavedLinksCard';
+import BookingsCard from './BookingsCard';
 
 const flight = (bookingUrl?: string): Flight => ({
   id: 'flight-1',
@@ -22,7 +22,7 @@ const flight = (bookingUrl?: string): Flight => ({
   bookingUrl,
 });
 
-const hotel: Hotel = {
+const hotel = (websiteUri?: string): Hotel => ({
   id: 'hotel-1',
   tripId: 'trip-1',
   name: 'Test Hotel',
@@ -35,42 +35,40 @@ const hotel: Hotel = {
   neighborhood: 'Center',
   distanceToCenter: '1 mile',
   description: 'A hotel',
-};
+  locationRef: { id: 'location-1', name: 'Test Hotel', source: 'manual', websiteUri },
+});
 
-describe('SavedLinksCard', () => {
-  afterEach(() => {
-    cleanup();
-  });
+describe('BookingsCard', () => {
+  afterEach(cleanup);
 
-  it('renders safe external booking links', () => {
+  it('renders safe booking links', () => {
     render(
-      <SavedLinksCard
-        selectedFlight={flight('https://booking.example.com/flight')}
-        selectedHotel={hotel}
-        hotelLink="http://hotels.example.com/reservation"
+      <BookingsCard
+        tripId="trip-1"
+        flight={flight('https://booking.example.com/flight')}
+        hotel={hotel('http://hotels.example.com/reservation')}
       />,
     );
 
-    expect(screen.getByRole('link', { name: /flight booking/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /booking/i })).toHaveAttribute(
       'href',
       'https://booking.example.com/flight',
     );
-    expect(screen.getByRole('link', { name: /hotel reservation/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /reservation/i })).toHaveAttribute(
       'href',
       'http://hotels.example.com/reservation',
     );
   });
 
-  it('suppresses unsafe external booking links', () => {
+  it('suppresses unsafe booking links', () => {
     render(
-      <SavedLinksCard
-        selectedFlight={flight('javascript:alert(1)')}
-        selectedHotel={hotel}
-        hotelLink="data:text/html,<script>alert(1)</script>"
+      <BookingsCard
+        tripId="trip-1"
+        flight={flight('javascript:alert(1)')}
+        hotel={hotel('data:text/html,<script>alert(1)</script>')}
       />,
     );
 
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    expect(screen.getByText('No booking links yet')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /booking|reservation/i })).not.toBeInTheDocument();
   });
 });

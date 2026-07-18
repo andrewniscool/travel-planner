@@ -18,7 +18,6 @@ const TRIP_TOOL_SUFFIXES = new Set([
   '/map',
   '/budget',
   '/notes',
-  '/summary',
 ]);
 
 const TripSwitcher: React.FC<TripSwitcherProps> = ({ isCollapsed, onNavigate }) => {

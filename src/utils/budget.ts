@@ -23,5 +23,15 @@ export const DEFAULT_BUDGET_CATEGORIES = [
 export const isBudgetCurrency = (currency: string): currency is BudgetCurrency =>
   BUDGET_CURRENCY_OPTIONS.some((option) => option.code === currency);
 
+export const formatBudgetAmount = (
+  amount: number,
+  currency: BudgetCurrency = DEFAULT_BUDGET_CURRENCY,
+) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount);
+
 export const getBudgetCategoryKey = (category: Pick<BudgetCategory, 'name' | 'stopId'>) =>
   `${category.stopId ?? 'trip'}:${category.name}`;

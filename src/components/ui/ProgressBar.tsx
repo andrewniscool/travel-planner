@@ -35,7 +35,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
   return (
     <div className={['flex items-center gap-3', className].filter(Boolean).join(' ')}>
-      <div className="w-full bg-neutral-100 rounded-full overflow-hidden">
+      <div className="w-full bg-app-surface-muted rounded-full overflow-hidden">
         <div
           className={[
             'rounded-full transition-all duration-500 ease-out',
@@ -48,7 +48,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
         />
       </div>
       {showLabel && (
-        <span className="text-sm font-medium text-neutral-600 whitespace-nowrap">
+        <span className="text-sm font-medium text-app-text-muted whitespace-nowrap">
           {Math.round(clampedValue)}%
         </span>
       )}

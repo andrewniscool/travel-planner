@@ -22,6 +22,24 @@ export const getTripLocationLabel = (trip: Trip) => {
     : stop?.name || [trip.destination, trip.country].filter(Boolean).join(', ');
 };
 
+export const formatLongDate = (dateStr: string): string => {
+  if (!dateStr) return 'Date TBD';
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+export const formatDayDate = (dateStr: string): string => {
+  if (!dateStr) return 'Date TBD';
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
 export const getDaysUntil = (startDate: string): number | null => {
   if (!startDate) return null;
   const today = new Date();

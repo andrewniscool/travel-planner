@@ -31,8 +31,8 @@ const NextStepsPanel: React.FC<{ trip: Trip }> = ({ trip }) => {
         <div className="flex flex-1 flex-col items-center justify-center text-center">
           <CheckCircle2 className="h-7 w-7 text-success-500" />
           <p className="mt-2 text-sm font-medium text-app-text">All planning steps complete</p>
-          <Link className="mt-2 text-sm text-primary-600" to={`/trip/${trip.id}/summary`}>
-            View trip summary
+          <Link className="mt-2 text-sm text-primary-600" to={`/trip/${trip.id}`}>
+            Review trip overview
           </Link>
         </div>
       )}

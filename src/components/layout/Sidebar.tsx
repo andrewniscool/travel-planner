@@ -9,7 +9,6 @@ import {
   Map,
   Wallet,
   StickyNote,
-  ClipboardCheck,
   Menu,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -30,14 +29,13 @@ interface NavItem {
 
 const TRIP_NAV: NavItem[] = [
   { label: 'Overview', icon: LayoutDashboard, to: '' },
-  { label: 'Flights', icon: Plane, to: 'flights' },
+  { label: 'Transportation', icon: Plane, to: 'flights' },
   { label: 'Hotels', icon: Building2, to: 'hotels' },
   { label: 'Explore', icon: Compass, to: 'explore' },
   { label: 'Itinerary', icon: CalendarDays, to: 'itinerary' },
   { label: 'Map', icon: Map, to: 'map' },
   { label: 'Budget', icon: Wallet, to: 'budget' },
   { label: 'Notes', icon: StickyNote, to: 'notes' },
-  { label: 'Summary', icon: ClipboardCheck, to: 'summary' },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed, onToggleCollapse }) => {

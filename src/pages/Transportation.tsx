@@ -28,10 +28,10 @@ import {
 } from '../utils/transportSegments';
 import type { LocationRef, TransportSegment } from '../types';
 import Button from '../components/ui/Button';
-import Modal from '../components/ui/Modal';
+import Sheet from '../components/ui/Sheet';
 import EmptyState from '../components/ui/EmptyState';
 import TransportCard from '../components/flights/TransportCard';
-import TravelSegmentForm, { type SegmentFormState } from '../components/flights/TravelSegmentForm';
+import TravelSegmentForm, { type SegmentFormErrors, type SegmentFormState } from '../components/flights/TravelSegmentForm';
 import TravelSummaryCard from '../components/flights/TravelSummaryCard';
 import TravelFilterTabs from '../components/flights/TravelFilterTabs';
 
@@ -94,6 +94,8 @@ const Flights: React.FC = () => {
   const [segmentModalOpen, setSegmentModalOpen] = useState(false);
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
   const [segmentForm, setSegmentForm] = useState<SegmentFormState>(emptyForm);
+  const [segmentFormErrors, setSegmentFormErrors] = useState<SegmentFormErrors>({});
+  const initialSegmentFormRef = useRef<SegmentFormState>(emptyForm);
   const [activeFilter, setActiveFilter] = useState<TravelFilter>('all');
   const loadedTripIdRef = useRef<string | null>(null);
 
@@ -147,8 +149,11 @@ const Flights: React.FC = () => {
   };
 
   const openCreateModal = (defaults: Partial<SegmentFormState> = {}) => {
+    const initialForm = { ...emptyForm, currency: trip?.budgetCurrency ?? 'USD', ...defaults };
     setEditingSegmentId(null);
-    setSegmentForm({ ...emptyForm, ...defaults });
+    setSegmentForm(initialForm);
+    initialSegmentFormRef.current = initialForm;
+    setSegmentFormErrors({});
     setSegmentModalOpen(true);
   };
 
@@ -156,7 +161,7 @@ const Flights: React.FC = () => {
     const departure = splitDateTime(segment.departureDateTime);
     const arrival = splitDateTime(segment.arrivalDateTime);
     setEditingSegmentId(segment.id);
-    setSegmentForm({
+    const initialForm: SegmentFormState = {
       mode: segment.mode,
       role: segment.role || 'arrival',
       isPrimary: !!segment.isPrimary,
@@ -176,7 +181,10 @@ const Flights: React.FC = () => {
       bookingUrl: segment.bookingUrl || '',
       fromStopId: segment.fromStopId || '',
       toStopId: segment.toStopId || '',
-    });
+    };
+    setSegmentForm(initialForm);
+    initialSegmentFormRef.current = initialForm;
+    setSegmentFormErrors({});
     setSegmentModalOpen(true);
   };
 
@@ -184,6 +192,19 @@ const Flights: React.FC = () => {
     setSegmentModalOpen(false);
     setEditingSegmentId(null);
     setSegmentForm(emptyForm);
+    setSegmentFormErrors({});
+  };
+
+  const requestCloseSegmentModal = () => {
+    if (isSavingSegment) return;
+    const isDirty = JSON.stringify(segmentForm) !== JSON.stringify(initialSegmentFormRef.current);
+    if (isDirty && !window.confirm('Discard your unsaved travel changes?')) return;
+    closeSegmentModal();
+  };
+
+  const handleSegmentFormChange = (form: SegmentFormState) => {
+    setSegmentForm(form);
+    if (Object.keys(segmentFormErrors).length) setSegmentFormErrors({});
   };
 
   const handleDeleteSegment = async (segmentId: string) => {
@@ -210,6 +231,25 @@ const Flights: React.FC = () => {
     if (!trip) return;
     const departureDateTime = buildDateTime(segmentForm.departureDate, segmentForm.departureTime);
     const arrivalDateTime = buildDateTime(segmentForm.arrivalDate, segmentForm.arrivalTime);
+    const errors: SegmentFormErrors = {};
+    if (!getLocationName(segmentForm.fromLocation, segmentForm.departureLocation).trim()) errors.departureLocation = 'Choose a starting location.';
+    if (!getLocationName(segmentForm.toLocation, segmentForm.arrivalLocation).trim()) errors.arrivalLocation = 'Choose a destination.';
+    if (!segmentForm.departureDate) errors.schedule = 'Add a departure date.';
+    else if (!segmentForm.arrivalDate) errors.schedule = 'Add an arrival date.';
+    else if (departureDateTime && arrivalDateTime && new Date(arrivalDateTime).getTime() < new Date(departureDateTime).getTime()) errors.schedule = 'Arrival must be after departure.';
+    if (segmentForm.price && (!Number.isFinite(Number(segmentForm.price)) || Number(segmentForm.price) < 0)) errors.price = 'Enter a valid amount.';
+    if (segmentForm.bookingUrl) {
+      try {
+        const url = new URL(segmentForm.bookingUrl);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') errors.bookingUrl = 'Use an http or https booking link.';
+      } catch { errors.bookingUrl = 'Enter a complete booking URL.'; }
+    }
+    if (segmentForm.fromStopId && segmentForm.fromStopId === segmentForm.toStopId) errors.fromStopId = 'From and to stops must be different.';
+    if (Object.keys(errors).length) {
+      setSegmentFormErrors(errors);
+      return;
+    }
+    setSegmentFormErrors({});
     const nextSegment: TransportSegment = {
       id: editingSegmentId || `transport-${trip.id}-${Date.now()}`,
       tripId: trip.id,
@@ -432,23 +472,25 @@ const Flights: React.FC = () => {
         )}
       </div>
 
-      <Modal
+      <Sheet
         isOpen={segmentModalOpen}
-        onClose={closeSegmentModal}
-        title={editingSegmentId ? 'Edit Travel Segment' : 'Add Travel Segment'}
-        size="lg"
+        onClose={requestCloseSegmentModal}
+        title={editingSegmentId ? 'Edit travel segment' : 'Add travel segment'}
+        description="Add route, schedule, and booking details."
+        closeOnBackdrop={!isSavingSegment}
+        closeOnEscape={!isSavingSegment}
+        className="sm:w-[min(48rem,calc(100vw-2rem))]"
+        footer={<div className="flex justify-end gap-3"><Button variant="ghost" onClick={requestCloseSegmentModal} disabled={isSavingSegment}>Cancel</Button><Button type="submit" form="travel-segment-form" disabled={isSavingSegment}>{isSavingSegment ? 'Saving…' : editingSegmentId ? 'Save changes' : 'Add segment'}</Button></div>}
       >
         <TravelSegmentForm
           form={segmentForm}
+          errors={segmentFormErrors}
           isMultiStop={isMultiStop}
           orderedStops={orderedStops}
-          onChange={setSegmentForm}
-          onCancel={closeSegmentModal}
+          onChange={handleSegmentFormChange}
           onSubmit={handleSubmitSegment}
-          submitLabel={editingSegmentId ? 'Save changes' : 'Add segment'}
-          isSaving={isSavingSegment}
         />
-      </Modal>
+      </Sheet>
     </div>
   );
 };

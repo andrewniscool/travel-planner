@@ -23,12 +23,6 @@ export const amenityIcons: Record<string, React.ReactNode> = {
   Breakfast: <Coffee className="w-3.5 h-3.5" />,
 };
 
-export const mockReviews = [
-  { author: 'Sarah M.', text: 'Wonderful experience! The staff was incredibly attentive and the amenities were top-notch.', rating: 5 },
-  { author: 'James L.', text: 'Great location and comfortable rooms. Would definitely stay here again.', rating: 4 },
-  { author: 'Emily R.', text: 'Beautiful property with excellent service. The breakfast buffet was a highlight.', rating: 5 },
-];
-
 export const getLocationLabel = (hotel: Hotel) =>
   hotel.locationRef?.formattedAddress || hotel.neighborhood;
 

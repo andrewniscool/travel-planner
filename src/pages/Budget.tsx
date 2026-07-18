@@ -8,6 +8,7 @@ import { useServiceTrip } from '../hooks/useServiceTrips';
 import { budgetService, getAuthenticatedUserId, tripService } from '../services/travelDataService';
 import { loadTripScopedValue, persistTripScopedValue } from '../utils/tripStorage';
 import {
+  BUDGET_CURRENCY_OPTIONS,
   DEFAULT_BUDGET_CATEGORIES,
   DEFAULT_BUDGET_CURRENCY,
   getBudgetCategoryKey as getCategoryAllocationKey,
@@ -21,7 +22,7 @@ import BudgetBreakdownCard from '../components/budget/BudgetBreakdownCard';
 import ExpenseManagerModal, {
   type ExpenseFormState,
 } from '../components/budget/ExpenseManagerModal';
-import BudgetAllocationModal from '../components/budget/BudgetAllocationModal';
+import Select from '../components/ui/Select';
 import type { BudgetCategory, BudgetCurrency, BudgetExpense, TransportSegment } from '../types';
 
 const LOCAL_BUDGET_EXPENSES_KEY = 'travel-builder:budget-expenses';
@@ -182,12 +183,9 @@ const Budget: React.FC = () => {
   const [isSavingExpense, setIsSavingExpense] = useState(false);
   const [expenseListModalOpen, setExpenseListModalOpen] = useState(false);
   const [expenseManagerMode, setExpenseManagerMode] = useState<'list' | 'form'>('list');
-  const [budgetModalOpen, setBudgetModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<BudgetCategory | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [expenseForm, setExpenseForm] = useState<ExpenseFormState>(emptyExpenseForm());
-  const [allocationForm, setAllocationForm] = useState('');
-  const [currencyForm, setCurrencyForm] = useState<BudgetCurrency>(DEFAULT_BUDGET_CURRENCY);
 
   useEffect(() => {
     if (!tripId) return;
@@ -385,13 +383,6 @@ const Budget: React.FC = () => {
     setExpenseListModalOpen(true);
   };
 
-  const openEditBudgetModal = (category: BudgetCategory) => {
-    setSelectedCategory(category);
-    setAllocationForm(String(category.allocated));
-    setCurrencyForm(budgetCurrency);
-    setBudgetModalOpen(true);
-  };
-
   const openEditExpenseModal = (expense: BudgetExpense) => {
     setEditingExpenseId(expense.id);
     setExpenseForm({
@@ -418,59 +409,29 @@ const Budget: React.FC = () => {
     setExpenseForm(emptyExpenseForm(selectedCategory?.name, selectedCategory?.stopId ?? ''));
   };
 
-  const closeBudgetModal = () => {
-    setBudgetModalOpen(false);
-    setAllocationForm('');
-    setCurrencyForm(budgetCurrency);
-  };
-
-  const handleSaveBudgetAllocation = async () => {
-    if (!trip || !selectedCategory) return;
-    const allocated = Number(allocationForm);
+  const handleSaveBudgetAllocation = async (category: BudgetCategory, allocated: number) => {
+    if (!trip) return;
     if (!Number.isFinite(allocated) || allocated < 0) return;
 
     const nextOverrides = {
       ...allocationOverrides,
-      [getCategoryAllocationKey(selectedCategory)]: allocated,
+      [getCategoryAllocationKey(category)]: allocated,
     };
     updateAllocationOverrides(nextOverrides);
-    updateBudgetCurrency(currencyForm);
 
-    if (categorySource === 'supabase' || tripSource === 'supabase') {
+    if (categorySource === 'supabase') {
       try {
         const userId = await getAuthenticatedUserId();
         if (!userId) {
           setExpenseError('Saved locally. Sign-in is not connected yet.');
           setCategorySource('fallback');
         } else {
-          const updates: Promise<unknown>[] = [];
-
-          if (categorySource === 'supabase') {
-            updates.push(
-              budgetService.upsertBudgetCategory(
-                trip.id,
-                { ...selectedCategory, allocated },
-                Math.max(
-                  0,
-                  categoriesWithExpenses.findIndex(
-                    (category) =>
-                      getCategoryAllocationKey(category) ===
-                      getCategoryAllocationKey(selectedCategory),
-                  ),
-                ),
-              ),
-            );
-          }
-
-          if (tripSource === 'supabase') {
-            updates.push(
-              tripService.updateTrip(trip.id, {
-                budget_currency: currencyForm,
-              }),
-            );
-          }
-
-          await Promise.all(updates);
+          await budgetService.upsertBudgetCategory(
+            trip.id,
+            { ...category, allocated },
+            Math.max(0, categoriesWithExpenses.findIndex((item) =>
+              getCategoryAllocationKey(item) === getCategoryAllocationKey(category))),
+          );
           setExpenseError(null);
         }
       } catch {
@@ -479,7 +440,23 @@ const Budget: React.FC = () => {
       }
     }
 
-    closeBudgetModal();
+  };
+
+  const handleCurrencyChange = async (currency: BudgetCurrency) => {
+    if (!trip) return;
+    updateBudgetCurrency(currency);
+    if (tripSource !== 'supabase') return;
+    try {
+      const userId = await getAuthenticatedUserId();
+      if (!userId) {
+        setExpenseError('Saved currency locally. Sign-in is not connected yet.');
+        return;
+      }
+      await tripService.updateTrip(trip.id, { budget_currency: currency });
+      setExpenseError(null);
+    } catch {
+      setExpenseError('Supabase currency save failed. Saved the change locally instead.');
+    }
   };
 
   const handleSaveExpense = async () => {
@@ -538,6 +515,7 @@ const Budget: React.FC = () => {
   };
 
   const handleDeleteExpense = async (expenseId: string) => {
+    if (!window.confirm('Delete this expense? This action cannot be undone.')) return;
     const nextExpenses = expenses.filter((expense) => expense.id !== expenseId);
 
     if (expenseSource !== 'supabase') {
@@ -566,6 +544,10 @@ const Budget: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div><h1 className="font-display text-2xl font-semibold text-app-text-strong sm:text-[1.75rem]">Budget</h1><p className="mt-1 text-sm text-app-text-muted">Track allocations and expenses for this trip.</p></div>
+        <Select className="w-full sm:w-52" label="Trip currency" value={budgetCurrency} onChange={(value) => { if (isBudgetCurrency(value)) void handleCurrencyChange(value); }} options={BUDGET_CURRENCY_OPTIONS.map((currency) => ({ value: currency.code, label: currency.label }))} />
+      </div>
       {(serviceTripError || expenseError) && (
         <Card hover={false} className="p-4 border-warning-100 bg-warning-50">
           <p className="text-sm text-warning-700">
@@ -596,7 +578,7 @@ const Budget: React.FC = () => {
           getProgressColor={getBudgetProgressBarColor}
           getDetailsPath={(categoryName) => getCategoryDetailsPath(trip.id, categoryName)}
           onManageExpenses={openExpenseListModal}
-          onEditBudget={openEditBudgetModal}
+          onSaveBudget={handleSaveBudgetAllocation}
           onViewDetails={navigate}
         />
       )}
@@ -646,17 +628,6 @@ const Budget: React.FC = () => {
         onDeleteExpense={handleDeleteExpense}
       />
 
-      <BudgetAllocationModal
-        isOpen={budgetModalOpen}
-        selectedCategory={selectedCategory}
-        allocationForm={allocationForm}
-        currencyForm={currencyForm}
-        orderedStops={orderedStops}
-        onClose={closeBudgetModal}
-        onAllocationChange={setAllocationForm}
-        onCurrencyChange={setCurrencyForm}
-        onSubmit={handleSaveBudgetAllocation}
-      />
     </div>
   );
 };

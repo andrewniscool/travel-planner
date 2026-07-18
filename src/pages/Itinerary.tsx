@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { MapPin, Calendar, Bookmark } from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
@@ -158,6 +158,7 @@ const Itinerary: React.FC = () => {
   const [showSavedPlacesModal, setShowSavedPlacesModal] = useState(false);
   const [itemModal, setItemModal] = useState<ItineraryModalState | null>(null);
   const [itemForm, setItemForm] = useState<ItineraryItemFormState>(emptyItineraryForm);
+  const initialItemFormRef = useRef<ItineraryItemFormState>(emptyItineraryForm());
   const [itemFormErrors, setItemFormErrors] = useState<ItineraryFormErrors>({});
   const [isSavingItem, setIsSavingItem] = useState(false);
   const [budgetExpenses, setBudgetExpenses] = useState<BudgetExpense[]>(() =>
@@ -268,8 +269,10 @@ const Itinerary: React.FC = () => {
     budgetCategories.find((category) => getBudgetCategoryKey(category) === categoryKey);
 
   const openAddItemModal = (dayNumber: number, timeOfDay: TimeOfDay) => {
+    const initialForm = emptyItineraryForm();
     setItemModal({ mode: 'add', dayNumber, timeOfDay });
-    setItemForm(emptyItineraryForm());
+    setItemForm(initialForm);
+    initialItemFormRef.current = initialForm;
     setItemFormErrors({});
   };
 
@@ -292,7 +295,7 @@ const Itinerary: React.FC = () => {
       timeOfDay: section.timeOfDay,
       itemId: item.id,
     });
-    setItemForm({
+    const initialForm: ItineraryItemFormState = {
       time: item.time,
       name: item.name,
       type: item.type,
@@ -301,7 +304,9 @@ const Itinerary: React.FC = () => {
       notes: item.notes,
       budgetCategory: linkedCategory ? getBudgetCategoryKey(linkedCategory) : '',
       locationRef: item.locationRef ?? null,
-    });
+    };
+    setItemForm(initialForm);
+    initialItemFormRef.current = initialForm;
     setItemFormErrors({});
   };
 
@@ -309,6 +314,13 @@ const Itinerary: React.FC = () => {
     setItemModal(null);
     setItemForm(emptyItineraryForm());
     setItemFormErrors({});
+  };
+
+  const requestCloseItemModal = () => {
+    if (isSavingItem) return;
+    const isDirty = JSON.stringify(itemForm) !== JSON.stringify(initialItemFormRef.current);
+    if (isDirty && !window.confirm('Discard your unsaved itinerary changes?')) return;
+    closeItemModal();
   };
 
   const handleItemFormChange = (field: keyof ItineraryItemFormState, value: string) => {
@@ -777,7 +789,11 @@ const Itinerary: React.FC = () => {
         errors={itemFormErrors}
         budgetCategories={budgetCategories}
         isSaving={isSavingItem}
-        onClose={closeItemModal}
+        dayNumber={itemModal?.dayNumber}
+        timeOfDay={itemModal?.timeOfDay}
+        currency={trip?.budgetCurrency}
+        stopNames={Object.fromEntries(orderedStops.map((stop) => [stop.id, stop.name]))}
+        onClose={requestCloseItemModal}
         onChange={handleItemFormChange}
         onLocationChange={handleItemLocationChange}
         onSubmit={handleSaveItem}

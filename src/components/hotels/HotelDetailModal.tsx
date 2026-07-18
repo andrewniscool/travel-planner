@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Check, ExternalLink, MapPin, Phone } from 'lucide-react';
+import { Check, ExternalLink, Globe2, MapPin, Phone } from 'lucide-react';
 import Button from '../ui/Button';
 import PhotoGallery from '../ui/PhotoGallery';
 import RatingStars from '../ui/RatingStars';
@@ -30,7 +30,7 @@ const HotelDetailModal: React.FC<HotelDetailModalProps> = ({ hotel, isOpen, isSe
       isOpen={isOpen} onClose={onClose}
       title={hotel.locationRef?.displayName || hotel.name}
       description={getLocationLabel(hotel)}
-      footer={<div className="flex items-center gap-3"><Button variant={isSelected ? 'secondary' : 'primary'} size="lg" className="flex-1" onClick={onSelect}><Check className="mr-2 h-4 w-4" />{isSelected ? 'Selected — remove' : 'Select hotel'}</Button>{safeWebsiteUrl && <a href={safeWebsiteUrl} target="_blank" rel="noopener noreferrer" aria-label="Open hotel website" className="inline-flex rounded-xl border border-app-border p-3 text-app-text-muted hover:bg-app-surface-muted"><ExternalLink className="h-5 w-5" /></a>}</div>}
+      footer={<Button variant={isSelected ? 'secondary' : 'primary'} size="lg" className="w-full" onClick={onSelect}><Check className="mr-2 h-4 w-4" />{isSelected ? 'Selected — remove' : 'Select hotel'}</Button>}
     >
       <PhotoGallery photos={photos} fallbackPhoto={GOOGLE_HOTEL_IMAGE} alt={hotel.name} />
       <div className="space-y-6 p-5 sm:p-6">
@@ -44,7 +44,10 @@ const HotelDetailModal: React.FC<HotelDetailModalProps> = ({ hotel, isOpen, isSe
         <section className="space-y-3 rounded-2xl border border-app-border-muted p-4">
           <h3 className="text-sm font-semibold text-app-text-strong">Location and contact</h3>
           <div className="flex gap-3"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" /><div><p className="text-sm text-app-text">{getLocationLabel(hotel)}</p>{hotel.distanceToCenter && <p className="mt-0.5 text-xs text-app-text-muted">{hotel.distanceToCenter}</p>}</div></div>
-          {hotel.locationRef?.nationalPhoneNumber && <div className="flex items-center gap-3"><Phone className="h-4 w-4 shrink-0 text-primary-500" /><a className="text-sm text-primary-700 hover:underline" href={`tel:${hotel.locationRef.nationalPhoneNumber}`}>{hotel.locationRef.nationalPhoneNumber}</a></div>}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex items-start gap-3"><Phone className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" /><div><p className="text-xs font-medium text-app-text-subtle">Phone</p>{hotel.locationRef?.nationalPhoneNumber ? <a className="text-sm text-primary-700 hover:underline" href={`tel:${hotel.locationRef.nationalPhoneNumber}`}>{hotel.locationRef.nationalPhoneNumber}</a> : <p className="text-sm text-app-text-muted">No phone found</p>}</div></div>
+            <div className="flex items-start gap-3"><Globe2 className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" /><div><p className="text-xs font-medium text-app-text-subtle">Website</p>{safeWebsiteUrl ? <a className="inline-flex items-center gap-1 text-sm text-primary-700 hover:underline" href={safeWebsiteUrl} target="_blank" rel="noopener noreferrer">Visit website <ExternalLink className="h-3.5 w-3.5" /></a> : <p className="text-sm text-app-text-muted">No website found</p>}</div></div>
+          </div>
           {safeMapUrl && <a href={safeMapUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:underline">View on map <ExternalLink className="h-3.5 w-3.5" /></a>}
         </section>
 

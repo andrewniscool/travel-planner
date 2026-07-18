@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarDays } from 'lucide-react';
 import type { ItineraryDay } from '../../types';
-import { allItineraryItems } from '../../utils/tripExport';
+import { allItineraryItems } from '../../utils/itineraryDisplay';
 import { formatDayDate } from '../../utils/tripDisplay';
 import Card from '../ui/Card';
 import IconChip from '../ui/IconChip';

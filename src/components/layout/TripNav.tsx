@@ -9,7 +9,6 @@ import {
   Map,
   Wallet,
   StickyNote,
-  ClipboardCheck,
 } from 'lucide-react';
 
 interface TripTab {
@@ -27,7 +26,6 @@ const TRIP_TABS: TripTab[] = [
   { label: 'Map', icon: Map, path: 'map' },
   { label: 'Budget', icon: Wallet, path: 'budget' },
   { label: 'Notes', icon: StickyNote, path: 'notes' },
-  { label: 'Summary', icon: ClipboardCheck, path: 'summary' },
 ];
 
 const TripNav: React.FC<{ className?: string }> = ({ className = '' }) => {

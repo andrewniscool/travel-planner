@@ -18,7 +18,6 @@ const Itinerary = lazy(() => import('./pages/Itinerary'));
 const MapPage = lazy(() => import('./pages/MapPage'));
 const Budget = lazy(() => import('./pages/Budget'));
 const Notes = lazy(() => import('./pages/Notes'));
-const TripSummary = lazy(() => import('./pages/TripSummary'));
 const Profile = lazy(() => import('./pages/Profile'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
@@ -69,7 +68,6 @@ function App() {
                 <Route path="/trip/:tripId/map" element={<MapPage />} />
                 <Route path="/trip/:tripId/budget" element={<Budget />} />
                 <Route path="/trip/:tripId/notes" element={<Notes />} />
-                <Route path="/trip/:tripId/summary" element={<TripSummary />} />
                 <Route path="/profile" element={<Profile />} />
               </Route>
               <Route path="*" element={<NotFound />} />

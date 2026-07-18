@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Compass } from 'lucide-react';
+import { Compass, Download, Printer, Share2 } from 'lucide-react';
 import { useTripData } from '../hooks/useTripData';
 import { getUnfinishedSteps } from '../utils/planningChecklist';
+import { buildTripSummaryText, downloadTextFile, safeFilename } from '../utils/tripExport';
 import EmptyState from '../components/ui/EmptyState';
 import InlineNotice from '../components/ui/InlineNotice';
 import TripNav from '../components/layout/TripNav';
@@ -14,12 +15,14 @@ import ItineraryPreviewCard from '../components/trip-details/ItineraryPreviewCar
 import NextStepsCard from '../components/trip-details/NextStepsCard';
 import BudgetSnapshotCard from '../components/trip-details/BudgetSnapshotCard';
 import SavedPlacesCard from '../components/trip-details/SavedPlacesCard';
+import OverflowMenu from '../components/ui/OverflowMenu';
 
 const TripDetails: React.FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
   const navigate = useNavigate();
   const data = useTripData(tripId);
   const { trip } = data;
+  const [actionStatus, setActionStatus] = useState<string | null>(null);
 
   if (data.isLoading) {
     return (
@@ -45,6 +48,31 @@ const TripDetails: React.FC = () => {
 
   const nextStepRoute = getUnfinishedSteps(trip.planningProgress)[0]?.route ?? 'itinerary';
 
+  const handleExport = () => {
+    downloadTextFile(`${safeFilename(data.tripName)}-summary.txt`, buildTripSummaryText(data));
+    setActionStatus('Trip exported.');
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: data.tripName,
+      text: `${data.tripName} - ${data.locationLabel}`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setActionStatus('Trip shared.');
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        setActionStatus('Trip link copied.');
+      }
+    } catch {
+      setActionStatus('Unable to share this trip right now.');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <TripHeroCard
@@ -52,7 +80,33 @@ const TripDetails: React.FC = () => {
         tripName={data.tripName}
         locationLabel={data.locationLabel}
         nextStepRoute={nextStepRoute}
+        actions={
+          <OverflowMenu
+            label="Export, share, or print trip"
+            items={[
+              { label: 'Export', icon: <Download className="h-4 w-4" />, onSelect: handleExport },
+              {
+                label: 'Share',
+                icon: <Share2 className="h-4 w-4" />,
+                onSelect: () => void handleShare(),
+              },
+              {
+                label: 'Print',
+                icon: <Printer className="h-4 w-4" />,
+                onSelect: () => window.print(),
+              },
+            ]}
+            buttonClassName="h-8 w-8 border border-app-border"
+            menuClassName="!bottom-full !top-auto !mb-1 !mt-0"
+          />
+        }
       />
+
+      {actionStatus && (
+        <p role="status" aria-live="polite" className="text-xs text-app-text-muted">
+          {actionStatus}
+        </p>
+      )}
 
       <TripNav />
 
@@ -67,6 +121,7 @@ const TripDetails: React.FC = () => {
         totalBudget={data.totalAllocated}
         savedPlacesCount={data.savedPlaces.length}
         progress={trip.planningProgress}
+        currency={trip.budgetCurrency}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -82,6 +137,7 @@ const TripDetails: React.FC = () => {
             tripId={trip.id}
             flight={data.selectedFlight}
             hotel={data.selectedHotel}
+            currency={trip.budgetCurrency}
           />
           <ItineraryPreviewCard tripId={trip.id} itinerary={data.itinerary} />
         </div>
@@ -92,6 +148,7 @@ const TripDetails: React.FC = () => {
             budget={data.budget}
             totalAllocated={data.totalAllocated}
             totalSpent={data.totalSpent}
+            currency={trip.budgetCurrency}
           />
           <SavedPlacesCard tripId={trip.id} places={data.savedPlaces} />
         </div>

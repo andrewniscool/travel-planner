@@ -1,7 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Plane } from 'lucide-react';
+import { ArrowRight, ExternalLink, Plane } from 'lucide-react';
 import type { Flight, Hotel } from '../../types';
+import { getSafeExternalUrl } from '../../utils/safeUrl';
+import type { BudgetCurrency } from '../../types';
+import { formatBudgetAmount } from '../../utils/budget';
 import Card from '../ui/Card';
 import IconChip from '../ui/IconChip';
 import ImagePlaceholder from '../ui/ImagePlaceholder';
@@ -12,6 +15,7 @@ interface BookingsCardProps {
   tripId: string;
   flight?: Flight;
   hotel?: Hotel;
+  currency?: BudgetCurrency;
 }
 
 const emptyRow = (label: string, linkLabel: string, to: string) => (
@@ -27,7 +31,12 @@ const emptyRow = (label: string, linkLabel: string, to: string) => (
   </div>
 );
 
-const BookingsCard: React.FC<BookingsCardProps> = ({ tripId, flight, hotel }) => {
+const BookingsCard: React.FC<BookingsCardProps> = ({ tripId, flight, hotel, currency }) => {
+  const flightUrl = getSafeExternalUrl(flight?.bookingUrl);
+  const hotelUrl = getSafeExternalUrl(
+    hotel?.locationRef?.websiteUri ?? hotel?.locationRef?.googleMapsUri,
+  );
+
   return (
     <Card hover={false} className="p-5">
       <SectionHeader title="Bookings" />
@@ -48,9 +57,19 @@ const BookingsCard: React.FC<BookingsCardProps> = ({ tripId, flight, hotel }) =>
             </div>
             <div className="shrink-0 text-right">
               <p className="text-sm font-semibold text-app-text-strong">
-                ${flight.price.toLocaleString()}
+                {formatBudgetAmount(flight.price, currency)}
               </p>
               <p className="text-xs text-app-text-subtle">{flight.bookingSource}</p>
+              {flightUrl && (
+                <a
+                  href={flightUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary-600"
+                >
+                  Booking <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
             </div>
           </div>
         ) : (
@@ -76,11 +95,21 @@ const BookingsCard: React.FC<BookingsCardProps> = ({ tripId, flight, hotel }) =>
             </div>
             <div className="shrink-0 text-right">
               <p className="text-sm font-semibold text-app-text-strong">
-                ${hotel.pricePerNight}/night
+                {formatBudgetAmount(hotel.pricePerNight, currency)}/night
               </p>
               <p className="text-xs text-app-text-subtle">
-                ${hotel.totalCost.toLocaleString()} total
+                {formatBudgetAmount(hotel.totalCost, currency)} total
               </p>
+              {hotelUrl && (
+                <a
+                  href={hotelUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary-600"
+                >
+                  Reservation <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
             </div>
           </div>
         ) : (

@@ -5,12 +5,15 @@ import type { TripBudget } from '../../data/budget';
 import Card from '../ui/Card';
 import ProgressBar from '../ui/ProgressBar';
 import SectionHeader from '../ui/SectionHeader';
+import type { BudgetCurrency } from '../../types';
+import { formatBudgetAmount } from '../../utils/budget';
 
 interface BudgetSnapshotCardProps {
   tripId: string;
   budget?: TripBudget;
   totalAllocated: number;
   totalSpent: number;
+  currency?: BudgetCurrency;
 }
 
 const progressColor = (pct: number) => (pct >= 100 ? 'error' : pct >= 75 ? 'warning' : 'primary');
@@ -20,6 +23,7 @@ const BudgetSnapshotCard: React.FC<BudgetSnapshotCardProps> = ({
   budget,
   totalAllocated,
   totalSpent,
+  currency,
 }) => {
   const pct = totalAllocated > 0 ? (totalSpent / totalAllocated) * 100 : 0;
   const topCategories = budget
@@ -43,9 +47,9 @@ const BudgetSnapshotCard: React.FC<BudgetSnapshotCardProps> = ({
       {budget ? (
         <>
           <p className="text-lg font-semibold text-app-text-strong">
-            ${totalSpent.toLocaleString()}{' '}
+            {formatBudgetAmount(totalSpent, currency)}{' '}
             <span className="text-sm font-normal text-app-text-muted">
-              of ${totalAllocated.toLocaleString()}
+              of {formatBudgetAmount(totalAllocated, currency)}
             </span>
           </p>
           <ProgressBar className="mt-2" value={pct} size="sm" color={progressColor(pct)} />
@@ -59,7 +63,8 @@ const BudgetSnapshotCard: React.FC<BudgetSnapshotCardProps> = ({
                       {cat.icon} {cat.name}
                     </span>
                     <span className="text-app-text-muted">
-                      ${cat.spent.toLocaleString()} / ${cat.allocated.toLocaleString()}
+                      {formatBudgetAmount(cat.spent, currency)} /{' '}
+                      {formatBudgetAmount(cat.allocated, currency)}
                     </span>
                   </div>
                   <ProgressBar value={catPct} size="sm" color={progressColor(catPct)} />

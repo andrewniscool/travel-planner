@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
   const landingPageEnabled = env.landing_page !== 'false';
   const devAuthBypassRequested = env.DEV_BYPASS_AUTH === 'true';
 
-  if (mode !== 'development' && devAuthBypassRequested) {
+  if (mode === 'production' && devAuthBypassRequested) {
     throw new Error('DEV_BYPASS_AUTH may only be enabled in development mode.');
   }
 

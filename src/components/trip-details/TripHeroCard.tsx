@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Calendar, Clock, MapPin, Pencil, Users, Wallet } from 'lucide-react';
 import type { Trip } from '../../types';
+import { formatBudgetAmount } from '../../utils/budget';
 import { formatDateRange, getDaysUntil } from '../../utils/tripDisplay';
 import Badge from '../ui/Badge';
 import Button from '../ui/Button';
@@ -15,6 +16,7 @@ interface TripHeroCardProps {
   tripName: string;
   locationLabel: string;
   nextStepRoute: string;
+  actions?: React.ReactNode;
 }
 
 const TripHeroCard: React.FC<TripHeroCardProps> = ({
@@ -22,6 +24,7 @@ const TripHeroCard: React.FC<TripHeroCardProps> = ({
   tripName,
   locationLabel,
   nextStepRoute,
+  actions,
 }) => {
   const days = getDaysUntil(trip.startDate);
   const countdown =
@@ -69,7 +72,7 @@ const TripHeroCard: React.FC<TripHeroCardProps> = ({
           </span>
           <span className="flex items-center gap-2">
             <Wallet className="h-4 w-4 text-app-text-subtle" />
-            ${trip.budget.toLocaleString()} budget
+            {formatBudgetAmount(trip.budget, trip.budgetCurrency)} budget
           </span>
         </div>
         <Pill
@@ -98,6 +101,7 @@ const TripHeroCard: React.FC<TripHeroCardProps> = ({
               Edit trip
             </Button>
           </Link>
+          {actions}
         </div>
       </div>
     </Card>

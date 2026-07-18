@@ -1,6 +1,7 @@
 import type { TripData } from '../hooks/useTripData';
-import type { ItineraryDay, ItineraryItem } from '../types';
+import { allItineraryItems } from './itineraryDisplay';
 import { formatDayDate, formatLongDate } from './tripDisplay';
+import { formatBudgetAmount } from './budget';
 
 export function safeFilename(value: string): string {
   const fallback = 'trip-summary';
@@ -24,12 +25,6 @@ export function downloadTextFile(filename: string, content: string) {
   link.remove();
   URL.revokeObjectURL(url);
 }
-
-export const allItineraryItems = (day: ItineraryDay): ItineraryItem[] => [
-  ...day.morning,
-  ...day.afternoon,
-  ...day.evening,
-];
 
 export function buildTripSummaryText(data: TripData): string {
   const {
@@ -61,7 +56,7 @@ export function buildTripSummaryText(data: TripData): string {
     tripRoute,
     `${formatLongDate(trip.startDate)} - ${formatLongDate(trip.endDate)}`,
     `${trip.travelers} traveler${trip.travelers === 1 ? '' : 's'}`,
-    `$${trip.budget.toLocaleString()} budget`,
+    `${formatBudgetAmount(trip.budget, trip.budgetCurrency)} budget`,
     '',
   ];
 
@@ -81,7 +76,7 @@ export function buildTripSummaryText(data: TripData): string {
       `- ${selectedFlight.airline}: ${selectedFlight.departureAirportCode} -> ${selectedFlight.arrivalAirportCode}`,
       `- Time: ${selectedFlight.departureTime} - ${selectedFlight.arrivalTime}`,
       `- Duration: ${selectedFlight.duration}`,
-      `- Price: $${selectedFlight.price.toLocaleString()}`,
+      `- Price: ${formatBudgetAmount(selectedFlight.price, trip.budgetCurrency)}`,
       `- Source: ${selectedFlight.bookingSource}`,
     );
   } else {
@@ -110,8 +105,8 @@ export function buildTripSummaryText(data: TripData): string {
     lines.push(
       `- ${selectedHotel.name}`,
       `- ${selectedHotel.neighborhood}`,
-      `- $${selectedHotel.pricePerNight}/night`,
-      `- $${selectedHotel.totalCost.toLocaleString()} total`,
+      `- ${formatBudgetAmount(selectedHotel.pricePerNight, trip.budgetCurrency)}/night`,
+      `- ${formatBudgetAmount(selectedHotel.totalCost, trip.budgetCurrency)} total`,
     );
   } else {
     lines.push('- No hotel selected');
@@ -135,11 +130,11 @@ export function buildTripSummaryText(data: TripData): string {
   if (budget) {
     budget.categories.forEach((category) => {
       lines.push(
-        `- ${category.name}: $${category.spent.toLocaleString()} spent of $${category.allocated.toLocaleString()}`,
+        `- ${category.name}: ${formatBudgetAmount(category.spent, trip.budgetCurrency)} spent of ${formatBudgetAmount(category.allocated, trip.budgetCurrency)}`,
       );
     });
     lines.push(
-      `Total: $${totalSpent.toLocaleString()} spent of $${totalAllocated.toLocaleString()} allocated`,
+      `Total: ${formatBudgetAmount(totalSpent, trip.budgetCurrency)} spent of ${formatBudgetAmount(totalAllocated, trip.budgetCurrency)} allocated`,
     );
   } else {
     lines.push('- No budget data');

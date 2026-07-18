@@ -1,20 +1,18 @@
 import React from 'react';
 import { Bookmark, Calendar, Wallet } from 'lucide-react';
+import { formatCurrencyTotals, type CurrencyTotal } from '../../utils/dashboardStats';
 import Card from '../ui/Card';
-const StatStrip: React.FC<{ upcomingCount: number; plannedSpend: number; savedPlaces: number }> = ({
-  upcomingCount,
-  plannedSpend,
-  savedPlaces,
-}) => {
+
+const StatStrip: React.FC<{
+  upcomingCount: number;
+  plannedSpend: CurrencyTotal[];
+  savedPlaces: number;
+}> = ({ upcomingCount, plannedSpend, savedPlaces }) => {
   const stats = [
     { icon: Calendar, value: upcomingCount, label: 'Upcoming trips' },
     {
       icon: Wallet,
-      value: new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0,
-      }).format(plannedSpend),
+      value: formatCurrencyTotals(plannedSpend),
       label: 'Planned spend',
     },
     { icon: Bookmark, value: savedPlaces, label: 'Saved places' },

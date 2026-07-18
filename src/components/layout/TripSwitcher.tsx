@@ -171,7 +171,7 @@ const TripSwitcher: React.FC<TripSwitcherProps> = ({ isCollapsed, onNavigate }) 
             );
             if (!options.length) return;
             if (event.key === 'Home') options[0].focus();
-            else if (event.key === 'End') options.at(-1)?.focus();
+            else if (event.key === 'End') options[options.length - 1]?.focus();
             else {
               const currentIndex = options.indexOf(document.activeElement as HTMLButtonElement);
               const direction = event.key === 'ArrowDown' ? 1 : -1;

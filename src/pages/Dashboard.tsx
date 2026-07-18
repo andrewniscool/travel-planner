@@ -12,6 +12,7 @@ import EmptyState from '../components/ui/EmptyState';
 import FilterTabs from '../components/ui/FilterTabs';
 import SearchBar from '../components/ui/SearchBar';
 import { useTripWorkspace } from '../hooks/useTripWorkspace';
+import { groupTripBudgets } from '../utils/dashboardStats';
 import { selectNextTrip } from '../utils/tripDisplay';
 
 const tabs = ['All', 'Upcoming', 'Planning', 'Booked', 'Past'];
@@ -51,7 +52,7 @@ const Dashboard: React.FC = () => {
   }, [activeTab, searchQuery, tripList]);
   const nextTrip = useMemo(() => selectNextTrip(tripList), [tripList]);
   const upcomingCount = tripList.filter((trip) => trip.status === 'upcoming').length;
-  const totalBudget = tripList.reduce((sum, trip) => sum + trip.budget, 0);
+  const plannedSpend = useMemo(() => groupTripBudgets(tripList), [tripList]);
   const savedPlaces = useMemo(
     () =>
       tripList.reduce(
@@ -109,7 +110,7 @@ const Dashboard: React.FC = () => {
       {tripList.length > 0 && (
         <StatStrip
           upcomingCount={upcomingCount}
-          plannedSpend={totalBudget}
+          plannedSpend={plannedSpend}
           savedPlaces={savedPlaces}
         />
       )}

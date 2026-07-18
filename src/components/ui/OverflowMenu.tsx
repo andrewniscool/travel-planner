@@ -25,6 +25,7 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const initialFocusRef = useRef<'first' | 'last' | null>(null);
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
@@ -33,20 +34,53 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [open]);
+  useEffect(() => {
+    if (!open || !initialFocusRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const menuItems = Array.from(
+        wrapperRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [],
+      );
+      const target =
+        initialFocusRef.current === 'last' ? menuItems[menuItems.length - 1] : menuItems[0];
+      initialFocusRef.current = null;
+      target?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
+
+  const openFromKeyboard = (initialFocus: 'first' | 'last') => {
+    initialFocusRef.current = initialFocus;
+    setOpen(true);
+  };
+
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
+      event.preventDefault();
       setOpen(false);
       triggerRef.current?.focus();
+      return;
+    }
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      const menuItems = Array.from(
+        wrapperRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [],
+      );
+      (event.key === 'Home' ? menuItems[0] : menuItems[menuItems.length - 1])?.focus();
+      return;
     }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       const menuItems = Array.from(
         wrapperRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [],
       );
+      if (!menuItems.length) return;
       const index = menuItems.indexOf(document.activeElement as HTMLButtonElement);
-      menuItems[
-        (index + (event.key === 'ArrowDown' ? 1 : -1) + menuItems.length) % menuItems.length
-      ]?.focus();
+      if (index === -1) {
+        (event.key === 'ArrowDown' ? menuItems[0] : menuItems[menuItems.length - 1])?.focus();
+        return;
+      }
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      menuItems[(index + direction + menuItems.length) % menuItems.length]?.focus();
     }
   };
   return (
@@ -57,6 +91,18 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
+        onKeyDown={(event) => {
+          if (open) return;
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            openFromKeyboard('first');
+          } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            openFromKeyboard('last');
+          } else if (event.key === 'Enter' || event.key === ' ') {
+            initialFocusRef.current = 'first';
+          }
+        }}
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();

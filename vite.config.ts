@@ -9,12 +9,18 @@ export default defineConfig(({ mode }) => {
   // at build time rather than being exposed as general browser environment vars.
   const env = loadEnv(mode, process.cwd(), '');
   const landingPageEnabled = env.landing_page !== 'false';
-  const signInPageEnabled = env.sign_in_page !== 'false';
+  const devAuthBypassRequested = env.DEV_BYPASS_AUTH === 'true';
+
+  if (mode !== 'development' && devAuthBypassRequested) {
+    throw new Error('DEV_BYPASS_AUTH may only be enabled in development mode.');
+  }
+
+  const devAuthBypassEnabled = mode === 'development' && devAuthBypassRequested;
 
   return {
     define: {
       __LANDING_PAGE_ENABLED__: JSON.stringify(landingPageEnabled),
-      __SIGN_IN_PAGE_ENABLED__: JSON.stringify(signInPageEnabled),
+      __DEV_AUTH_BYPASS_ENABLED__: JSON.stringify(devAuthBypassEnabled),
     },
     plugins: [
       react(),

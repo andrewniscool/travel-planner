@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LOCAL_TRIPS_STORAGE_KEY, trips as mockTrips } from '../data/trips';
 import { selectNextTrip } from '../utils/tripDisplay';
@@ -8,6 +8,7 @@ import { useServiceTrips } from './useServiceTrips';
 import { TripWorkspaceContext } from './tripWorkspaceContext';
 
 const ACTIVE_TRIP_STORAGE_KEY = 'travel-builder:active-trip';
+const HIDDEN_MOCK_TRIPS_STORAGE_KEY = 'travel-builder:hidden-mock-trips';
 
 const getTripIdFromPath = (pathname: string) => {
   const match = pathname.match(/^\/trip\/([^/]+)/);
@@ -25,7 +26,10 @@ const readLocalTrips = (): Trip[] => {
 export const TripWorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const [localTrips, setLocalTrips] = useLocalStorage<Trip[]>(LOCAL_TRIPS_STORAGE_KEY, []);
-  const [deletedMockTripIds, setDeletedMockTripIds] = useState<Set<string>>(new Set());
+  const [hiddenMockTripIds, setHiddenMockTripIds] = useLocalStorage<string[]>(
+    HIDDEN_MOCK_TRIPS_STORAGE_KEY,
+    [],
+  );
   const [selectedTripId, setSelectedTripId] = useLocalStorage<string | null>(
     ACTIVE_TRIP_STORAGE_KEY,
     null,
@@ -39,11 +43,12 @@ export const TripWorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fallbackTrips = useMemo(() => {
     const localTripIds = new Set(localTrips.map((trip) => trip.id));
+    const hiddenMockTrips = new Set(hiddenMockTripIds);
     return [
-      ...mockTrips.filter((trip) => !deletedMockTripIds.has(trip.id) && !localTripIds.has(trip.id)),
+      ...mockTrips.filter((trip) => !hiddenMockTrips.has(trip.id) && !localTripIds.has(trip.id)),
       ...localTrips,
     ];
-  }, [deletedMockTripIds, localTrips]);
+  }, [hiddenMockTripIds, localTrips]);
 
   const availableTrips = serviceTrips ?? fallbackTrips;
   const routeTripId = getTripIdFromPath(location.pathname);
@@ -74,7 +79,9 @@ export const TripWorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({
         if (localTrips.some((trip) => trip.id === tripId)) {
           setLocalTrips((current) => current.filter((trip) => trip.id !== tripId));
         } else {
-          setDeletedMockTripIds((current) => new Set([...current, tripId]));
+          setHiddenMockTripIds((current) =>
+            current.includes(tripId) ? current : [...current, tripId],
+          );
         }
       },
     }),
@@ -85,6 +92,7 @@ export const TripWorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({
       isLoading,
       localTrips,
       setLocalTrips,
+      setHiddenMockTripIds,
       setSelectedTripId,
       source,
     ],

@@ -130,6 +130,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             </div>
 
             <DateRangePicker
+              months={2}
               startValue={stop.startDate}
               endValue={stop.endDate}
               onChange={(range) =>

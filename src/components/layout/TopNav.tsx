@@ -15,6 +15,8 @@ const PATH_LABELS: Record<string, string> = {
   hotels: 'Hotels',
   explore: 'Explore',
   itinerary: 'Itinerary',
+  plan: 'Plan',
+  bookings: 'Bookings',
   map: 'Map',
   budget: 'Budget',
   notes: 'Notes',

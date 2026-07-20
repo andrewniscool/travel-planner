@@ -3,12 +3,10 @@ import { NavLink, Link } from 'react-router-dom';
 import {
   Compass,
   LayoutDashboard,
-  Plane,
-  Building2,
   CalendarDays,
+  Luggage,
   Map,
   Wallet,
-  StickyNote,
   Menu,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -29,13 +27,10 @@ interface NavItem {
 
 const TRIP_NAV: NavItem[] = [
   { label: 'Overview', icon: LayoutDashboard, to: '' },
-  { label: 'Transportation', icon: Plane, to: 'flights' },
-  { label: 'Hotels', icon: Building2, to: 'hotels' },
-  { label: 'Explore', icon: Compass, to: 'explore' },
-  { label: 'Itinerary', icon: CalendarDays, to: 'itinerary' },
-  { label: 'Map', icon: Map, to: 'map' },
+  { label: 'Plan', icon: CalendarDays, to: 'plan' },
+  { label: 'Bookings', icon: Luggage, to: 'bookings' },
   { label: 'Budget', icon: Wallet, to: 'budget' },
-  { label: 'Notes', icon: StickyNote, to: 'notes' },
+  { label: 'Map', icon: Map, to: 'map' },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed, onToggleCollapse }) => {

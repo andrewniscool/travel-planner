@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getTripFromStorageOrMock } from './useTrip';
 import { useServiceTrip } from './useServiceTrips';
 import { getFlightsByTripId } from '../data/flights';
@@ -24,6 +24,23 @@ import type {
   Trip,
   TripStop,
 } from '../types';
+import {
+  getAuthenticatedUserId,
+  itineraryService,
+  lodgingService,
+  notesService,
+  savedPlaceService,
+} from '../services/travelDataService';
+import { mapLodgingOptionRowToHotel, mapSavedPlaceRowToPlace } from '../services/tripMappers';
+
+interface ServiceTripContent {
+  tripId: string;
+  hotels: Hotel[];
+  places: Place[];
+  itinerary: ItineraryDay[];
+  notes: Note[];
+  checklist: ChecklistItem[];
+}
 
 export interface StopHighlight {
   stop: TripStop;
@@ -74,17 +91,62 @@ export function useTripData(tripId: string | undefined): TripData {
     trip: serviceTrip,
     isLoading: isLoadingServiceTrip,
     error: serviceError,
+    source: tripSource,
   } = useServiceTrip(tripId);
   const trip = serviceTrip ?? fallbackTrip;
+  const [serviceContent, setServiceContent] = useState<ServiceTripContent | null>(null);
+
+  useEffect(() => {
+    if (!trip || tripSource !== 'supabase') {
+      setServiceContent(null);
+      return;
+    }
+    const currentTrip = trip;
+    let cancelled = false;
+    setServiceContent(null);
+
+    getAuthenticatedUserId()
+      .then(async (userId) => {
+        if (!userId) return null;
+        const [lodgingRows, savedPlaceRows, itinerary, notes, checklist] = await Promise.all([
+          lodgingService.listLodgingOptions(currentTrip.id),
+          savedPlaceService.listSavedPlaces(currentTrip.id),
+          itineraryService.listItineraryDays(currentTrip.id),
+          notesService.listNotes(currentTrip.id),
+          notesService.listChecklistItems(currentTrip.id),
+        ]);
+        return {
+          tripId: currentTrip.id,
+          hotels: lodgingRows.map((row) => mapLodgingOptionRowToHotel(row, currentTrip.id)),
+          places: savedPlaceRows
+            .filter((row) => row.is_saved)
+            .map((row) => mapSavedPlaceRowToPlace(row, currentTrip.id)),
+          itinerary,
+          notes,
+          checklist,
+        };
+      })
+      .then((content) => {
+        if (!cancelled && content) setServiceContent(content);
+      })
+      .catch(() => {
+        if (!cancelled) setServiceContent(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trip, tripSource]);
 
   const derived = useMemo(() => {
     const flights = trip ? getFlightsByTripId(trip.id) : [];
-    const hotels = trip ? getHotelsByTripId(trip.id) : [];
-    const places = trip ? getPlacesByTripId(trip.id) : [];
-    const itinerary = trip ? getItineraryByTripId(trip.id) : [];
+    const related = serviceContent?.tripId === trip?.id ? serviceContent : null;
+    const hotels = related?.hotels ?? (trip ? getHotelsByTripId(trip.id) : []);
+    const places = related?.places ?? (trip ? getPlacesByTripId(trip.id) : []);
+    const itinerary = related?.itinerary ?? (trip ? getItineraryByTripId(trip.id) : []);
     const budget = trip ? getBudgetByTripId(trip.id) : undefined;
-    const notes = trip ? getNotesByTripId(trip.id) : [];
-    const checklist = trip ? getChecklistByTripId(trip.id) : [];
+    const notes = related?.notes ?? (trip ? getNotesByTripId(trip.id) : []);
+    const checklist = related?.checklist ?? (trip ? getChecklistByTripId(trip.id) : []);
     const orderedStops = trip ? [...trip.stops].sort((a, b) => a.order - b.order) : [];
 
     const selectedFlight = flights.find((flight) => flight.isSelected);
@@ -143,7 +205,7 @@ export function useTripData(tripId: string | undefined): TripData {
       getStopName,
       stopHighlights,
     };
-  }, [trip]);
+  }, [serviceContent, trip]);
 
   return {
     trip,

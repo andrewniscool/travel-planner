@@ -1,26 +1,12 @@
 import React from 'react';
-import { Car, MapPin, Moon, Plus, Sun, Sunrise } from 'lucide-react';
+import { Car, MapPin, Plus } from 'lucide-react';
 import ItineraryItemRow from './ItineraryItemRow';
-import type { ItineraryDay, ItineraryItem, TimeOfDay, TripStop } from '../../types';
-
-const timeOfDayConfig: Record<TimeOfDay, { label: string; icon: React.ReactNode; color: string }> =
-  {
-    morning: {
-      label: 'Morning',
-      icon: <Sunrise className="w-4 h-4" />,
-      color: 'text-warning-500',
-    },
-    afternoon: {
-      label: 'Afternoon',
-      icon: <Sun className="w-4 h-4" />,
-      color: 'text-primary-500',
-    },
-    evening: {
-      label: 'Evening',
-      icon: <Moon className="w-4 h-4" />,
-      color: 'text-accent-500',
-    },
-  };
+import LocalTransportRow from '../plan/LocalTransportRow';
+import StayCard from '../plan/StayCard';
+import TransportTransitionCard from '../plan/TransportTransitionCard';
+import TravelArrivalMarker from '../plan/TravelArrivalMarker';
+import type { PlanTimelineEntry } from '../../utils/planTimeline';
+import type { BudgetCurrency, Hotel, ItineraryDay, ItineraryItem, TimeOfDay, TransportSegment, TripStop } from '../../types';
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
@@ -36,10 +22,15 @@ interface DaySectionProps {
   stop?: TripStop;
   showStopLabel: boolean;
   isTravelDay: boolean;
-  itemsMap: Record<string, ItineraryItem[]>;
+  currency?: BudgetCurrency;
+  entries: PlanTimelineEntry[];
   onAddItem: (dayNumber: number, timeOfDay: TimeOfDay) => void;
   onEditItem: (item: ItineraryItem) => void;
   onRemoveItem: (itemId: string) => void;
+  onEditTransport: (segment: TransportSegment) => void;
+  onDeleteTransport: (segment: TransportSegment) => void;
+  onEditStay: (hotel: Hotel) => void;
+  onDeleteStay: (hotel: Hotel) => void;
 }
 
 const DaySection: React.FC<DaySectionProps> = ({
@@ -47,13 +38,16 @@ const DaySection: React.FC<DaySectionProps> = ({
   stop,
   showStopLabel,
   isTravelDay,
-  itemsMap,
+  currency,
+  entries,
   onAddItem,
   onEditItem,
   onRemoveItem,
+  onEditTransport,
+  onDeleteTransport,
+  onEditStay,
+  onDeleteStay,
 }) => {
-  const timeSections: TimeOfDay[] = ['morning', 'afternoon', 'evening'];
-
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
@@ -83,57 +77,23 @@ const DaySection: React.FC<DaySectionProps> = ({
         </div>
       </div>
 
-      <div className="ml-5 pl-4 sm:ml-6 sm:pl-6 border-l-2 border-app-border-muted space-y-5">
-        {timeSections.map((timeOfDay) => {
-          const config = timeOfDayConfig[timeOfDay];
-          const sectionKey = `${day.dayNumber}-${timeOfDay}`;
-          const items = itemsMap[sectionKey] || [];
-
-          return (
-            <div key={timeOfDay} className="space-y-2.5">
-              <div className="flex items-center gap-2">
-                <span className={config.color}>{config.icon}</span>
-                <h3 className="text-sm font-semibold text-app-text">{config.label}</h3>
-                {items.length > 0 && (
-                  <span className="text-xs text-app-text-subtle">
-                    {items.length} item{items.length !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
-
-              {items.length > 0 ? (
-                <div className="space-y-2">
-                  {items.map((item) => (
-                    <ItineraryItemRow
-                      key={item.id}
-                      item={item}
-                      onEdit={onEditItem}
-                      onRemove={onRemoveItem}
-                    />
-                  ))}
-                  <button
-                    onClick={() => onAddItem(day.dayNumber, timeOfDay)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-app-text-subtle hover:text-primary-700 hover:bg-primary-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add Item
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3 p-4 rounded-xl border border-dashed border-app-border bg-app-surface-subtle">
-                  <p className="text-sm text-app-text-subtle">No activities planned</p>
-                  <button
-                    onClick={() => onAddItem(day.dayNumber, timeOfDay)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add
-                  </button>
-                </div>
-              )}
-            </div>
-          );
+      <div className="ml-5 space-y-2 border-l-2 border-app-border-muted pl-4 sm:ml-6 sm:pl-6">
+        {entries.map((entry) => {
+          if (entry.kind === 'itinerary') return <ItineraryItemRow key={entry.id} item={entry.item} onEdit={onEditItem} onRemove={onRemoveItem} />;
+          if (entry.kind === 'stay') return <StayCard key={entry.id} hotel={entry.hotel} currency={currency} onEdit={onEditStay} onDelete={onDeleteStay} />;
+          if (entry.kind === 'travel-arrival') return <TravelArrivalMarker key={entry.id} segment={entry.segment} />;
+          return entry.prominent
+            ? <TransportTransitionCard key={entry.id} segment={entry.segment} onEdit={onEditTransport} onDelete={onDeleteTransport} />
+            : <LocalTransportRow key={entry.id} segment={entry.segment} onEdit={onEditTransport} onDelete={onDeleteTransport} />;
         })}
+        {entries.length === 0 && <p className="rounded-xl border border-dashed border-app-border bg-app-surface-subtle p-4 text-sm text-app-text-subtle">Nothing scheduled yet.</p>}
+        <button
+          type="button"
+          onClick={() => onAddItem(day.dayNumber, 'morning')}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-primary-700 transition-colors hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add item
+        </button>
       </div>
     </div>
   );

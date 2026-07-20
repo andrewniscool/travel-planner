@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { Plus, Receipt, Search } from 'lucide-react';
 import { useTrip } from '../hooks/useTrip';
 import { getBudgetByTripId } from '../data/budget';
 import type { TripBudget } from '../data/budget';
@@ -16,13 +17,13 @@ import {
 } from '../utils/budget';
 import Card from '../components/ui/Card';
 import BudgetOverview from '../components/budget/BudgetOverview';
-import BudgetCategoryGrid from '../components/budget/BudgetCategoryGrid';
 import StopBudgetBreakdown from '../components/budget/StopBudgetBreakdown';
-import BudgetBreakdownCard from '../components/budget/BudgetBreakdownCard';
+import BudgetDonutRail from '../components/budget/BudgetDonutRail';
 import ExpenseManagerModal, {
   type ExpenseFormState,
 } from '../components/budget/ExpenseManagerModal';
 import Select from '../components/ui/Select';
+import Button from '../components/ui/Button';
 import type { BudgetCategory, BudgetCurrency, BudgetExpense, TransportSegment } from '../types';
 
 const LOCAL_BUDGET_EXPENSES_KEY = 'travel-builder:budget-expenses';
@@ -38,14 +39,6 @@ const emptyExpenseForm = (category = '', stopId = ''): ExpenseFormState => ({
   date: '',
   notes: '',
 });
-
-function getBudgetStatus(spent: number, allocated: number): 'green' | 'yellow' | 'red' {
-  if (allocated === 0) return 'red';
-  const ratio = spent / allocated;
-  if (ratio < 0.8) return 'green';
-  if (ratio <= 1.0) return 'yellow';
-  return 'red';
-}
 
 function getBudgetProgressBarColor(
   spent: number,
@@ -137,18 +130,8 @@ const getTravelSegmentTitle = (segment: TransportSegment) => {
   return `${label}: ${segment.departureLocation} → ${segment.arrivalLocation}`;
 };
 
-const getCategoryDetailsPath = (tripId: string, categoryName: string) => {
-  if (categoryName === 'Flights') return `/trip/${tripId}/flights`;
-  if (categoryName === 'Hotel') return `/trip/${tripId}/hotels`;
-  if (categoryName === 'Activities' || categoryName === 'Transportation') {
-    return `/trip/${tripId}/itinerary`;
-  }
-  return null;
-};
-
 const Budget: React.FC = () => {
   const { tripId: routeTripId } = useParams<{ tripId: string }>();
-  const navigate = useNavigate();
   const fallbackTrip = useTrip();
   const {
     trip: serviceTrip,
@@ -186,6 +169,7 @@ const Budget: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<BudgetCategory | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [expenseForm, setExpenseForm] = useState<ExpenseFormState>(emptyExpenseForm());
+  const [expenseQuery, setExpenseQuery] = useState('');
 
   useEffect(() => {
     if (!tripId) return;
@@ -334,6 +318,14 @@ const Budget: React.FC = () => {
   const remaining = totalAllocated - totalSpent;
   const costPerTraveler = trip ? totalSpent / trip.travelers : 0;
   const overallProgress = totalAllocated > 0 ? (totalSpent / totalAllocated) * 100 : 0;
+  const recentExpenses = useMemo(() => {
+    const query = expenseQuery.trim().toLowerCase();
+    const manual = expenses.map((expense) => ({ id: expense.id, title: expense.title, category: expense.category, date: expense.date, amount: expense.amount, stopId: expense.stopId, source: 'Manual' as const }));
+    const imported = travelSegments.filter((segment) => typeof segment.price === 'number').map((segment) => ({ id: `travel-${segment.id}`, title: getTravelSegmentTitle(segment), category: getTravelSegmentCategoryName(segment), date: segment.departureDateTime?.slice(0, 10), amount: segment.price || 0, stopId: getTravelSegmentStopId(segment), source: 'Booking' as const }));
+    return [...manual, ...imported]
+      .filter((item) => !query || `${item.title} ${item.category} ${item.source}`.toLowerCase().includes(query))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }, [expenseQuery, expenses, travelSegments]);
 
   const selectedCategoryExpenses = useMemo(() => {
     if (!selectedCategory) return [];
@@ -567,43 +559,30 @@ const Budget: React.FC = () => {
         getProgressColor={getBudgetProgressBarColor}
       />
 
-      {/* Budget category cards */}
-      {budget && (
-        <BudgetCategoryGrid
-          categories={categoriesWithExpenses}
-          orderedStops={orderedStops}
-          isMultiStop={isMultiStop}
-          formatMoney={formatMoney}
-          getStatus={getBudgetStatus}
-          getProgressColor={getBudgetProgressBarColor}
-          getDetailsPath={(categoryName) => getCategoryDetailsPath(trip.id, categoryName)}
-          onManageExpenses={openExpenseListModal}
-          onSaveBudget={handleSaveBudgetAllocation}
-          onViewDetails={navigate}
-        />
-      )}
+      {budget && <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)] lg:items-start">
+        <div className="min-w-0 space-y-6">
+          <Card hover={false} className="overflow-hidden p-0">
+            <div className="flex flex-col gap-4 border-b border-app-border-muted p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div><h2 className="text-lg font-semibold text-app-text-strong">Expense activity</h2><p className="mt-0.5 text-sm text-app-text-muted">Bookings and manual expenses in one place.</p></div>
+              <Button size="sm" onClick={() => { const category = categoriesWithExpenses[0]; if (category) openAddExpenseForm(category); }}><Plus className="mr-1.5 h-4 w-4" />Add expense</Button>
+            </div>
+            <div className="border-b border-app-border-muted p-4 sm:p-5"><label className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-text-subtle" /><input value={expenseQuery} onChange={(event) => setExpenseQuery(event.target.value)} placeholder="Search expenses or categories" className="w-full rounded-xl border border-app-border bg-app-surface pl-10 pr-4 py-2.5 text-sm text-app-text focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20" /></label></div>
+            {recentExpenses.length > 0 ? <div className="divide-y divide-app-border-muted">
+              {recentExpenses.slice(0, 12).map((expense) => {
+                const category = categoriesWithExpenses.find((item) => item.name === expense.category && (item.stopId || '') === (expense.stopId || '')) || categoriesWithExpenses.find((item) => item.name === expense.category);
+                return <button key={expense.id} type="button" onClick={() => { if (category) openExpenseListModal(category); }} className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-4 px-5 py-4 text-left transition-colors hover:bg-app-surface-muted sm:grid-cols-[minmax(0,1fr)_8rem_7rem_auto] sm:items-center">
+                  <div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-app-surface-muted text-app-text-muted"><Receipt className="h-4 w-4" /></span><div className="min-w-0"><p className="truncate text-sm font-semibold text-app-text-strong">{expense.title}</p><p className="mt-0.5 text-xs text-app-text-muted sm:hidden">{expense.category} · {expense.source}</p></div></div>
+                  <span className="hidden text-sm text-app-text-muted sm:block">{expense.category}</span><span className="hidden text-xs text-app-text-subtle sm:block">{expense.date || 'No date'}</span><span className="font-semibold text-app-text-strong">{formatMoney(expense.amount)}</span>
+                </button>;
+              })}
+            </div> : <div className="px-5 py-14 text-center"><Receipt className="mx-auto h-7 w-7 text-app-text-subtle" /><p className="mt-3 text-sm font-medium text-app-text">{expenseQuery ? 'No matching expenses' : 'No itemized expenses yet'}</p><p className="mt-1 text-xs text-app-text-muted">{expenseQuery ? 'Try a different search.' : 'Category totals are tracked above. Add an expense to start the detailed activity list.'}</p></div>}
+          </Card>
 
-      {/* Stop-level breakdown */}
-      {budget && isMultiStop && (
-        <StopBudgetBreakdown
-          tripLevelCategories={tripLevelCategories}
-          stopBudgetBreakdown={stopBudgetBreakdown}
-          formatMoney={formatMoney}
-          sumAllocated={sumAllocated}
-          sumSpent={sumSpent}
-          getProgressColor={getBudgetProgressBarColor}
-        />
-      )}
+          {isMultiStop && <StopBudgetBreakdown tripLevelCategories={tripLevelCategories} stopBudgetBreakdown={stopBudgetBreakdown} formatMoney={formatMoney} sumAllocated={sumAllocated} sumSpent={sumSpent} getProgressColor={getBudgetProgressBarColor} />}
+        </div>
 
-      {/* Visual breakdown section */}
-      {budget && (
-        <BudgetBreakdownCard
-          categories={categoriesWithExpenses}
-          totalSpent={totalSpent}
-          totalAllocated={totalAllocated}
-          formatMoney={formatMoney}
-        />
-      )}
+        <BudgetDonutRail categories={categoriesWithExpenses} stops={orderedStops} totalAllocated={totalAllocated} totalSpent={totalSpent} formatMoney={formatMoney} onManage={openExpenseListModal} onSaveAllocation={handleSaveBudgetAllocation} />
+      </div>}
 
       <ExpenseManagerModal
         isOpen={expenseListModalOpen}

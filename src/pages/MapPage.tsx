@@ -654,7 +654,7 @@ const MapPage: React.FC = () => {
                             meta={lodging.neighborhood}
                             rating={lodging.rating}
                             actionLabel="Hotels"
-                            onAction={() => navigate(`${tripBasePath}/hotels`)}
+                            onAction={() => navigate(`${tripBasePath}/plan?add=stay`)}
                           />
                         )}
                         {topPlaces.map((place) => (
@@ -671,7 +671,7 @@ const MapPage: React.FC = () => {
                             meta={`${place.category} · ${place.location}`}
                             rating={place.rating}
                             actionLabel="Explore"
-                            onAction={() => navigate(`${tripBasePath}/explore`)}
+                            onAction={() => navigate(`${tripBasePath}/plan?add=place`)}
                           />
                         ))}
                         {stopTransport.map((segment) => (
@@ -687,7 +687,7 @@ const MapPage: React.FC = () => {
                             title={segment.provider || getTransportLabel(segment, orderedStops)}
                             meta={`${segment.departureLocation} to ${segment.arrivalLocation}`}
                             actionLabel="Travel"
-                            onAction={() => navigate(`${tripBasePath}/flights`)}
+                            onAction={() => navigate(`${tripBasePath}/plan?add=transport`)}
                           />
                         ))}
                         {!showLodging && topPlaces.length === 0 && stopTransport.length === 0 && (
@@ -712,7 +712,7 @@ const MapPage: React.FC = () => {
                         meta={selectedLodging.neighborhood}
                         rating={selectedLodging.rating}
                         actionLabel="Hotels"
-                        onAction={() => navigate(`${tripBasePath}/hotels`)}
+                        onAction={() => navigate(`${tripBasePath}/plan?add=stay`)}
                       />
                     )}
                   {selectedPlaces
@@ -741,7 +741,7 @@ const MapPage: React.FC = () => {
                         meta={`${place.category} · ${place.location}`}
                         rating={place.rating}
                         actionLabel="Explore"
-                        onAction={() => navigate(`${tripBasePath}/explore`)}
+                        onAction={() => navigate(`${tripBasePath}/plan?add=place`)}
                       />
                     ))}
                   {activeFilters.has('Itinerary') &&
@@ -755,7 +755,7 @@ const MapPage: React.FC = () => {
                           title={item.name}
                           meta={`${item.time} · ${item.location}`}
                           actionLabel="Itinerary"
-                          onAction={() => navigate(`${tripBasePath}/itinerary`)}
+                          onAction={() => navigate(`${tripBasePath}/plan`)}
                         />
                       ))}
                   {activeFilters.has('Transport') &&
@@ -781,7 +781,7 @@ const MapPage: React.FC = () => {
                           title={segment.provider || getTransportLabel(segment, orderedStops)}
                           meta={`${segment.departureLocation} to ${segment.arrivalLocation}`}
                           actionLabel="Travel"
-                          onAction={() => navigate(`${tripBasePath}/flights`)}
+                          onAction={() => navigate(`${tripBasePath}/plan?add=transport`)}
                         />
                       ))}
                   {!selectedLodging &&

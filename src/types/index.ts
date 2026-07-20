@@ -142,6 +142,10 @@ export interface Hotel {
   reviewCount: number;
   pricePerNight: number;
   totalCost: number;
+  checkIn?: string;
+  checkOut?: string;
+  bookingUrl?: string;
+  confirmationCode?: string;
   amenities: string[];
   neighborhood: string;
   locationRef?: LocationRef;

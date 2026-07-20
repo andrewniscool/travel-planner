@@ -22,7 +22,7 @@ const ItineraryPreviewCard: React.FC<ItineraryPreviewCardProps> = ({ tripId, iti
   return (
     <Card hover={false} className="p-5">
       <SectionHeader
-        title="Itinerary"
+        title="Upcoming plan"
         meta={
           itinerary.length > 0
             ? `${itinerary.length} day${itinerary.length === 1 ? '' : 's'}`
@@ -30,10 +30,10 @@ const ItineraryPreviewCard: React.FC<ItineraryPreviewCardProps> = ({ tripId, iti
         }
         action={
           <Link
-            to={`/trip/${tripId}/itinerary`}
+            to={`/trip/${tripId}/plan`}
             className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 transition-colors hover:text-primary-700"
           >
-            Open itinerary
+            Open Plan
             <ArrowRight className="h-4 w-4" />
           </Link>
         }
@@ -80,7 +80,7 @@ const ItineraryPreviewCard: React.FC<ItineraryPreviewCardProps> = ({ tripId, iti
           <IconChip tone="neutral" icon={<CalendarDays className="h-4 w-4" />} />
           <p className="text-sm text-app-text-muted">No itinerary planned yet</p>
           <Link
-            to={`/trip/${tripId}/itinerary`}
+            to={`/trip/${tripId}/plan`}
             className="text-sm font-medium text-primary-600 hover:text-primary-700"
           >
             Start planning →

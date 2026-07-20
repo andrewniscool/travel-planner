@@ -2,19 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Compass, Download, Printer, Share2 } from 'lucide-react';
 import { useTripData } from '../hooks/useTripData';
-import { getUnfinishedSteps } from '../utils/planningChecklist';
+import { getNextTripAction } from '../utils/nextTripAction';
 import { buildTripSummaryText, downloadTextFile, safeFilename } from '../utils/tripExport';
 import EmptyState from '../components/ui/EmptyState';
 import InlineNotice from '../components/ui/InlineNotice';
-import TripNav from '../components/layout/TripNav';
 import TripHeroCard from '../components/trip-details/TripHeroCard';
-import TripStatStrip from '../components/trip-details/TripStatStrip';
-import RouteCard from '../components/trip-details/RouteCard';
-import BookingsCard from '../components/trip-details/BookingsCard';
 import ItineraryPreviewCard from '../components/trip-details/ItineraryPreviewCard';
-import NextStepsCard from '../components/trip-details/NextStepsCard';
+import NextActionCard from '../components/trip-details/NextActionCard';
 import BudgetSnapshotCard from '../components/trip-details/BudgetSnapshotCard';
-import SavedPlacesCard from '../components/trip-details/SavedPlacesCard';
 import OverflowMenu from '../components/ui/OverflowMenu';
 
 const TripDetails: React.FC = () => {
@@ -46,7 +41,7 @@ const TripDetails: React.FC = () => {
     );
   }
 
-  const nextStepRoute = getUnfinishedSteps(trip.planningProgress)[0]?.route ?? 'itinerary';
+  const nextAction = getNextTripAction(data);
 
   const handleExport = () => {
     downloadTextFile(`${safeFilename(data.tripName)}-summary.txt`, buildTripSummaryText(data));
@@ -79,7 +74,6 @@ const TripDetails: React.FC = () => {
         trip={trip}
         tripName={data.tripName}
         locationLabel={data.locationLabel}
-        nextStepRoute={nextStepRoute}
         actions={
           <OverflowMenu
             label="Export, share, or print trip"
@@ -108,41 +102,19 @@ const TripDetails: React.FC = () => {
         </p>
       )}
 
-      <TripNav />
-
       {data.serviceError && (
         <InlineNotice variant="warning">
           Supabase trip details could not be loaded. Showing local trip data instead.
         </InlineNotice>
       )}
 
-      <TripStatStrip
-        tripLengthDays={data.tripLengthDays}
-        totalBudget={data.totalAllocated}
-        savedPlacesCount={data.savedPlaces.length}
-        progress={trip.planningProgress}
-        currency={trip.budgetCurrency}
-      />
+      <NextActionCard tripId={trip.id} action={nextAction} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          {data.isMultiStop && (
-            <RouteCard
-              stops={data.orderedStops}
-              segments={trip.transportSegments}
-              getStopName={data.getStopName}
-            />
-          )}
-          <BookingsCard
-            tripId={trip.id}
-            flight={data.selectedFlight}
-            hotel={data.selectedHotel}
-            currency={trip.budgetCurrency}
-          />
           <ItineraryPreviewCard tripId={trip.id} itinerary={data.itinerary} />
         </div>
         <div className="space-y-4">
-          <NextStepsCard tripId={trip.id} progress={trip.planningProgress} />
           <BudgetSnapshotCard
             tripId={trip.id}
             budget={data.budget}
@@ -150,7 +122,6 @@ const TripDetails: React.FC = () => {
             totalSpent={data.totalSpent}
             currency={trip.budgetCurrency}
           />
-          <SavedPlacesCard tripId={trip.id} places={data.savedPlaces} />
         </div>
       </div>
     </div>

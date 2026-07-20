@@ -73,7 +73,7 @@ const BookingsCard: React.FC<BookingsCardProps> = ({ tripId, flight, hotel, curr
             </div>
           </div>
         ) : (
-          emptyRow('No flight selected yet', 'Browse flights', `/trip/${tripId}/flights`)
+          emptyRow('No flight selected yet', 'Add transport', `/trip/${tripId}/plan?add=transport`)
         )}
         {hotel ? (
           <div className="flex items-start gap-3 rounded-xl border border-app-border-muted bg-app-surface p-3">
@@ -113,7 +113,7 @@ const BookingsCard: React.FC<BookingsCardProps> = ({ tripId, flight, hotel, curr
             </div>
           </div>
         ) : (
-          emptyRow('No hotel selected yet', 'Browse hotels', `/trip/${tripId}/hotels`)
+          emptyRow('No hotel selected yet', 'Add stay', `/trip/${tripId}/plan?add=stay`)
         )}
       </div>
     </Card>

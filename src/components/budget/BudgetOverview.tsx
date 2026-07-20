@@ -25,86 +25,17 @@ const BudgetOverview: React.FC<BudgetOverviewProps> = ({
   formatMoney,
   getProgressColor,
 }) => (
-  <>
-    <Card hover={false} className="p-6">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold text-neutral-800">
-          Overall Budget
-        </h2>
-        <span className="text-sm text-neutral-500">
-          {formatMoney(totalSpent)} of {formatMoney(totalAllocated)}
-        </span>
-      </div>
-      <ProgressBar
-        value={overallProgress}
-        color={getProgressColor(totalSpent, totalAllocated)}
-        showLabel
-        size="md"
-      />
-    </Card>
-
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <Card hover={false} className="p-5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-primary-50 text-primary-600">
-            <Wallet className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-neutral-900">
-              {formatMoney(totalAllocated)}
-            </p>
-            <p className="text-xs text-neutral-500 mt-0.5">Total Budget</p>
-          </div>
-        </div>
-      </Card>
-
-      <Card hover={false} className="p-5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-accent-50 text-accent-600">
-            <Receipt className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-neutral-900">
-              {formatMoney(totalSpent)}
-            </p>
-            <p className="text-xs text-neutral-500 mt-0.5">Estimated Cost</p>
-          </div>
-        </div>
-      </Card>
-
-      <Card hover={false} className="p-5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-success-50 text-success-600">
-            <PiggyBank className="w-5 h-5" />
-          </div>
-          <div>
-            <p
-              className={`text-xl font-bold ${remaining >= 0 ? 'text-success-600' : 'text-error-500'}`}
-            >
-              {formatMoney(Math.abs(remaining))}
-            </p>
-            <p className="text-xs text-neutral-500 mt-0.5">
-              {remaining >= 0 ? 'Remaining' : 'Over Budget'}
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      <Card hover={false} className="p-5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-neutral-100 text-neutral-600">
-            <User className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-neutral-900">
-              {formatMoney(Math.round(costPerTraveler))}
-            </p>
-            <p className="text-xs text-neutral-500 mt-0.5">Per Traveler</p>
-          </div>
-        </div>
-      </Card>
+  <Card hover={false} className="p-5">
+    <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+      {[
+        { label: 'Total budget', value: formatMoney(totalAllocated), icon: Wallet, tone: 'bg-primary-50 text-primary-600' },
+        { label: 'Spent so far', value: formatMoney(totalSpent), icon: Receipt, tone: 'bg-accent-50 text-accent-600' },
+        { label: remaining >= 0 ? 'Remaining' : 'Over budget', value: formatMoney(Math.abs(remaining)), icon: PiggyBank, tone: remaining >= 0 ? 'bg-success-50 text-success-600' : 'bg-error-50 text-error-500' },
+        { label: 'Per traveler', value: formatMoney(Math.round(costPerTraveler)), icon: User, tone: 'bg-app-surface-muted text-app-text-muted' },
+      ].map((item) => <div key={item.label} className="flex min-w-0 items-center gap-3"><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${item.tone}`}><item.icon className="h-5 w-5" /></span><div className="min-w-0"><p className="truncate text-lg font-semibold text-app-text-strong">{item.value}</p><p className="text-xs text-app-text-muted">{item.label}</p></div></div>)}
     </div>
-  </>
+    <div className="mt-5 border-t border-app-border-muted pt-4"><div className="mb-2 flex justify-between text-xs text-app-text-muted"><span>Overall spending</span><span>{Math.round(overallProgress)}%</span></div><ProgressBar value={overallProgress} color={getProgressColor(totalSpent, totalAllocated)} size="sm" /></div>
+  </Card>
 );
 
 export default BudgetOverview;

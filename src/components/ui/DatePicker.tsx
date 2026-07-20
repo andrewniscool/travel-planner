@@ -107,7 +107,8 @@ const CalendarMonth: React.FC<{
 const CalendarPopover: React.FC<{
   children: React.ReactNode;
   onClose: () => void;
-}> = ({ children, onClose }) => {
+  months: 1 | 2;
+}> = ({ children, onClose, months }) => {
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -130,7 +131,12 @@ const CalendarPopover: React.FC<{
   return (
     <div
       ref={panelRef}
-      className="absolute left-0 z-50 mt-2 w-[min(42rem,calc(100vw-2rem))] rounded-2xl border border-app-border bg-app-surface shadow-2xl"
+      className={[
+        'absolute left-0 z-50 mt-2 rounded-2xl border border-app-border bg-app-surface shadow-2xl',
+        months === 2
+          ? 'w-[min(42rem,calc(100vw-2rem))]'
+          : 'w-[min(22rem,calc(100vw-2rem))]',
+      ].join(' ')}
     >
       {children}
     </div>
@@ -143,6 +149,7 @@ interface DatePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  months?: 1 | 2;
 }
 
 export const DatePicker: React.FC<DatePickerProps> = ({
@@ -151,6 +158,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   onChange,
   placeholder = 'Add date',
   className = '',
+  months = 1,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [draftValue, setDraftValue] = useState(value);
@@ -190,7 +198,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       </button>
 
       {isOpen && (
-        <CalendarPopover onClose={() => setIsOpen(false)}>
+        <CalendarPopover onClose={() => setIsOpen(false)} months={months}>
           <div className="flex items-center justify-between border-b border-app-border-muted px-5 py-4">
             <button
               type="button"
@@ -210,8 +218,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
-          <div className="grid grid-cols-1 gap-8 p-5 md:grid-cols-2">
-            {[visibleMonth, addMonths(visibleMonth, 1)].map((month) => (
+          <div className={['grid grid-cols-1 gap-8 p-5', months === 2 ? 'md:grid-cols-2' : ''].join(' ')}>
+            {Array.from({ length: months }, (_, index) => addMonths(visibleMonth, index)).map((month) => (
               <CalendarMonth
                 key={`${month.getFullYear()}-${month.getMonth()}`}
                 monthDate={month}
@@ -261,6 +269,7 @@ interface DateRangePickerProps {
   error?: string;
   controlClassName?: string;
   buttonClassName?: string;
+  months?: 1 | 2;
 }
 
 export const DateRangePicker: React.FC<DateRangePickerProps> = ({
@@ -273,6 +282,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   error,
   controlClassName = '',
   buttonClassName = '',
+  months = 1,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selecting, setSelecting] = useState<'start' | 'end'>('start');
@@ -388,7 +398,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
       {error && <p className="mt-1.5 text-sm text-error-500">{error}</p>}
 
       {isOpen && (
-        <CalendarPopover onClose={closeCalendar}>
+        <CalendarPopover onClose={closeCalendar} months={months}>
           <div className="flex flex-col gap-4 border-b border-app-border-muted px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
@@ -423,8 +433,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-8 p-5 md:grid-cols-2">
-            {[visibleMonth, addMonths(visibleMonth, 1)].map((month) => (
+          <div className={['grid grid-cols-1 gap-8 p-5', months === 2 ? 'md:grid-cols-2' : ''].join(' ')}>
+            {Array.from({ length: months }, (_, index) => addMonths(visibleMonth, index)).map((month) => (
               <CalendarMonth
                 key={`${month.getFullYear()}-${month.getMonth()}`}
                 monthDate={month}

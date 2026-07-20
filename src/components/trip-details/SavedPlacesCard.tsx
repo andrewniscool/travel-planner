@@ -22,7 +22,7 @@ const SavedPlacesCard: React.FC<SavedPlacesCardProps> = ({ tripId, places }) => 
         meta={places.length ? String(places.length) : undefined}
         action={
           <Link
-            to={`/trip/${tripId}/explore`}
+            to={`/trip/${tripId}/plan#unscheduled`}
             className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 transition-colors hover:text-primary-700"
           >
             Explore
@@ -53,7 +53,7 @@ const SavedPlacesCard: React.FC<SavedPlacesCardProps> = ({ tripId, places }) => 
           <IconChip tone="neutral" icon={<MapPin className="h-4 w-4" />} />
           <p className="text-sm text-app-text-muted">No places saved yet</p>
           <Link
-            to={`/trip/${tripId}/explore`}
+            to={`/trip/${tripId}/plan?add=place`}
             className="text-sm font-medium text-primary-600 hover:text-primary-700"
           >
             Explore places →

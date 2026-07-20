@@ -2,13 +2,10 @@ import React from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Plane,
-  Building2,
-  Compass,
   CalendarDays,
+  Luggage,
   Map,
   Wallet,
-  StickyNote,
 } from 'lucide-react';
 
 interface TripTab {
@@ -19,13 +16,10 @@ interface TripTab {
 
 const TRIP_TABS: TripTab[] = [
   { label: 'Overview', icon: LayoutDashboard, path: '' },
-  { label: 'Travel', icon: Plane, path: 'flights' },
-  { label: 'Hotels', icon: Building2, path: 'hotels' },
-  { label: 'Explore', icon: Compass, path: 'explore' },
-  { label: 'Itinerary', icon: CalendarDays, path: 'itinerary' },
-  { label: 'Map', icon: Map, path: 'map' },
+  { label: 'Plan', icon: CalendarDays, path: 'plan' },
+  { label: 'Bookings', icon: Luggage, path: 'bookings' },
   { label: 'Budget', icon: Wallet, path: 'budget' },
-  { label: 'Notes', icon: StickyNote, path: 'notes' },
+  { label: 'Map', icon: Map, path: 'map' },
 ];
 
 const TripNav: React.FC<{ className?: string }> = ({ className = '' }) => {
